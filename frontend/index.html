@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html class="light" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>EcoTrack - Monitoreo en Tiempo Real</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.min.js"></script>
+<script id="tailwind-config">
+tailwind.config = {
+  darkMode: "class",
+  theme: { extend: {
+    "colors": {
+      "on-secondary":"#ffffff","surface-container-high":"#eae7e7","background":"#fcf9f8",
+      "on-error-container":"#93000a","on-surface-variant":"#3e4a3f","on-secondary-container":"#1b218f",
+      "tertiary":"#5d5f5f","on-surface":"#1c1b1b","outline-variant":"#bdcabc","surface-container":"#f0eded",
+      "surface-container-lowest":"#ffffff","on-primary-container":"#005025","secondary":"#4b53bc",
+      "primary-fixed-dim":"#66dd8b","surface-container-highest":"#e5e2e1","primary":"#006d36",
+      "surface":"#fcf9f8","error-container":"#ffdad6","surface-container-low":"#f6f3f2",
+      "on-error":"#ffffff","on-primary":"#ffffff","secondary-container":"#8991fe","on-background":"#1c1b1b",
+      "error":"#ba1a1a","outline":"#6e7a6e","surface-variant":"#e5e2e1","primary-container":"#50c878",
+      "primary-fixed":"#83fba5","inverse-primary":"#66dd8b","surface-dim":"#dcd9d9",
+      "on-tertiary-fixed-variant":"#454747","tertiary-container":"#b1b2b2"
+    },
+    "borderRadius":{"DEFAULT":"0.125rem","lg":"0.25rem","xl":"0.5rem","full":"0.75rem"},
+    "spacing":{"unit":"8px","gutter":"24px","stack-sm":"8px","stack-xl":"48px","margin":"32px","stack-lg":"24px","stack-xs":"4px","stack-md":"16px","container-max":"1440px"},
+    "fontFamily":{"headline-lg":["Inter"],"label-bold":["Inter"],"body-md":["Inter"],"headline-md":["Inter"],"data-mono":["Inter"],"body-lg":["Inter"],"headline-xl":["Inter"],"body-sm":["Inter"]},
+    "fontSize":{
+      "headline-lg":["32px",{"lineHeight":"40px","letterSpacing":"-0.01em","fontWeight":"600"}],
+      "label-bold":["12px",{"lineHeight":"16px","letterSpacing":"0.05em","fontWeight":"700"}],
+      "body-md":["16px",{"lineHeight":"24px","fontWeight":"400"}],
+      "headline-md":["24px",{"lineHeight":"32px","fontWeight":"600"}],
+      "data-mono":["14px",{"lineHeight":"20px","letterSpacing":"-0.01em","fontWeight":"500"}],
+      "body-lg":["18px",{"lineHeight":"28px","fontWeight":"400"}],
+      "headline-xl":["40px",{"lineHeight":"48px","letterSpacing":"-0.02em","fontWeight":"700"}],
+      "body-sm":["14px",{"lineHeight":"20px","fontWeight":"400"}]
+    }
+  }}
+}
+</script>
+<style>
+.material-symbols-outlined{font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24;}
+.precision-border{border:1px solid #E0E0E0;}
+.data-list-row:nth-child(even){background-color:#F9FAFB;}
+/* Dark mode overrides */
+.dark body{background:#1a1a1a;color:#e5e5e5;}
+.dark .bg-white{background:#2a2a2a!important;}
+.dark .bg-surface{background:#1e1e1e!important;}
+.dark .bg-surface-container{background:#252525!important;}
+.dark .bg-surface-container-low{background:#222!important;}
+.dark .bg-background{background:#1a1a1a!important;}
+.dark .text-on-surface{color:#e5e5e5!important;}
+.dark .precision-border{border-color:#444!important;}
+.dark .border-outline-variant{border-color:#444!important;}
+.dark .bg-surface-container-high{background:#333!important;}
+.dark .data-list-row:nth-child(even){background:#2f2f2f!important;}
+/* Toast */
+#toast{transition:all .4s;transform:translateY(100px);opacity:0;}
+#toast.show{transform:translateY(0);opacity:1;}
+/* Notif panel */
+#notif-panel{transition:all .3s;transform:translateX(100%);}
+#notif-panel.open{transform:translateX(0);}
+/* Profile dropdown */
+#profile-menu{display:none;}
+#profile-menu.open{display:block;}
+</style>
+</head>
+<body class="bg-background font-body-md text-on-background flex h-screen overflow-hidden">
+
+<!-- Toast bienvenida -->
+<div id="toast" class="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 bg-primary text-white px-6 py-3 rounded-full shadow-xl flex items-center gap-3 font-bold text-body-sm">
+  <span class="material-symbols-outlined">waving_hand</span>
+  <span id="toast-text">Bienvenido</span>
+</div>
+
+<!-- Panel de notificaciones -->
+<div id="notif-panel" class="fixed top-0 right-0 h-full w-80 bg-surface border-l border-outline-variant z-40 shadow-2xl flex flex-col">
+  <div class="px-6 py-4 border-b border-outline-variant flex justify-between items-center bg-on-secondary-container text-white">
+    <h3 class="font-bold text-body-lg flex items-center gap-2">
+      <span class="material-symbols-outlined">notifications</span> Notificaciones
+    </h3>
+    <button onclick="toggleNotif()" class="material-symbols-outlined hover:opacity-70">close</button>
+  </div>
+  <div id="notif-list" class="flex-1 overflow-y-auto p-4 space-y-3">
+    <p class="text-body-sm text-on-surface-variant text-center py-8">Sin notificaciones activas</p>
+  </div>
+</div>
+<div id="notif-overlay" class="fixed inset-0 bg-black/30 z-30 hidden" onclick="toggleNotif()"></div>
+
+<!-- Sidebar -->
+<aside class="flex flex-col h-screen py-margin gap-stack-md bg-surface-container border-r border-outline-variant w-64 shrink-0 hidden md:flex">
+  <div class="px-6 mb-2">
+    <img src="ecotrack-logo.png" alt="EcoTrack Logo" class="w-40 h-auto"/>
+  </div>
+  <nav class="flex-1 space-y-1">
+    <a class="flex items-center gap-3 py-3 px-4 bg-primary-container text-on-primary-container rounded-lg mx-2" href="index.html">
+      <span class="material-symbols-outlined">monitoring</span>
+      <span class="font-label-bold text-label-bold">Monitoreo</span>
+    </a>
+    <a class="flex items-center gap-3 py-3 px-4 text-on-surface-variant hover:bg-surface-container-highest transition-colors mx-2 rounded-lg" href="historico.html">
+      <span class="material-symbols-outlined">history</span>
+      <span class="font-label-bold text-label-bold">Histórico</span>
+    </a>
+    <a class="flex items-center gap-3 py-3 px-4 text-on-surface-variant hover:bg-surface-container-highest transition-colors mx-2 rounded-lg" href="configuracion.html">
+      <span class="material-symbols-outlined">settings</span>
+      <span class="font-label-bold text-label-bold">Configuración</span>
+    </a>
+    <a class="flex items-center gap-3 py-3 px-4 text-on-surface-variant hover:bg-surface-container-highest transition-colors mx-2 rounded-lg" href="auditor.html">
+      <span class="material-symbols-outlined">assignment</span>
+      <span class="font-label-bold text-label-bold">Auditoría</span>
+    </a>
+  </nav>
+
+  <!-- Perfil en sidebar -->
+  <div class="mt-auto px-2 pb-4 relative">
+    <button onclick="toggleProfile()" class="w-full flex items-center gap-3 py-3 px-4 hover:bg-surface-container-highest rounded-lg transition-colors text-left">
+      <div id="avatar-sidebar" class="h-9 w-9 rounded-full bg-primary flex items-center justify-center text-white font-bold text-body-sm shrink-0">--</div>
+      <div class="flex-1 min-w-0">
+        <p id="nombre-sidebar" class="font-bold text-on-surface text-body-sm truncate">—</p>
+        <p class="text-label-bold text-on-surface-variant">Administrador</p>
+      </div>
+      <span class="material-symbols-outlined text-on-surface-variant text-[18px]">expand_less</span>
+    </button>
+
+    <!-- Dropdown perfil -->
+    <div id="profile-menu" class="absolute bottom-full left-2 right-2 mb-1 bg-surface border border-outline-variant rounded-lg shadow-xl overflow-hidden">
+      <div class="px-4 py-3 border-b border-outline-variant bg-surface-container-low">
+        <p id="nombre-menu" class="font-bold text-on-surface text-body-sm">—</p>
+        <p id="user-menu" class="text-label-bold text-on-surface-variant">—</p>
+      </div>
+      <a href="#" class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container text-body-sm transition-colors">
+        <span class="material-symbols-outlined text-[18px]">person</span> Mi perfil
+      </a>
+      <a href="#" class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container text-body-sm transition-colors">
+        <span class="material-symbols-outlined text-[18px]">key</span> Cambiar contraseña
+      </a>
+      <div class="border-t border-outline-variant">
+        <button onclick="cerrarSesion()" class="w-full flex items-center gap-3 px-4 py-3 text-error hover:bg-error-container text-body-sm transition-colors">
+          <span class="material-symbols-outlined text-[18px]">logout</span> Cerrar sesión
+        </button>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<!-- Main -->
+<div class="flex-1 flex flex-col min-w-0 overflow-hidden">
+  <header class="flex justify-between items-center w-full px-gutter h-16 border-b border-outline-variant bg-surface shrink-0 z-10">
+    <span class="text-headline-md font-headline-md font-bold text-primary">EcoTrack Dashboard</span>
+    <div class="flex items-center gap-3">
+      <span id="tiempo-lectura" class="text-body-sm text-on-surface-variant hidden sm:block">—</span>
+      <span id="last-update" style="font-size:11px;color:#6e7a6e;background:#f0eded;padding:3px 10px;border-radius:99px;border:1px solid #bdcabc;">Cargando...</span>
+
+      <!-- Dark mode toggle -->
+      <button onclick="toggleDark()" id="btn-dark" class="p-2 text-on-surface-variant hover:bg-surface-container-high rounded-full transition-colors" title="Modo oscuro">
+        <span class="material-symbols-outlined">dark_mode</span>
+      </button>
+
+      <!-- Notificaciones -->
+      <button onclick="toggleNotif()" class="relative p-2 text-on-surface-variant hover:bg-surface-container-high rounded-full transition-colors">
+        <span class="material-symbols-outlined">notifications</span>
+        <span id="notif-badge" class="hidden absolute top-1 right-1 w-4 h-4 bg-error rounded-full text-white text-[9px] flex items-center justify-center font-bold">!</span>
+      </button>
+
+      <!-- Búsqueda -->
+      <div class="hidden sm:flex items-center bg-surface-container-high px-3 py-2 rounded-lg border border-outline-variant gap-2">
+        <span class="material-symbols-outlined text-on-surface-variant text-[18px]">search</span>
+        <input id="buscar-dispositivo" onkeyup="filtrarDispositivos()" class="bg-transparent border-none focus:ring-0 text-body-sm w-36 outline-none" placeholder="Buscar dispositivo..."/>
+      </div>
+    </div>
+  </header>
+
+  <main class="flex-1 overflow-y-auto p-gutter lg:p-margin">
+    <div class="max-w-container-max mx-auto space-y-stack-xl">
+
+      <!-- Banner alerta -->
+      <section id="alert-banner" class="hidden bg-error-container border-2 border-error p-stack-md rounded-lg flex items-start gap-4">
+        <div class="bg-error p-2 rounded text-white">
+          <span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1;">warning</span>
+        </div>
+        <div class="flex-1">
+          <h3 class="font-bold text-on-error-container text-body-lg">Dispositivo offline detectado</h3>
+          <p id="alert-text" class="text-on-error-container text-body-sm"></p>
+        </div>
+      </section>
+
+      <!-- Cards sensores -->
+      <section class="grid grid-cols-1 md:grid-cols-3 gap-gutter">
+        <div class="bg-white precision-border p-stack-lg rounded shadow-sm">
+          <div class="flex justify-between items-start mb-stack-md">
+            <span class="text-on-surface-variant font-label-bold uppercase">Temperatura</span>
+            <span class="material-symbols-outlined text-primary">thermostat</span>
+          </div>
+          <span id="val-temp" class="text-headline-xl font-headline-xl">--</span>
+          <div class="mt-stack-md h-1 w-full bg-surface-container overflow-hidden rounded">
+            <div id="bar-temp" class="bg-primary h-full transition-all duration-700" style="width:0%"></div>
+          </div>
+          <p id="sub-temp" class="text-body-sm text-on-surface-variant mt-1">—</p>
+        </div>
+        <div class="bg-white precision-border p-stack-lg rounded shadow-sm">
+          <div class="flex justify-between items-start mb-stack-md">
+            <span class="text-on-surface-variant font-label-bold uppercase">Humedad</span>
+            <span class="material-symbols-outlined text-secondary">humidity_percentage</span>
+          </div>
+          <span id="val-hum" class="text-headline-xl font-headline-xl">--</span>
+          <div class="mt-stack-md h-1 w-full bg-surface-container overflow-hidden rounded">
+            <div id="bar-hum" class="bg-secondary h-full transition-all duration-700" style="width:0%"></div>
+          </div>
+          <p id="sub-hum" class="text-body-sm text-on-surface-variant mt-1">—</p>
+        </div>
+        <div class="bg-white precision-border p-stack-lg rounded shadow-sm">
+          <div class="flex justify-between items-start mb-stack-md">
+            <span class="text-on-surface-variant font-label-bold uppercase">Luminosidad</span>
+            <span class="material-symbols-outlined text-tertiary">light_mode</span>
+          </div>
+          <span id="val-lux" class="text-headline-xl font-headline-xl">--</span>
+          <div class="mt-stack-md h-1 w-full bg-surface-container overflow-hidden rounded">
+            <div id="bar-lux" class="bg-tertiary h-full transition-all duration-700" style="width:0%"></div>
+          </div>
+          <p id="sub-lux" class="text-body-sm text-on-surface-variant mt-1">—</p>
+        </div>
+      </section>
+
+      <!-- Gráfico -->
+      <section class="bg-white precision-border rounded shadow-sm p-stack-lg">
+        <div class="flex justify-between items-center mb-stack-md">
+          <h2 class="font-headline-md text-on-secondary-container">Evolución en tiempo real</h2>
+          <span class="text-body-sm text-on-surface-variant">Últimas 20 lecturas</span>
+        </div>
+        <canvas id="grafico" height="90"></canvas>
+      </section>
+
+      <!-- Dispositivos + lecturas -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-gutter items-start">
+        <section class="lg:col-span-2 bg-white precision-border rounded shadow-sm overflow-hidden">
+          <div class="px-gutter py-4 bg-surface-container-low border-b border-outline-variant flex justify-between items-center">
+            <h2 class="font-headline-md text-on-secondary-container">Estado de Dispositivos</h2>
+            <button onclick="cargarDatos()" class="bg-white border border-outline px-3 py-1 text-xs font-bold uppercase tracking-widest hover:bg-surface-container transition-colors">Actualizar</button>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead class="bg-surface-container-high text-on-surface-variant text-label-bold">
+                <tr>
+                  <th class="px-gutter py-3">Dispositivo</th>
+                  <th class="px-gutter py-3">Ubicación</th>
+                  <th class="px-gutter py-3">Estado</th>
+                  <th class="px-gutter py-3">Última lectura</th>
+                </tr>
+              </thead>
+              <tbody id="tabla-dispositivos" class="text-body-sm divide-y divide-outline-variant">
+                <tr><td colspan="4" class="px-gutter py-4 text-center text-on-surface-variant">Cargando...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="bg-white precision-border rounded shadow-sm overflow-hidden flex flex-col">
+          <div class="px-gutter py-4 bg-on-secondary-container text-white">
+            <h2 class="font-headline-md flex items-center gap-2">
+              <span class="material-symbols-outlined">history</span> Lecturas Recientes
+            </h2>
+          </div>
+          <div id="lista-lecturas" class="flex-1 p-gutter space-y-3 overflow-y-auto max-h-72">
+            <p class="text-body-sm text-on-surface-variant">Cargando...</p>
+          </div>
+        </section>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<script>
+const API = `http://${location.hostname}:3000`;
+let grafico = null;
+let ultimaLectura = null;
+let todosDispositivos = [];
+
+// Auth
+const token = localStorage.getItem('ecotrack_token');
+if (!token) { window.location.href = 'login.html'; }
+
+// Datos del usuario
+const nombre = localStorage.getItem('ecotrack_nombre') || 'Usuario';
+const username = localStorage.getItem('ecotrack_username') || '';
+const iniciales = nombre.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2);
+document.getElementById('nombre-sidebar').textContent = nombre;
+document.getElementById('nombre-menu').textContent = nombre;
+document.getElementById('user-menu').textContent = username;
+document.getElementById('avatar-sidebar').textContent = iniciales;
+
+// Dark mode
+const darkPref = localStorage.getItem('ecotrack_dark') === 'true';
+if (darkPref) document.documentElement.classList.add('dark');
+
+function toggleDark() {
+  const isDark = document.documentElement.classList.toggle('dark');
+  localStorage.setItem('ecotrack_dark', isDark);
+  document.getElementById('btn-dark').querySelector('span').textContent = isDark ? 'light_mode' : 'dark_mode';
+}
+
+// Profile dropdown
+function toggleProfile() {
+  document.getElementById('profile-menu').classList.toggle('open');
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest('#profile-menu') && !e.target.closest('button[onclick="toggleProfile()"]')) {
+    document.getElementById('profile-menu').classList.remove('open');
+  }
+});
+
+// Notificaciones
+function toggleNotif() {
+  document.getElementById('notif-panel').classList.toggle('open');
+  document.getElementById('notif-overlay').classList.toggle('hidden');
+}
+
+// Cerrar sesión
+function cerrarSesion() {
+  localStorage.removeItem('ecotrack_token');
+  localStorage.removeItem('ecotrack_nombre');
+  localStorage.removeItem('ecotrack_username');
+  window.location.href = 'login.html';
+}
+
+// Manejo de sesión expirada / inválida: si cualquier fetch devuelve 401,
+// se limpia la sesión y se vuelve al login.
+function manejarNoAutorizado() {
+  localStorage.removeItem('ecotrack_token');
+  localStorage.removeItem('ecotrack_nombre');
+  localStorage.removeItem('ecotrack_username');
+  window.location.href = 'login.html';
+}
+
+// Búsqueda de dispositivos
+function filtrarDispositivos() {
+  const q = document.getElementById('buscar-dispositivo').value.toLowerCase();
+  const filtered = todosDispositivos.filter(d =>
+    d.codigo.toLowerCase().includes(q) || (d.ubicacion||'').toLowerCase().includes(q)
+  );
+  renderDispositivos(filtered);
+}
+
+function renderDispositivos(dispositivos) {
+  document.getElementById('tabla-dispositivos').innerHTML = dispositivos.map(d => {
+    const online = d.estado === 'online';
+    const ts = d.ultima_conexion ? new Date(d.ultima_conexion).toLocaleTimeString('es-AR') : 'Nunca';
+    return `<tr class="data-list-row hover:bg-primary-fixed/10 transition-colors">
+      <td class="px-gutter py-4 font-bold text-on-secondary-container">${d.codigo}</td>
+      <td class="px-gutter py-4">${d.ubicacion||'—'}</td>
+      <td class="px-gutter py-4"><span class="flex items-center gap-2 ${online?'text-primary':'text-error'} font-bold">
+        <span class="h-2 w-2 rounded-full ${online?'bg-primary animate-pulse':'bg-error'}"></span>${online?'Online':'Offline'}
+      </span></td>
+      <td class="px-gutter py-4 text-on-surface-variant">${ts}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="4" class="px-gutter py-4 text-center text-on-surface-variant">Sin resultados</td></tr>';
+}
+
+// Indicador "hace X segundos"
+function tiempoDesde(ts) {
+  const diff = Math.floor((Date.now() - new Date(ts)) / 1000);
+  if (diff < 60) return `hace ${diff}s`;
+  if (diff < 3600) return `hace ${Math.floor(diff/60)}min`;
+  return `hace ${Math.floor(diff/3600)}h`;
+}
+
+function actualizarTiempo() {
+  if (ultimaLectura) {
+    document.getElementById('tiempo-lectura').textContent = `Última lectura ${tiempoDesde(ultimaLectura)}`;
+  }
+}
+
+// Gráfico
+function iniciarGrafico() {
+  const ctx = document.getElementById('grafico').getContext('2d');
+  grafico = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [
+        { label: 'Temperatura (°C)', data: [], borderColor: '#006d36', backgroundColor: 'rgba(0,109,54,0.08)', tension: 0.4, pointRadius: 3 },
+        { label: 'Humedad (%)', data: [], borderColor: '#4b53bc', backgroundColor: 'rgba(75,83,188,0.08)', tension: 0.4, pointRadius: 3 },
+        { label: 'Luminosidad (%)', data: [], borderColor: '#5d5f5f', backgroundColor: 'rgba(93,95,95,0.05)', tension: 0.4, pointRadius: 3 }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { position: 'top' } },
+      scales: {
+        x: { ticks: { maxTicksLimit: 8, font: { size: 11 } } },
+        y: { beginAtZero: false, ticks: { font: { size: 11 } } }
+      }
+    }
+  });
+}
+
+// Carga de datos
+async function cargarDatos() {
+  try {
+    const h = { Authorization: token };
+
+    // Última lectura
+    const resU = await fetch(`${API}/api/lecturas/ultima`, { headers: h });
+    if (resU.status === 401) return manejarNoAutorizado();
+    const ultimas = await resU.json();
+    if (ultimas.length > 0) {
+      const u = ultimas[0];
+      ultimaLectura = u.timestamp;
+      const temp = parseFloat(u.temperatura);
+      const hum  = parseFloat(u.humedad);
+      const lux  = parseInt(u.luminosidad);
+      document.getElementById('val-temp').textContent = temp.toFixed(1) + 'ºC';
+      document.getElementById('val-hum').textContent  = hum.toFixed(1) + '%';
+      document.getElementById('val-lux').textContent  = lux + '%';
+      document.getElementById('bar-temp').style.width = Math.min((temp/50)*100,100)+'%';
+      document.getElementById('bar-hum').style.width  = Math.min(hum,100)+'%';
+      document.getElementById('bar-lux').style.width  = Math.min(lux,100)+'%';
+      document.getElementById('sub-temp').textContent = u.dispositivo_codigo + ' · ' + u.ubicacion;
+      document.getElementById('sub-hum').textContent  = new Date(u.timestamp).toLocaleTimeString('es-AR');
+      document.getElementById('sub-lux').textContent  = 'Nodo: ' + u.nombre;
+      actualizarTiempo();
+      document.getElementById('tiempo-lectura').classList.remove('hidden');
+    }
+
+    // Gráfico
+    const resL = await fetch(`${API}/api/lecturas?limite=20`, { headers: h });
+    if (resL.status === 401) return manejarNoAutorizado();
+    const lecturas = await resL.json();
+    const ord = [...lecturas].reverse();
+    if (grafico) {
+      grafico.data.labels = ord.map(l => new Date(l.timestamp).toLocaleTimeString('es-AR'));
+      grafico.data.datasets[0].data = ord.map(l => parseFloat(l.temperatura));
+      grafico.data.datasets[1].data = ord.map(l => parseFloat(l.humedad));
+      grafico.data.datasets[2].data = ord.map(l => parseInt(l.luminosidad));
+      grafico.update('none');
+    }
+
+    // Dispositivos
+    const resD = await fetch(`${API}/api/dispositivos/estado`, { headers: h });
+    if (resD.status === 401) return manejarNoAutorizado();
+    todosDispositivos = await resD.json();
+    const offline = todosDispositivos.filter(d => d.estado !== 'online');
+
+    if (offline.length > 0) {
+      document.getElementById('alert-banner').classList.remove('hidden');
+      document.getElementById('alert-text').textContent = offline.map(d=>d.codigo).join(', ') + ' sin señal.';
+      document.getElementById('notif-badge').classList.remove('hidden');
+      document.getElementById('notif-list').innerHTML = offline.map(d => `
+        <div class="border-l-4 border-error p-3 bg-error/5 rounded-r">
+          <p class="text-label-bold text-error uppercase mb-1">Offline · ${new Date().toLocaleTimeString('es-AR')}</p>
+          <p class="text-body-sm font-bold text-on-surface">${d.codigo} — ${d.ubicacion||'Sin ubicación'}</p>
+        </div>`).join('');
+    } else {
+      document.getElementById('alert-banner').classList.add('hidden');
+      document.getElementById('notif-badge').classList.add('hidden');
+      document.getElementById('notif-list').innerHTML = '<p class="text-body-sm text-on-surface-variant text-center py-8">Sin notificaciones activas</p>';
+    }
+
+    const q = document.getElementById('buscar-dispositivo').value;
+    if (q) filtrarDispositivos();
+    else renderDispositivos(todosDispositivos);
+
+    // Lecturas recientes
+    document.getElementById('lista-lecturas').innerHTML = lecturas.slice(0,8).map(l => `
+      <div class="border-l-4 border-primary p-3 bg-primary/5 rounded-r">
+        <p class="text-label-bold text-primary uppercase mb-1">${l.dispositivo_codigo} · ${new Date(l.timestamp).toLocaleTimeString('es-AR')}</p>
+        <p class="text-body-sm font-bold text-on-surface">🌡 ${parseFloat(l.temperatura).toFixed(1)}ºC &nbsp; 💧 ${parseFloat(l.humedad).toFixed(1)}% &nbsp; ☀ ${l.luminosidad}%</p>
+      </div>`).join('');
+
+    document.getElementById('last-update').textContent = 'Actualizado: ' + new Date().toLocaleTimeString('es-AR');
+  } catch(e) {
+    console.error(e);
+    document.getElementById('last-update').textContent = 'Error de conexión';
+  }
+}
+
+// Toast de bienvenida
+function mostrarToast() {
+  const toast = document.getElementById('toast');
+  document.getElementById('toast-text').textContent = `Bienvenido, ${nombre} 👋`;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 4000);
+}
+
+// Init
+iniciarGrafico();
+cargarDatos();
+mostrarToast();
+setInterval(cargarDatos, 15000);
+setInterval(actualizarTiempo, 10000);
+</script>
+</body></html>

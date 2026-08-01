@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html class="light" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>EcoTrack - Histórico</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.min.js"></script>
+<script id="tailwind-config">
+tailwind.config = {
+  darkMode: "class",
+  theme: { extend: {
+    "colors": {
+      "on-secondary":"#ffffff","surface-container-high":"#eae7e7","background":"#fcf9f8",
+      "on-error-container":"#93000a","on-surface-variant":"#3e4a3f","on-secondary-container":"#1b218f",
+      "tertiary":"#5d5f5f","on-surface":"#1c1b1b","outline-variant":"#bdcabc","surface-container":"#f0eded",
+      "surface-container-lowest":"#ffffff","on-primary-container":"#005025","secondary":"#4b53bc",
+      "primary-fixed-dim":"#66dd8b","surface-container-highest":"#e5e2e1","primary":"#006d36",
+      "surface":"#fcf9f8","error-container":"#ffdad6","surface-container-low":"#f6f3f2",
+      "on-error":"#ffffff","on-primary":"#ffffff","secondary-container":"#8991fe","on-background":"#1c1b1b",
+      "error":"#ba1a1a","outline":"#6e7a6e","surface-variant":"#e5e2e1","primary-container":"#50c878",
+      "primary-fixed":"#83fba5","inverse-primary":"#66dd8b","surface-dim":"#dcd9d9",
+      "on-tertiary-fixed-variant":"#454747","tertiary-container":"#b1b2b2"
+    },
+    "borderRadius":{"DEFAULT":"0.125rem","lg":"0.25rem","xl":"0.5rem","full":"0.75rem"},
+    "spacing":{"unit":"8px","gutter":"24px","stack-sm":"8px","stack-xl":"48px","margin":"32px","stack-lg":"24px","stack-xs":"4px","stack-md":"16px","container-max":"1440px"},
+    "fontFamily":{"headline-lg":["Inter"],"label-bold":["Inter"],"body-md":["Inter"],"headline-md":["Inter"],"data-mono":["Inter"],"body-lg":["Inter"],"headline-xl":["Inter"],"body-sm":["Inter"]},
+    "fontSize":{
+      "headline-lg":["32px",{"lineHeight":"40px","letterSpacing":"-0.01em","fontWeight":"600"}],
+      "label-bold":["12px",{"lineHeight":"16px","letterSpacing":"0.05em","fontWeight":"700"}],
+      "body-md":["16px",{"lineHeight":"24px","fontWeight":"400"}],
+      "headline-md":["24px",{"lineHeight":"32px","fontWeight":"600"}],
+      "data-mono":["14px",{"lineHeight":"20px","letterSpacing":"-0.01em","fontWeight":"500"}],
+      "body-lg":["18px",{"lineHeight":"28px","fontWeight":"400"}],
+      "headline-xl":["40px",{"lineHeight":"48px","letterSpacing":"-0.02em","fontWeight":"700"}],
+      "body-sm":["14px",{"lineHeight":"20px","fontWeight":"400"}]
+    }
+  }}
+}
+</script>
+<style>
+.material-symbols-outlined{font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24;}
+.precision-border{border:1px solid #E0E0E0;}
+.data-list-row:nth-child(even){background-color:#F9FAFB;}
+.dark body{background:#1a1a1a;color:#e5e5e5;}
+.dark .bg-white{background:#2a2a2a!important;}
+.dark .bg-surface{background:#1e1e1e!important;}
+.dark .bg-surface-container{background:#252525!important;}
+.dark .bg-surface-container-low{background:#222!important;}
+.dark .bg-background{background:#1a1a1a!important;}
+.dark .text-on-surface{color:#e5e5e5!important;}
+.dark .precision-border{border-color:#444!important;}
+.dark .border-outline-variant{border-color:#444!important;}
+.dark .bg-surface-container-high{background:#333!important;}
+.dark .data-list-row:nth-child(even){background:#2f2f2f!important;}
+#profile-menu{display:none;}
+#profile-menu.open{display:block;}
+.btn-periodo.active{background:#eae7e7;font-weight:700;}
+.dark .btn-periodo.active{background:#333!important;}
+</style>
+</head>
+<body class="bg-background font-body-md text-on-background flex h-screen overflow-hidden">
+
+<!-- Sidebar -->
+<aside class="flex flex-col h-screen py-margin gap-stack-md bg-surface-container border-r border-outline-variant w-64 shrink-0 hidden md:flex">
+  <div class="px-6 mb-2">
+    <img src="ecotrack-logo.png" alt="EcoTrack Logo" class="w-40 h-auto"/>
+  </div>
+  <nav class="flex-1 space-y-1">
+    <a class="flex items-center gap-3 py-3 px-4 text-on-surface-variant hover:bg-surface-container-highest transition-colors mx-2 rounded-lg" href="index.html">
+      <span class="material-symbols-outlined">monitoring</span>
+      <span class="font-label-bold text-label-bold">Monitoreo</span>
+    </a>
+    <a class="flex items-center gap-3 py-3 px-4 bg-primary-container text-on-primary-container rounded-lg mx-2" href="historico.html">
+      <span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1;">history</span>
+      <span class="font-label-bold text-label-bold">Histórico</span>
+    </a>
+    <a class="flex items-center gap-3 py-3 px-4 text-on-surface-variant hover:bg-surface-container-highest transition-colors mx-2 rounded-lg" href="configuracion.html">
+      <span class="material-symbols-outlined">settings</span>
+      <span class="font-label-bold text-label-bold">Configuración</span>
+    </a>
+    <a class="flex items-center gap-3 py-3 px-4 text-on-surface-variant hover:bg-surface-container-highest transition-colors mx-2 rounded-lg" href="auditor.html">
+      <span class="material-symbols-outlined">assignment</span>
+      <span class="font-label-bold text-label-bold">Auditoría</span>
+    </a>
+  </nav>
+
+  <div class="mt-auto px-2 pb-4 relative">
+    <button onclick="toggleProfile()" class="w-full flex items-center gap-3 py-3 px-4 hover:bg-surface-container-highest rounded-lg transition-colors text-left">
+      <div id="avatar-sidebar" class="h-9 w-9 rounded-full bg-primary flex items-center justify-center text-white font-bold text-body-sm shrink-0">--</div>
+      <div class="flex-1 min-w-0">
+        <p id="nombre-sidebar" class="font-bold text-on-surface text-body-sm truncate">—</p>
+        <p class="text-label-bold text-on-surface-variant">Administrador</p>
+      </div>
+      <span class="material-symbols-outlined text-on-surface-variant text-[18px]">expand_less</span>
+    </button>
+    <div id="profile-menu" class="absolute bottom-full left-2 right-2 mb-1 bg-surface border border-outline-variant rounded-lg shadow-xl overflow-hidden">
+      <div class="px-4 py-3 border-b border-outline-variant bg-surface-container-low">
+        <p id="nombre-menu" class="font-bold text-on-surface text-body-sm">—</p>
+        <p id="user-menu" class="text-label-bold text-on-surface-variant">—</p>
+      </div>
+      <a href="#" class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container text-body-sm transition-colors">
+        <span class="material-symbols-outlined text-[18px]">person</span> Mi perfil
+      </a>
+      <a href="#" class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container text-body-sm transition-colors">
+        <span class="material-symbols-outlined text-[18px]">key</span> Cambiar contraseña
+      </a>
+      <div class="border-t border-outline-variant">
+        <button onclick="cerrarSesion()" class="w-full flex items-center gap-3 px-4 py-3 text-error hover:bg-error-container text-body-sm transition-colors">
+          <span class="material-symbols-outlined text-[18px]">logout</span> Cerrar sesión
+        </button>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<!-- Main -->
+<div class="flex-1 flex flex-col min-w-0 overflow-hidden">
+  <header class="flex justify-between items-center w-full px-gutter h-16 border-b border-outline-variant bg-surface shrink-0 z-10">
+    <span class="text-headline-md font-headline-md font-bold text-primary">Histórico de Lecturas</span>
+    <div class="flex items-center gap-3">
+      <select id="select-dispositivo" onchange="onCambiarDispositivo()" class="text-body-sm border border-outline-variant rounded-lg px-3 py-2 bg-surface-container-low outline-none">
+        <option value="">Todos los dispositivos</option>
+      </select>
+      <button onclick="toggleDark()" id="btn-dark" class="p-2 text-on-surface-variant hover:bg-surface-container-high rounded-full transition-colors" title="Modo oscuro">
+        <span class="material-symbols-outlined">dark_mode</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="flex-1 overflow-y-auto p-gutter lg:p-margin">
+    <div class="max-w-container-max mx-auto space-y-stack-xl">
+
+      <!-- Selector de período -->
+      <div class="flex gap-2">
+        <button id="btn-dia" onclick="setPeriodo('dia')" class="btn-periodo px-4 py-2 rounded text-body-sm font-label-bold border border-outline-variant transition-colors">Día</button>
+        <button id="btn-semana" onclick="setPeriodo('semana')" class="btn-periodo active px-4 py-2 rounded text-body-sm font-label-bold border border-outline-variant transition-colors">Semana</button>
+        <button id="btn-mes" onclick="setPeriodo('mes')" class="btn-periodo px-4 py-2 rounded text-body-sm font-label-bold border border-outline-variant transition-colors">Mes</button>
+      </div>
+
+      <!-- Gráficos -->
+      <section class="grid grid-cols-1 lg:grid-cols-2 gap-gutter">
+        <div class="bg-white precision-border rounded shadow-sm p-stack-lg">
+          <div class="flex justify-between items-center mb-stack-sm">
+            <h3 class="font-headline-md text-on-secondary-container">Temperatura</h3>
+            <span id="stats-temp" class="text-body-sm text-on-surface-variant">—</span>
+          </div>
+          <canvas id="chart-temp" height="110"></canvas>
+        </div>
+        <div class="bg-white precision-border rounded shadow-sm p-stack-lg">
+          <div class="flex justify-between items-center mb-stack-sm">
+            <h3 class="font-headline-md text-on-secondary-container">Humedad Relativa</h3>
+            <span id="stats-hum" class="text-body-sm text-on-surface-variant">—</span>
+          </div>
+          <canvas id="chart-hum" height="110"></canvas>
+        </div>
+      </section>
+
+      <section class="bg-white precision-border rounded shadow-sm p-stack-lg">
+        <div class="flex justify-between items-center mb-stack-sm">
+          <h3 class="font-headline-md text-on-secondary-container">Intensidad Lumínica</h3>
+          <span id="stats-lux" class="text-body-sm text-on-surface-variant">—</span>
+        </div>
+        <canvas id="chart-lux" height="70"></canvas>
+      </section>
+
+      <!-- Tabla de registros -->
+      <section class="bg-white precision-border rounded shadow-sm overflow-hidden">
+        <div class="px-gutter py-4 bg-surface-container-low border-b border-outline-variant">
+          <h2 class="font-headline-md text-on-secondary-container">Registros de Sensor</h2>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead class="bg-surface-container-high text-on-surface-variant text-label-bold">
+              <tr>
+                <th class="px-gutter py-3">Timestamp</th>
+                <th class="px-gutter py-3">Dispositivo</th>
+                <th class="px-gutter py-3 text-right">Temp</th>
+                <th class="px-gutter py-3 text-right">Hum</th>
+                <th class="px-gutter py-3 text-right">Luz</th>
+              </tr>
+            </thead>
+            <tbody id="tabla-registros" class="text-body-sm divide-y divide-outline-variant">
+              <tr><td colspan="5" class="px-gutter py-4 text-center text-on-surface-variant">Cargando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<script>
+const API = `http://${location.hostname}:3000`;
+
+// Auth
+const token = localStorage.getItem('ecotrack_token');
+if (!token) { window.location.href = 'login.html'; }
+const nombre = localStorage.getItem('ecotrack_nombre') || 'Usuario';
+const username = localStorage.getItem('ecotrack_username') || '';
+const iniciales = nombre.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2);
+document.getElementById('nombre-sidebar').textContent = nombre;
+document.getElementById('nombre-menu').textContent = nombre;
+document.getElementById('user-menu').textContent = username;
+document.getElementById('avatar-sidebar').textContent = iniciales;
+
+// Dark mode
+const darkPref = localStorage.getItem('ecotrack_dark') === 'true';
+if (darkPref) document.documentElement.classList.add('dark');
+function toggleDark() {
+  const isDark = document.documentElement.classList.toggle('dark');
+  localStorage.setItem('ecotrack_dark', isDark);
+  document.getElementById('btn-dark').querySelector('span').textContent = isDark ? 'light_mode' : 'dark_mode';
+}
+
+// Profile dropdown
+function toggleProfile() { document.getElementById('profile-menu').classList.toggle('open'); }
+document.addEventListener('click', e => {
+  if (!e.target.closest('#profile-menu') && !e.target.closest('button[onclick="toggleProfile()"]')) {
+    document.getElementById('profile-menu').classList.remove('open');
+  }
+});
+
+function cerrarSesion() {
+  localStorage.removeItem('ecotrack_token');
+  localStorage.removeItem('ecotrack_nombre');
+  localStorage.removeItem('ecotrack_username');
+  window.location.href = 'login.html';
+}
+function manejarNoAutorizado() {
+  localStorage.removeItem('ecotrack_token');
+  localStorage.removeItem('ecotrack_nombre');
+  localStorage.removeItem('ecotrack_username');
+  window.location.href = 'login.html';
+}
+
+// Estado de la página
+let periodoActual = 'semana';
+let dispositivoActual = '';
+let chartTemp, chartHum, chartLux;
+
+function initCharts() {
+  const base = {
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: { x: { ticks: { maxTicksLimit: 8, font: { size: 11 } } }, y: { ticks: { font: { size: 11 } } } }
+  };
+  chartTemp = new Chart(document.getElementById('chart-temp').getContext('2d'), {
+    type: 'line',
+    data: { labels: [], datasets: [{ label: 'Temperatura (°C)', data: [], borderColor: '#006d36', backgroundColor: 'rgba(0,109,54,0.08)', tension: 0.4, pointRadius: 2, fill: true }] },
+    options: base
+  });
+  chartHum = new Chart(document.getElementById('chart-hum').getContext('2d'), {
+    type: 'bar',
+    data: { labels: [], datasets: [{ label: 'Humedad (%)', data: [], backgroundColor: '#4b53bc' }] },
+    options: base
+  });
+  chartLux = new Chart(document.getElementById('chart-lux').getContext('2d'), {
+    type: 'line',
+    data: { labels: [], datasets: [{ label: 'Luminosidad (%)', data: [], borderColor: '#5d5f5f', backgroundColor: 'rgba(93,95,95,0.06)', tension: 0.4, pointRadius: 2, fill: true }] },
+    options: base
+  });
+}
+
+async function cargarDispositivos() {
+  const res = await fetch(`${API}/api/dispositivos`, { headers: { Authorization: token } });
+  if (res.status === 401) return manejarNoAutorizado();
+  const dispositivos = await res.json();
+  const sel = document.getElementById('select-dispositivo');
+  sel.innerHTML = '<option value="">Todos los dispositivos</option>' +
+    dispositivos.map(d => `<option value="${d.codigo}">${d.codigo}${d.ubicacion ? ' — ' + d.ubicacion : ''}</option>`).join('');
+}
+
+function onCambiarDispositivo() {
+  dispositivoActual = document.getElementById('select-dispositivo').value;
+  cargarHistorico();
+}
+
+function setPeriodo(p) {
+  periodoActual = p;
+  document.querySelectorAll('.btn-periodo').forEach(b => b.classList.remove('active'));
+  document.getElementById('btn-' + p).classList.add('active');
+  cargarHistorico();
+}
+
+function formatearLabel(periodoISO) {
+  const fecha = new Date(periodoISO);
+  return periodoActual === 'dia'
+    ? fecha.toLocaleTimeString('es-AR', { hour: '2-digit' })
+    : fecha.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' });
+}
+
+async function cargarHistorico() {
+  const h = { Authorization: token };
+  try {
+    const params = new URLSearchParams({ periodo: periodoActual });
+    if (dispositivoActual) params.set('dispositivo', dispositivoActual);
+
+    const res = await fetch(`${API}/api/lecturas/agregado?${params}`, { headers: h });
+    if (res.status === 401) return manejarNoAutorizado();
+    const datos = await res.json();
+
+    const labels = datos.map(d => formatearLabel(d.periodo));
+
+    chartTemp.data.labels = labels;
+    chartTemp.data.datasets[0].data = datos.map(d => parseFloat(d.temperatura_avg));
+    chartTemp.update('none');
+
+    chartHum.data.labels = labels;
+    chartHum.data.datasets[0].data = datos.map(d => parseFloat(d.humedad_avg));
+    chartHum.update('none');
+
+    chartLux.data.labels = labels;
+    chartLux.data.datasets[0].data = datos.map(d => parseFloat(d.luminosidad_avg));
+    chartLux.update('none');
+
+    const tempsMin = datos.map(d => parseFloat(d.temperatura_min)).filter(n => !isNaN(n));
+    const tempsMax = datos.map(d => parseFloat(d.temperatura_max)).filter(n => !isNaN(n));
+    document.getElementById('stats-temp').textContent = tempsMin.length
+      ? `Mín ${Math.min(...tempsMin).toFixed(1)}°C · Máx ${Math.max(...tempsMax).toFixed(1)}°C` : 'Sin datos';
+
+    const humsMin = datos.map(d => parseFloat(d.humedad_min)).filter(n => !isNaN(n));
+    const humsMax = datos.map(d => parseFloat(d.humedad_max)).filter(n => !isNaN(n));
+    document.getElementById('stats-hum').textContent = humsMin.length
+      ? `Mín ${Math.min(...humsMin).toFixed(0)}% · Máx ${Math.max(...humsMax).toFixed(0)}%` : 'Sin datos';
+
+    const luxMax = datos.map(d => parseFloat(d.luminosidad_max)).filter(n => !isNaN(n));
+    document.getElementById('stats-lux').textContent = luxMax.length
+      ? `Pico: ${Math.max(...luxMax)}%` : 'Sin datos';
+
+    // Tabla de registros recientes
+    const params2 = new URLSearchParams({ limite: 50 });
+    if (dispositivoActual) params2.set('dispositivo', dispositivoActual);
+    const resL = await fetch(`${API}/api/lecturas?${params2}`, { headers: h });
+    if (resL.status === 401) return manejarNoAutorizado();
+    const lecturas = await resL.json();
+    renderTabla(lecturas);
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+function renderTabla(lecturas) {
+  document.getElementById('tabla-registros').innerHTML = lecturas.map(l => `
+    <tr class="data-list-row hover:bg-primary-fixed/10 transition-colors">
+      <td class="px-gutter py-3 font-data-mono">${new Date(l.timestamp).toLocaleString('es-AR')}</td>
+      <td class="px-gutter py-3">${l.dispositivo_codigo}</td>
+      <td class="px-gutter py-3 text-right">${parseFloat(l.temperatura).toFixed(1)}°C</td>
+      <td class="px-gutter py-3 text-right">${parseFloat(l.humedad).toFixed(1)}%</td>
+      <td class="px-gutter py-3 text-right">${l.luminosidad}%</td>
+    </tr>`).join('') || '<tr><td colspan="5" class="px-gutter py-4 text-center text-on-surface-variant">Sin registros</td></tr>';
+}
+
+// Init
+initCharts();
+cargarDispositivos().then(cargarHistorico);
+</script>
+</body></html>

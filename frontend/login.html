@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html class="light" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>EcoTrack - Login</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+tailwind.config = {
+  darkMode: "class",
+  theme: { extend: {
+    "colors": {
+      "on-tertiary-container": "#434545","primary-fixed": "#83fba5","surface-container-high": "#eae7e7",
+      "on-primary-fixed-variant": "#005227","tertiary-fixed-dim": "#c6c6c7","inverse-on-surface": "#f3f0ef",
+      "surface-bright": "#fcf9f8","error": "#ba1a1a","primary-fixed-dim": "#66dd8b",
+      "surface-container": "#f0eded","surface-container-highest": "#e5e2e1","secondary-fixed-dim": "#bfc2ff",
+      "secondary": "#4b53bc","on-error": "#ffffff","outline-variant": "#bdcabc","surface-dim": "#dcd9d9",
+      "inverse-primary": "#66dd8b","tertiary-fixed": "#e2e2e2","surface-container-lowest": "#ffffff",
+      "surface": "#fcf9f8","on-tertiary-fixed-variant": "#454747","secondary-container": "#8991fe",
+      "background": "#fcf9f8","surface-variant": "#e5e2e1","on-tertiary-fixed": "#1a1c1c",
+      "on-surface": "#1c1b1b","inverse-surface": "#313030","secondary-fixed": "#e0e0ff",
+      "on-background": "#1c1b1b","on-primary": "#ffffff","surface-tint": "#006d36",
+      "on-secondary-fixed": "#00006e","surface-container-low": "#f6f3f2","tertiary": "#5d5f5f",
+      "on-primary-fixed": "#00210c","on-secondary": "#ffffff","error-container": "#ffdad6",
+      "on-surface-variant": "#3e4a3f","primary": "#006d36","on-secondary-fixed-variant": "#3239a3",
+      "on-error-container": "#93000a","outline": "#6e7a6e","primary-container": "#50c878",
+      "on-secondary-container": "#1b218f","on-tertiary": "#ffffff","on-primary-container": "#005025",
+      "tertiary-container": "#b1b2b2"
+    },
+    "borderRadius": {"DEFAULT": "0.125rem","lg": "0.25rem","xl": "0.5rem","full": "0.75rem"},
+    "spacing": {"gutter": "24px","margin": "32px","stack-sm": "8px","stack-xl": "48px","unit": "8px","container-max": "1440px","stack-lg": "24px","stack-md": "16px","stack-xs": "4px"},
+    "fontFamily": {"headline-lg": ["Inter"],"body-md": ["Inter"],"headline-md": ["Inter"],"data-mono": ["Inter"],"headline-xl": ["Inter"],"body-sm": ["Inter"],"body-lg": ["Inter"],"label-bold": ["Inter"]},
+    "fontSize": {
+      "headline-lg": ["32px", {"lineHeight": "40px","letterSpacing": "-0.01em","fontWeight": "600"}],
+      "body-md": ["16px", {"lineHeight": "24px","fontWeight": "400"}],
+      "headline-md": ["24px", {"lineHeight": "32px","fontWeight": "600"}],
+      "data-mono": ["14px", {"lineHeight": "20px","letterSpacing": "-0.01em","fontWeight": "500"}],
+      "headline-xl": ["40px", {"lineHeight": "48px","letterSpacing": "-0.02em","fontWeight": "700"}],
+      "body-sm": ["14px", {"lineHeight": "20px","fontWeight": "400"}],
+      "body-lg": ["18px", {"lineHeight": "28px","fontWeight": "400"}],
+      "label-bold": ["12px", {"lineHeight": "16px","letterSpacing": "0.05em","fontWeight": "700"}]
+    }
+  }}
+}
+</script>
+<style>
+  body { font-family: 'Inter', sans-serif; }
+  .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+</style>
+</head>
+<body class="bg-surface-container min-h-screen flex items-center justify-center relative overflow-hidden">
+<div class="absolute inset-0 z-0 opacity-10 bg-cover bg-center" style="background-image: url('https://lh3.googleusercontent.com/aida/ADBb0uh-651_0fm4AUQJkdkgm7kxUBia37r9aHrB1lKSNFifMy1fSXgegNJM3y_i4sUhIjIQv8rii8wfJngMwafdG0kUiLiP9PFD6dYUYscsdFQnHXvWahtrVJ2QiBmNfok6P8pcXLE6MPr6OBXhRVjBE8YdWlopsQJjVVxBshQIe8mfAKoooB6MBqXCiRIRsuiilg-vfOxOGTVvJ2j4f8jcYl1fjSmfE5e-fH-epl2usGgxoKImDGRpLGe4P9PG')"></div>
+<main class="relative z-10 w-full max-w-[440px] px-gutter py-stack-xl">
+  <div class="bg-surface-container-lowest border border-outline-variant p-margin flex flex-col gap-stack-lg">
+    <div class="flex flex-col items-center gap-stack-md text-center">
+      <div class="w-48">
+        <img alt="EcoTrack Logo" class="w-full h-full object-contain" src="ecotrack-logo.png"/>
+      </div>
+      <p class="font-body-sm text-body-sm text-on-surface-variant mt-stack-xs uppercase tracking-widest font-semibold">Global Monitoring Portal</p>
+    </div>
+
+    <!-- Error message -->
+    <div id="error-msg" class="hidden bg-error-container border border-error text-on-error-container text-body-sm p-3 rounded flex items-center gap-2">
+      <span class="material-symbols-outlined text-error text-[18px]">error</span>
+      <span id="error-text">Usuario o contraseña incorrectos</span>
+    </div>
+
+    <form id="login-form" class="flex flex-col gap-stack-md">
+      <div class="flex flex-col gap-stack-sm">
+        <label class="font-label-bold text-label-bold text-on-surface-variant uppercase" for="username">Usuario</label>
+        <div class="relative group">
+          <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline">person</span>
+          <input class="w-full pl-10 pr-4 py-3 bg-surface border border-outline-variant text-on-surface font-body-md focus:border-on-surface-variant focus:ring-0 transition-all outline-none" id="username" placeholder="Ingresá tu usuario" type="text" autocomplete="username"/>
+        </div>
+      </div>
+      <div class="flex flex-col gap-stack-sm">
+        <label class="font-label-bold text-label-bold text-on-surface-variant uppercase" for="password">Contraseña</label>
+        <div class="relative group">
+          <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline">lock</span>
+          <input class="w-full pl-10 pr-4 py-3 bg-surface border border-outline-variant text-on-surface font-body-md focus:border-on-surface-variant focus:ring-0 transition-all outline-none" id="password" placeholder="••••••••" type="password" autocomplete="current-password"/>
+        </div>
+      </div>
+      <button id="btn-login" class="w-full h-[48px] bg-primary text-on-primary font-label-bold text-label-bold uppercase tracking-wider flex items-center justify-center gap-stack-sm hover:brightness-110 active:scale-[0.98] transition-all" type="submit">
+        <span id="btn-text">Iniciar Sesión</span>
+        <span class="material-symbols-outlined text-[20px]">login</span>
+      </button>
+    </form>
+  </div>
+  <div class="mt-stack-xl flex justify-between px-2">
+    <div class="flex items-center gap-stack-xs">
+      <span class="w-2 h-2 rounded-full bg-primary-container animate-pulse"></span>
+      <span class="font-label-bold text-label-bold text-on-surface-variant uppercase">System Active</span>
+    </div>
+    <span class="font-label-bold text-label-bold text-on-surface-variant opacity-50">V. 1.0.0</span>
+  </div>
+</main>
+
+<script>
+const API = `http://${location.hostname}:3000`;
+
+// Si ya está logueado, ir directo al dashboard
+if (localStorage.getItem('ecotrack_token')) {
+  window.location.href = 'index.html';
+}
+
+document.getElementById('login-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const username = document.getElementById('username').value.trim();
+  const password = document.getElementById('password').value;
+  const btn = document.getElementById('btn-login');
+  const btnText = document.getElementById('btn-text');
+  const errorMsg = document.getElementById('error-msg');
+  const errorText = document.getElementById('error-text');
+
+  if (!username || !password) {
+    errorText.textContent = 'Completá usuario y contraseña';
+    errorMsg.classList.remove('hidden');
+    return;
+  }
+
+  btn.disabled = true;
+  btnText.textContent = 'Ingresando...';
+  errorMsg.classList.add('hidden');
+
+  try {
+    const res = await fetch(`${API}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      errorText.textContent = data.error || 'Error al iniciar sesión';
+      errorMsg.classList.remove('hidden');
+      btn.disabled = false;
+      btnText.textContent = 'Iniciar Sesión';
+      return;
+    }
+
+    localStorage.setItem('ecotrack_token', data.token);
+    localStorage.setItem('ecotrack_username', data.username || username);
+    localStorage.setItem('ecotrack_nombre', data.nombre);
+    window.location.href = 'index.html';
+
+  } catch (err) {
+    errorText.textContent = 'No se pudo conectar al servidor';
+    errorMsg.classList.remove('hidden');
+    btn.disabled = false;
+    btnText.textContent = 'Iniciar Sesión';
+  }
+});
+</script>
+</body></html>
