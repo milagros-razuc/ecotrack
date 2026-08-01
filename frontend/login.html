@@ -6,47 +6,10 @@
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
-<script id="tailwind-config">
-tailwind.config = {
-  darkMode: "class",
-  theme: { extend: {
-    "colors": {
-      "on-tertiary-container": "#434545","primary-fixed": "#83fba5","surface-container-high": "#eae7e7",
-      "on-primary-fixed-variant": "#005227","tertiary-fixed-dim": "#c6c6c7","inverse-on-surface": "#f3f0ef",
-      "surface-bright": "#fcf9f8","error": "#ba1a1a","primary-fixed-dim": "#66dd8b",
-      "surface-container": "#f0eded","surface-container-highest": "#e5e2e1","secondary-fixed-dim": "#bfc2ff",
-      "secondary": "#4b53bc","on-error": "#ffffff","outline-variant": "#bdcabc","surface-dim": "#dcd9d9",
-      "inverse-primary": "#66dd8b","tertiary-fixed": "#e2e2e2","surface-container-lowest": "#ffffff",
-      "surface": "#fcf9f8","on-tertiary-fixed-variant": "#454747","secondary-container": "#8991fe",
-      "background": "#fcf9f8","surface-variant": "#e5e2e1","on-tertiary-fixed": "#1a1c1c",
-      "on-surface": "#1c1b1b","inverse-surface": "#313030","secondary-fixed": "#e0e0ff",
-      "on-background": "#1c1b1b","on-primary": "#ffffff","surface-tint": "#006d36",
-      "on-secondary-fixed": "#00006e","surface-container-low": "#f6f3f2","tertiary": "#5d5f5f",
-      "on-primary-fixed": "#00210c","on-secondary": "#ffffff","error-container": "#ffdad6",
-      "on-surface-variant": "#3e4a3f","primary": "#006d36","on-secondary-fixed-variant": "#3239a3",
-      "on-error-container": "#93000a","outline": "#6e7a6e","primary-container": "#50c878",
-      "on-secondary-container": "#1b218f","on-tertiary": "#ffffff","on-primary-container": "#005025",
-      "tertiary-container": "#b1b2b2"
-    },
-    "borderRadius": {"DEFAULT": "0.125rem","lg": "0.25rem","xl": "0.5rem","full": "0.75rem"},
-    "spacing": {"gutter": "24px","margin": "32px","stack-sm": "8px","stack-xl": "48px","unit": "8px","container-max": "1440px","stack-lg": "24px","stack-md": "16px","stack-xs": "4px"},
-    "fontFamily": {"headline-lg": ["Inter"],"body-md": ["Inter"],"headline-md": ["Inter"],"data-mono": ["Inter"],"headline-xl": ["Inter"],"body-sm": ["Inter"],"body-lg": ["Inter"],"label-bold": ["Inter"]},
-    "fontSize": {
-      "headline-lg": ["32px", {"lineHeight": "40px","letterSpacing": "-0.01em","fontWeight": "600"}],
-      "body-md": ["16px", {"lineHeight": "24px","fontWeight": "400"}],
-      "headline-md": ["24px", {"lineHeight": "32px","fontWeight": "600"}],
-      "data-mono": ["14px", {"lineHeight": "20px","letterSpacing": "-0.01em","fontWeight": "500"}],
-      "headline-xl": ["40px", {"lineHeight": "48px","letterSpacing": "-0.02em","fontWeight": "700"}],
-      "body-sm": ["14px", {"lineHeight": "20px","fontWeight": "400"}],
-      "body-lg": ["18px", {"lineHeight": "28px","fontWeight": "400"}],
-      "label-bold": ["12px", {"lineHeight": "16px","letterSpacing": "0.05em","fontWeight": "700"}]
-    }
-  }}
-}
-</script>
+<script src="shared/tailwind-config.js"></script>
+<link href="shared/common.css" rel="stylesheet"/>
 <style>
   body { font-family: 'Inter', sans-serif; }
-  .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
 </style>
 </head>
 <body class="bg-surface-container min-h-screen flex items-center justify-center relative overflow-hidden">

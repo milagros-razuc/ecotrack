@@ -1,0 +1,54 @@
+<aside class="flex flex-col h-screen py-margin gap-stack-md bg-surface-container border-r border-outline-variant w-64 shrink-0 hidden md:flex">
+  <div class="px-6 mb-2">
+    <img src="ecotrack-logo.png" alt="EcoTrack Logo" class="w-40 h-auto"/>
+  </div>
+  <nav class="flex-1 space-y-1">
+    <a data-page="index" class="flex items-center gap-3 py-3 px-4 rounded-lg mx-2" href="index.html">
+      <span class="material-symbols-outlined">monitoring</span>
+      <span class="font-label-bold text-label-bold">Monitoreo</span>
+    </a>
+    <a data-page="historico" class="flex items-center gap-3 py-3 px-4 rounded-lg mx-2" href="historico.html">
+      <span class="material-symbols-outlined">history</span>
+      <span class="font-label-bold text-label-bold">Histórico</span>
+    </a>
+    <a data-page="configuracion" class="flex items-center gap-3 py-3 px-4 rounded-lg mx-2" href="configuracion.html">
+      <span class="material-symbols-outlined">settings</span>
+      <span class="font-label-bold text-label-bold">Configuración</span>
+    </a>
+    <a data-page="auditor" class="flex items-center gap-3 py-3 px-4 rounded-lg mx-2" href="auditor.html">
+      <span class="material-symbols-outlined">assignment</span>
+      <span class="font-label-bold text-label-bold">Auditoría</span>
+    </a>
+  </nav>
+
+  <!-- Perfil en sidebar -->
+  <div class="mt-auto px-2 pb-4 relative">
+    <button onclick="toggleProfile()" class="w-full flex items-center gap-3 py-3 px-4 hover:bg-surface-container-highest rounded-lg transition-colors text-left">
+      <div id="avatar-sidebar" class="h-9 w-9 rounded-full bg-primary flex items-center justify-center text-white font-bold text-body-sm shrink-0">--</div>
+      <div class="flex-1 min-w-0">
+        <p id="nombre-sidebar" class="font-bold text-on-surface text-body-sm truncate">—</p>
+        <p class="text-label-bold text-on-surface-variant">Administrador</p>
+      </div>
+      <span class="material-symbols-outlined text-on-surface-variant text-[18px]">expand_less</span>
+    </button>
+
+    <!-- Dropdown perfil -->
+    <div id="profile-menu" class="absolute bottom-full left-2 right-2 mb-1 bg-surface border border-outline-variant rounded-lg shadow-xl overflow-hidden">
+      <div class="px-4 py-3 border-b border-outline-variant bg-surface-container-low">
+        <p id="nombre-menu" class="font-bold text-on-surface text-body-sm">—</p>
+        <p id="user-menu" class="text-label-bold text-on-surface-variant">—</p>
+      </div>
+      <a href="#" class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container text-body-sm transition-colors">
+        <span class="material-symbols-outlined text-[18px]">person</span> Mi perfil
+      </a>
+      <a href="#" class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container text-body-sm transition-colors">
+        <span class="material-symbols-outlined text-[18px]">key</span> Cambiar contraseña
+      </a>
+      <div class="border-t border-outline-variant">
+        <button onclick="cerrarSesion()" class="w-full flex items-center gap-3 px-4 py-3 text-error hover:bg-error-container text-body-sm transition-colors">
+          <span class="material-symbols-outlined text-[18px]">logout</span> Cerrar sesión
+        </button>
+      </div>
+    </div>
+  </div>
+</aside>
