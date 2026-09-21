@@ -1,211 +1,1789 @@
 <!DOCTYPE html>
-<html class="light" lang="es"><head>
-<meta charset="utf-8"/>
-<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>EcoTrack - Configuración</title>
-<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
-<script src="shared/tailwind-config.js"></script>
-<link href="shared/common.css" rel="stylesheet"/>
-<style>
-#toast{transition:all .4s;transform:translateY(100px);opacity:0;}
-#toast.show{transform:translateY(0);opacity:1;}
-</style>
+<html class="light" lang="es">
+
+<head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+
+  <title>EcoTrack - Configuración</title>
+
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+
+  <!-- Fuentes -->
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
+
+  <link
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700&display=swap"
+    rel="stylesheet"
+  />
+
+  <!-- Configuración compartida -->
+  <script src="shared/tailwind-config.js"></script>
+  <link href="shared/common.css" rel="stylesheet"/>
+
+
+  <style>
+
+    #toast {
+      transition:
+        transform 0.3s ease,
+        opacity 0.3s ease;
+
+      transform: translate(-50%, 120px);
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    #toast.show {
+      transform: translate(-50%, 0);
+      opacity: 1;
+    }
+
+
+    .config-card {
+      transition:
+        transform 0.15s ease,
+        box-shadow 0.15s ease;
+    }
+
+
+    .sensor-row {
+      transition:
+        background-color 0.15s ease;
+    }
+
+
+    .sensor-icon {
+      transition:
+        background-color 0.15s ease,
+        color 0.15s ease;
+    }
+
+  </style>
+
 </head>
-<body class="bg-background font-body-md text-on-background flex h-screen overflow-hidden" data-page="configuracion">
 
-<div id="toast" class="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 bg-primary text-white px-6 py-3 rounded-full shadow-xl flex items-center gap-3 font-bold text-body-sm">
-  <span class="material-symbols-outlined">check_circle</span>
-  <span id="toast-text">Guardado</span>
-</div>
 
-<!-- Sidebar (inyectado por shared/app.js) -->
-<div id="sidebar-placeholder"></div>
+<body
+  class="bg-background font-body-md text-on-background flex h-screen overflow-hidden"
+  data-page="configuracion"
+>
 
-<!-- Main -->
-<div class="flex-1 flex flex-col min-w-0 overflow-hidden">
-  <header class="flex justify-between items-center w-full px-gutter h-16 border-b border-outline-variant bg-surface shrink-0 z-10">
-    <span class="text-headline-md font-headline-md font-bold text-primary">Configuración de Alertas</span>
-    <div class="flex items-center gap-3">
-      <select id="select-dispositivo" onchange="cargarUmbrales()" class="text-body-sm border border-outline-variant rounded-lg px-3 py-2 bg-surface-container-low outline-none"></select>
-      <button onclick="toggleDark()" id="btn-dark" class="p-2 text-on-surface-variant hover:bg-surface-container-high rounded-full transition-colors" title="Modo oscuro">
-        <span class="material-symbols-outlined">dark_mode</span>
-      </button>
-    </div>
-  </header>
 
-  <main class="flex-1 overflow-y-auto p-gutter lg:p-margin">
-    <div class="max-w-container-max mx-auto space-y-stack-xl">
+  <!-- =========================================================
+       Toast
+       ========================================================= -->
 
-      <section class="flex flex-col md:flex-row justify-between items-end gap-stack-lg border-b border-outline-variant pb-stack-lg">
-        <div class="max-w-2xl">
-          <h3 class="font-headline-lg text-headline-lg text-on-surface mb-stack-xs">Umbrales de Monitoreo</h3>
-          <p class="text-body-md text-on-surface-variant">Definí los límites operativos para cada sensor. El sistema genera una alerta automática si un valor detectado excede el rango mínimo o máximo establecido.</p>
+  <div
+    id="toast"
+    class="fixed bottom-8 left-1/2 z-50 bg-primary text-on-primary px-5 py-3 rounded-lg shadow-xl flex items-center gap-3 font-bold text-body-sm"
+    role="status"
+    aria-live="polite"
+  >
+
+    <span
+      id="toast-icon"
+      class="material-symbols-outlined"
+      aria-hidden="true"
+    >
+      check_circle
+    </span>
+
+    <span id="toast-text">
+      Guardado
+    </span>
+
+  </div>
+
+
+  <!-- =========================================================
+       Sidebar
+       ========================================================= -->
+
+  <div id="sidebar-placeholder"></div>
+
+
+  <!-- =========================================================
+       Main
+       ========================================================= -->
+
+  <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
+
+
+    <!-- =======================================================
+         Header
+         ======================================================= -->
+
+    <header
+      class="flex justify-between items-center w-full px-gutter h-16 border-b border-outline-variant bg-surface shrink-0 z-10"
+    >
+
+      <div class="flex items-center gap-3">
+
+        <div
+          class="w-9 h-9 rounded-lg bg-primary-container text-on-primary-container flex items-center justify-center"
+        >
+
+          <span
+            class="material-symbols-outlined text-[21px]"
+            aria-hidden="true"
+          >
+            tune
+          </span>
+
         </div>
-        <button onclick="guardarTodo()" class="px-6 py-3 bg-primary text-on-primary font-label-bold text-label-bold uppercase tracking-wider hover:opacity-90 transition-all flex items-center gap-2 rounded">
-          <span class="material-symbols-outlined text-[18px]">save</span> Guardar Cambios
-        </button>
-      </section>
 
-      <div class="bg-white precision-border rounded overflow-hidden">
-        <div class="overflow-x-auto">
-          <table class="w-full border-collapse text-left">
-            <thead>
-              <tr class="bg-surface-container-low border-b border-outline-variant">
-                <th class="px-gutter py-stack-md font-label-bold text-label-bold text-on-surface-variant uppercase">Sensor</th>
-                <th class="px-gutter py-stack-md font-label-bold text-label-bold text-on-surface-variant uppercase">Valor Actual</th>
-                <th class="px-gutter py-stack-md font-label-bold text-label-bold text-on-surface-variant uppercase text-center">Mínimo</th>
-                <th class="px-gutter py-stack-md font-label-bold text-label-bold text-on-surface-variant uppercase text-center">Máximo</th>
-                <th class="px-gutter py-stack-md font-label-bold text-label-bold text-on-surface-variant uppercase text-right">Notificaciones</th>
-              </tr>
-            </thead>
-            <tbody id="tabla-umbrales" class="divide-y divide-outline-variant">
-              <tr><td colspan="5" class="px-gutter py-4 text-center text-on-surface-variant">Cargando...</td></tr>
-            </tbody>
-          </table>
+
+        <div>
+
+          <h1
+            class="text-headline-md font-headline-md font-bold text-primary"
+          >
+            Configuración de Alertas
+          </h1>
+
+          <p
+            class="hidden sm:block text-label-sm text-on-surface-variant"
+          >
+            Límites de monitoreo por dispositivo
+          </p>
+
         </div>
+
       </div>
 
-    </div>
-  </main>
-</div>
 
-<script src="shared/app.js"></script>
-<script>
-function mostrarToast(texto, esError) {
-  const toast = document.getElementById('toast');
-  document.getElementById('toast-text').textContent = texto;
-  toast.querySelector('.material-symbols-outlined').textContent = esError ? 'error' : 'check_circle';
-  toast.classList.toggle('bg-error', !!esError);
-  toast.classList.toggle('bg-primary', !esError);
-  toast.classList.add('show');
-  setTimeout(() => toast.classList.remove('show'), 3000);
-}
+      <div class="flex items-center gap-2">
 
-// Definición de sensores reales (el hardware ESP32 actual no mide CO2,
-// esa variable no tiene endpoint de umbral todavía).
-const SENSORES = [
-  { variable: 'temperatura', label: 'Temperatura Ambiental', icon: 'device_thermostat', unidad: '°C' },
-  { variable: 'humedad', label: 'Humedad Relativa', icon: 'humidity_percentage', unidad: '%' },
-  { variable: 'luminosidad', label: 'Intensidad Lumínica', icon: 'light_mode', unidad: '%' },
-];
 
-let dispositivoActual = '';
-let umbralesActuales = {};
-let ultimaLectura = null;
+        <!-- Selector de dispositivo -->
 
-async function cargarDispositivos() {
-  const res = await fetch(`${API}/api/dispositivos`, { headers: { Authorization: token } });
-  if (res.status === 401) return manejarNoAutorizado();
-  const dispositivos = await res.json();
-  const sel = document.getElementById('select-dispositivo');
-  sel.innerHTML = dispositivos.map(d => `<option value="${d.codigo}">${d.codigo}${d.ubicacion ? ' — ' + d.ubicacion : ''}</option>`).join('');
-  if (dispositivos.length) dispositivoActual = dispositivos[0].codigo;
-}
+        <div class="hidden sm:flex items-center gap-2">
 
-async function cargarUmbrales() {
-  dispositivoActual = document.getElementById('select-dispositivo').value || dispositivoActual;
-  const h = { Authorization: token };
+          <span
+            class="material-symbols-outlined text-on-surface-variant text-[18px]"
+            aria-hidden="true"
+          >
+            memory
+          </span>
 
-  const [resU, resL] = await Promise.all([
-    fetch(`${API}/api/umbrales?dispositivo=${dispositivoActual}`, { headers: h }),
-    fetch(`${API}/api/lecturas?dispositivo=${dispositivoActual}&limite=1`, { headers: h }),
-  ]);
-  if (resU.status === 401 || resL.status === 401) return manejarNoAutorizado();
 
-  const umbrales = await resU.json();
-  umbralesActuales = {};
-  umbrales.forEach(u => { umbralesActuales[u.variable] = u; });
+          <select
+            id="select-dispositivo"
+            class="text-body-sm border border-outline-variant rounded-lg px-3 py-2 bg-surface-container-low outline-none focus:border-primary focus:ring-1 focus:ring-primary max-w-[220px]"
+          >
 
-  const lecturas = await resL.json();
-  ultimaLectura = lecturas[0] || null;
+            <option value="">
+              Cargando dispositivos...
+            </option>
 
-  renderTabla();
-}
+          </select>
 
-function renderTabla() {
-  document.getElementById('tabla-umbrales').innerHTML = SENSORES.map(s => {
-    const u = umbralesActuales[s.variable];
-    const valorActual = ultimaLectura ? parseFloat(ultimaLectura[s.variable === 'temperatura' ? 'temperatura' : s.variable === 'humedad' ? 'humedad' : 'luminosidad']) : null;
-    const notifChecked = !u || u.notificaciones_activas !== false;
-    return `
-    <tr class="hover:bg-surface-container-low transition-colors" data-variable="${s.variable}">
-      <td class="px-gutter py-stack-md">
-        <div class="flex items-center gap-stack-sm">
-          <span class="material-symbols-outlined text-on-surface-variant">${s.icon}</span>
-          <span class="font-bold text-on-surface text-body-md">${s.label}</span>
         </div>
-      </td>
-      <td class="px-gutter py-stack-md font-data-mono text-body-md text-primary font-bold">
-        ${valorActual !== null && !isNaN(valorActual) ? valorActual.toFixed(1) + s.unidad : '—'}
-      </td>
-      <td class="px-gutter py-stack-md">
-        <div class="flex justify-center">
-          <input class="input-min w-24 text-center px-2 py-2 border border-outline rounded-lg font-data-mono focus:border-primary focus:ring-1 focus:ring-primary outline-none" type="number" step="0.1" value="${u ? u.umbral_min : ''}"/>
-        </div>
-      </td>
-      <td class="px-gutter py-stack-md">
-        <div class="flex justify-center">
-          <input class="input-max w-24 text-center px-2 py-2 border border-outline rounded-lg font-data-mono focus:border-primary focus:ring-1 focus:ring-primary outline-none" type="number" step="0.1" value="${u ? u.umbral_max : ''}"/>
-        </div>
-      </td>
-      <td class="px-gutter py-stack-md text-right">
-        <label class="relative inline-flex items-center cursor-pointer">
-          <input class="input-notif sr-only peer" type="checkbox" ${notifChecked ? 'checked' : ''}/>
-          <div class="w-11 h-6 bg-tertiary rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-        </label>
-      </td>
-    </tr>`;
-  }).join('') + `
-    <tr class="bg-surface-container-low opacity-60">
-      <td class="px-gutter py-stack-md">
-        <div class="flex items-center gap-stack-sm">
-          <span class="material-symbols-outlined text-on-surface-variant">co2</span>
-          <span class="font-bold text-on-surface text-body-md">Niveles de CO2</span>
-        </div>
-      </td>
-      <td class="px-gutter py-stack-md text-on-surface-variant text-body-sm" colspan="4">Sensor no disponible en el hardware actual</td>
-    </tr>`;
-}
 
-async function guardarTodo() {
-  const filas = document.querySelectorAll('#tabla-umbrales tr[data-variable]');
-  const promesas = [];
-  let huboError = false;
 
-  filas.forEach(fila => {
-    const variable = fila.dataset.variable;
-    const umbralMin = parseFloat(fila.querySelector('.input-min').value);
-    const umbralMax = parseFloat(fila.querySelector('.input-max').value);
-    const notificacionesActivas = fila.querySelector('.input-notif').checked;
+        <!-- Dark mode -->
 
-    if (isNaN(umbralMin) || isNaN(umbralMax)) { huboError = true; return; }
+        <button
+          onclick="toggleDark()"
+          id="btn-dark"
+          type="button"
+          class="p-2 text-on-surface-variant hover:bg-surface-container-high rounded-full transition-colors"
+          title="Modo oscuro"
+          aria-label="Cambiar modo oscuro"
+        >
 
-    promesas.push(
-      fetch(`${API}/api/umbrales`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: token },
-        body: JSON.stringify({ dispositivoCodigo: dispositivoActual, variable, umbralMin, umbralMax, notificacionesActivas }),
-      }).then(r => { if (r.status === 401) manejarNoAutorizado(); return r.json(); })
+          <span
+            class="material-symbols-outlined"
+            aria-hidden="true"
+          >
+            dark_mode
+          </span>
+
+        </button>
+
+      </div>
+
+    </header>
+
+
+    <!-- =======================================================
+         Contenido
+         ======================================================= -->
+
+    <main
+      class="flex-1 overflow-y-auto p-gutter lg:p-margin"
+    >
+
+      <div
+        class="max-w-container-max mx-auto space-y-stack-lg"
+      >
+
+
+        <!-- ===================================================
+             Introducción
+             =================================================== -->
+
+        <section
+          class="flex flex-col lg:flex-row justify-between gap-5 border-b border-outline-variant pb-6"
+        >
+
+          <div class="max-w-2xl">
+
+            <div class="flex items-center gap-2 mb-2">
+
+              <span
+                class="material-symbols-outlined text-primary text-[20px]"
+                aria-hidden="true"
+              >
+                notifications_active
+              </span>
+
+              <span
+                class="text-label-bold text-primary uppercase tracking-wider"
+              >
+                Configuración de monitoreo
+              </span>
+
+            </div>
+
+
+            <h2
+              class="font-headline-lg text-headline-lg text-on-surface font-bold"
+            >
+              Umbrales de monitoreo
+            </h2>
+
+
+            <p
+              class="text-body-md text-on-surface-variant mt-2"
+            >
+              Definí los límites operativos para cada sensor.
+              El sistema genera una alerta cuando un valor detectado
+              queda fuera del rango establecido.
+            </p>
+
+          </div>
+
+
+          <div
+            class="flex flex-col sm:flex-row lg:flex-col items-stretch lg:items-end gap-3"
+          >
+
+            <!-- Dispositivo seleccionado en mobile -->
+
+            <div
+              class="sm:hidden flex items-center gap-2"
+            >
+
+              <span
+                class="material-symbols-outlined text-on-surface-variant text-[18px]"
+                aria-hidden="true"
+              >
+                memory
+              </span>
+
+
+              <select
+                id="select-dispositivo-mobile"
+                class="flex-1 text-body-sm border border-outline-variant rounded-lg px-3 py-2 bg-surface-container-low outline-none focus:border-primary"
+              >
+
+                <option value="">
+                  Cargando dispositivos...
+                </option>
+
+              </select>
+
+            </div>
+
+
+            <button
+              data-admin-only
+              id="btn-guardar"
+              type="button"
+              class="px-5 py-2.5 bg-primary text-on-primary font-label-bold text-[11px] uppercase tracking-wider hover:brightness-110 transition-all flex items-center justify-center gap-2 rounded-lg"
+            >
+
+              <span
+                class="material-symbols-outlined text-[18px]"
+                aria-hidden="true"
+              >
+                save
+              </span>
+
+              Guardar cambios
+
+            </button>
+
+
+            <p
+              id="modo-lectura"
+              class="hidden text-label-sm text-on-surface-variant text-right"
+            >
+
+              <span
+                class="material-symbols-outlined align-middle text-[15px]"
+              >
+                lock
+              </span>
+
+              Solo lectura
+
+            </p>
+
+          </div>
+
+        </section>
+
+
+        <!-- ===================================================
+             Dispositivo seleccionado
+             =================================================== -->
+
+        <section
+          class="bg-primary-container/40 border border-primary/20 rounded-xl px-5 py-4 flex items-center gap-4"
+        >
+
+          <div
+            class="w-10 h-10 rounded-lg bg-primary text-on-primary flex items-center justify-center shrink-0"
+          >
+
+            <span
+              class="material-symbols-outlined"
+              aria-hidden="true"
+            >
+              developer_board
+            </span>
+
+          </div>
+
+
+          <div class="min-w-0">
+
+            <p
+              class="text-label-bold text-on-surface-variant uppercase"
+            >
+              Dispositivo configurado
+            </p>
+
+            <p
+              id="dispositivo-seleccionado"
+              class="font-bold text-on-surface truncate"
+            >
+              —
+            </p>
+
+          </div>
+
+        </section>
+
+
+        <!-- ===================================================
+             Tabla de umbrales
+             =================================================== -->
+
+        <section
+          class="config-card bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm overflow-hidden"
+        >
+
+          <div
+            class="px-5 py-4 border-b border-outline-variant flex justify-between items-center"
+          >
+
+            <div>
+
+              <h3
+                class="font-headline-md font-bold text-on-surface"
+              >
+                Sensores ambientales
+              </h3>
+
+              <p
+                class="text-body-sm text-on-surface-variant mt-1"
+              >
+                Valores actuales y límites de alerta
+              </p>
+
+            </div>
+
+
+            <span
+              class="material-symbols-outlined text-on-surface-variant"
+              aria-hidden="true"
+            >
+              monitoring
+            </span>
+
+          </div>
+
+
+          <div class="overflow-x-auto">
+
+            <table
+              class="w-full border-collapse text-left"
+            >
+
+              <thead>
+
+                <tr
+                  class="bg-surface-container-high border-b border-outline-variant"
+                >
+
+                  <th
+                    class="px-5 py-3.5 font-label-bold text-label-bold text-on-surface-variant uppercase"
+                  >
+                    Sensor
+                  </th>
+
+
+                  <th
+                    class="px-5 py-3.5 font-label-bold text-label-bold text-on-surface-variant uppercase"
+                  >
+                    Valor actual
+                  </th>
+
+
+                  <th
+                    class="px-5 py-3.5 font-label-bold text-label-bold text-on-surface-variant uppercase text-center"
+                  >
+                    Mínimo
+                  </th>
+
+
+                  <th
+                    class="px-5 py-3.5 font-label-bold text-label-bold text-on-surface-variant uppercase text-center"
+                  >
+                    Máximo
+                  </th>
+
+
+                  <th
+                    class="px-5 py-3.5 font-label-bold text-label-bold text-on-surface-variant uppercase text-center"
+                  >
+                    Alertas
+                  </th>
+
+                </tr>
+
+              </thead>
+
+
+              <tbody
+                id="tabla-umbrales"
+                class="divide-y divide-outline-variant"
+              >
+
+                <tr>
+
+                  <td
+                    colspan="5"
+                    class="px-5 py-12 text-center text-on-surface-variant"
+                  >
+
+                    <div
+                      class="flex flex-col items-center gap-2"
+                    >
+
+                      <span
+                        class="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"
+                      ></span>
+
+                      <span>
+                        Cargando configuración...
+                      </span>
+
+                    </div>
+
+                  </td>
+
+                </tr>
+
+              </tbody>
+
+            </table>
+
+          </div>
+
+        </section>
+
+
+        <!-- ===================================================
+             Información
+             =================================================== -->
+
+        <section
+          class="grid grid-cols-1 md:grid-cols-2 gap-gutter"
+        >
+
+
+          <div
+            class="bg-surface-container-low border border-outline-variant rounded-xl p-5 flex items-start gap-4"
+          >
+
+            <div
+              class="w-9 h-9 rounded-lg bg-primary-container text-on-primary-container flex items-center justify-center shrink-0"
+            >
+
+              <span
+                class="material-symbols-outlined text-[19px]"
+                aria-hidden="true"
+              >
+                info
+              </span>
+
+            </div>
+
+
+            <div>
+
+              <h4
+                class="font-bold text-on-surface"
+              >
+                ¿Cómo funcionan los umbrales?
+              </h4>
+
+              <p
+                class="text-body-sm text-on-surface-variant mt-1"
+              >
+                Cuando una lectura queda por debajo del mínimo
+                o supera el máximo configurado, EcoTrack puede
+                generar una alerta para ese dispositivo.
+              </p>
+
+            </div>
+
+          </div>
+
+
+          <div
+            class="bg-surface-container-low border border-outline-variant rounded-xl p-5 flex items-start gap-4"
+          >
+
+            <div
+              class="w-9 h-9 rounded-lg bg-surface-container-high text-on-surface-variant flex items-center justify-center shrink-0"
+            >
+
+              <span
+                class="material-symbols-outlined text-[19px]"
+                aria-hidden="true"
+              >
+                admin_panel_settings
+              </span>
+
+            </div>
+
+
+            <div>
+
+              <h4
+                class="font-bold text-on-surface"
+              >
+                Permisos de configuración
+              </h4>
+
+              <p
+                class="text-body-sm text-on-surface-variant mt-1"
+              >
+                Solo los usuarios administradores pueden modificar
+                los límites y activar o desactivar las notificaciones.
+              </p>
+
+            </div>
+
+          </div>
+
+        </section>
+
+
+      </div>
+
+    </main>
+
+  </div>
+
+
+  <!-- =========================================================
+       Scripts compartidos
+       ========================================================= -->
+
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <script src="shared/app.js"></script>
+
+
+  <!-- =========================================================
+       Lógica específica de Configuración
+       ========================================================= -->
+
+  <script>
+
+    // ─────────────────────────────────────────────────────────
+    // Sensores disponibles en el hardware actual
+    // ─────────────────────────────────────────────────────────
+
+    const SENSORES = [
+
+      {
+        variable: 'temperatura',
+        label: 'Temperatura ambiental',
+        icon: 'device_thermostat',
+        unidad: '°C'
+      },
+
+      {
+        variable: 'humedad',
+        label: 'Humedad relativa',
+        icon: 'humidity_percentage',
+        unidad: '%'
+      },
+
+      {
+        variable: 'luminosidad',
+        label: 'Intensidad lumínica',
+        icon: 'light_mode',
+        unidad: '%'
+      }
+
+    ];
+
+
+    // ─────────────────────────────────────────────────────────
+    // Estado
+    // ─────────────────────────────────────────────────────────
+
+    let dispositivoActual = '';
+    let umbralesActuales = {};
+    let ultimaLectura = null;
+    let toastTimeout = null;
+
+
+    // ─────────────────────────────────────────────────────────
+    // Referencias
+    // ─────────────────────────────────────────────────────────
+
+    const selectDispositivo =
+      document.getElementById(
+        'select-dispositivo'
+      );
+
+
+    const selectDispositivoMobile =
+      document.getElementById(
+        'select-dispositivo-mobile'
+      );
+
+
+    const tablaUmbrales =
+      document.getElementById(
+        'tabla-umbrales'
+      );
+
+
+    const dispositivoSeleccionado =
+      document.getElementById(
+        'dispositivo-seleccionado'
+      );
+
+
+    const modoLectura =
+      document.getElementById(
+        'modo-lectura'
+      );
+
+
+    // ─────────────────────────────────────────────────────────
+    // Toast
+    // ─────────────────────────────────────────────────────────
+
+    function mostrarToast(
+      texto,
+      esError = false
+    ) {
+
+      const toast =
+        document.getElementById(
+          'toast'
+        );
+
+
+      const icon =
+        document.getElementById(
+          'toast-icon'
+        );
+
+
+      document.getElementById(
+        'toast-text'
+      ).textContent = texto;
+
+
+      icon.textContent =
+        esError
+          ? 'error'
+          : 'check_circle';
+
+
+      toast.classList.toggle(
+        'bg-error',
+        esError
+      );
+
+
+      toast.classList.toggle(
+        'bg-primary',
+        !esError
+      );
+
+
+      toast.classList.add(
+        'show'
+      );
+
+
+      clearTimeout(
+        toastTimeout
+      );
+
+
+      toastTimeout =
+        setTimeout(() => {
+
+          toast.classList.remove(
+            'show'
+          );
+
+        }, 3000);
+    }
+
+
+    // ─────────────────────────────────────────────────────────
+    // Escapado HTML
+    // ─────────────────────────────────────────────────────────
+
+    function escaparHtml(valor) {
+
+      return String(valor ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+
+    // ─────────────────────────────────────────────────────────
+    // Dispositivos
+    // ─────────────────────────────────────────────────────────
+
+    async function cargarDispositivos() {
+
+      try {
+
+        const response =
+          await fetch(
+            `${API}/api/dispositivos`,
+            {
+              headers: {
+                Authorization: token
+              }
+            }
+          );
+
+
+        if (response.status === 401) {
+          return manejarNoAutorizado();
+        }
+
+
+        if (!response.ok) {
+          throw new Error(
+            'No se pudieron cargar los dispositivos'
+          );
+        }
+
+
+        const dispositivos =
+          await response.json();
+
+
+        if (!dispositivos.length) {
+
+          selectDispositivo.innerHTML = `
+            <option value="">
+              No hay dispositivos
+            </option>
+          `;
+
+
+          selectDispositivoMobile.innerHTML = `
+            <option value="">
+              No hay dispositivos
+            </option>
+          `;
+
+
+          dispositivoActual = '';
+
+          dispositivoSeleccionado.textContent =
+            'Sin dispositivos disponibles';
+
+
+          renderTablaVacia(
+            'No hay dispositivos configurados.'
+          );
+
+
+          return;
+        }
+
+
+        const opciones =
+          dispositivos
+            .map(dispositivo => {
+
+              const texto =
+                `${dispositivo.codigo}${
+                  dispositivo.ubicacion
+                    ? ` — ${dispositivo.ubicacion}`
+                    : ''
+                }`;
+
+
+              return `
+                <option value="${escaparHtml(dispositivo.codigo)}">
+                  ${escaparHtml(texto)}
+                </option>
+              `;
+
+            })
+            .join('');
+
+
+        selectDispositivo.innerHTML =
+          opciones;
+
+
+        selectDispositivoMobile.innerHTML =
+          opciones;
+
+
+        dispositivoActual =
+          dispositivos[0].codigo;
+
+
+        selectDispositivo.value =
+          dispositivoActual;
+
+
+        selectDispositivoMobile.value =
+          dispositivoActual;
+
+
+        actualizarDispositivoSeleccionado(
+          dispositivos[0]
+        );
+
+      } catch (error) {
+
+        console.error(
+          'Error cargando dispositivos:',
+          error
+        );
+
+
+        mostrarToast(
+          'No se pudieron cargar los dispositivos',
+          true
+        );
+      }
+    }
+
+
+    // ─────────────────────────────────────────────────────────
+    // Nombre dispositivo
+    // ─────────────────────────────────────────────────────────
+
+    function actualizarDispositivoSeleccionado(
+      dispositivo = null
+    ) {
+
+      if (dispositivo) {
+
+        dispositivoSeleccionado.textContent =
+          `${dispositivo.codigo}${
+            dispositivo.ubicacion
+              ? ` · ${dispositivo.ubicacion}`
+              : ''
+          }`;
+
+        return;
+      }
+
+
+      dispositivoSeleccionado.textContent =
+        dispositivoActual || '—';
+    }
+
+
+    // ─────────────────────────────────────────────────────────
+    // Cargar umbrales
+    // ─────────────────────────────────────────────────────────
+
+    async function cargarUmbrales() {
+
+      dispositivoActual =
+        selectDispositivo.value ||
+        selectDispositivoMobile.value ||
+        dispositivoActual;
+
+
+      if (!dispositivoActual) {
+
+        renderTablaVacia(
+          'Seleccioná un dispositivo para configurar sus umbrales.'
+        );
+
+        return;
+      }
+
+
+      dispositivoSeleccionado.textContent =
+        dispositivoActual;
+
+
+      renderTablaCargando();
+
+
+      const headers = {
+        Authorization: token
+      };
+
+
+      try {
+
+        const [
+          resUmbrales,
+          resLecturas
+        ] = await Promise.all([
+
+          fetch(
+            `${API}/api/umbrales?dispositivo=${encodeURIComponent(dispositivoActual)}`,
+            { headers }
+          ),
+
+          fetch(
+            `${API}/api/lecturas?dispositivo=${encodeURIComponent(dispositivoActual)}&limite=1`,
+            { headers }
+          )
+
+        ]);
+
+
+        if (
+          resUmbrales.status === 401 ||
+          resLecturas.status === 401
+        ) {
+
+          return manejarNoAutorizado();
+        }
+
+
+        if (
+          !resUmbrales.ok ||
+          !resLecturas.ok
+        ) {
+
+          throw new Error(
+            'No se pudo cargar la configuración'
+          );
+        }
+
+
+        const umbrales =
+          await resUmbrales.json();
+
+
+        const lecturas =
+          await resLecturas.json();
+
+
+        umbralesActuales = {};
+
+
+        umbrales.forEach(
+          umbral => {
+
+            umbralesActuales[
+              umbral.variable
+            ] = umbral;
+
+          }
+        );
+
+
+        ultimaLectura =
+          lecturas[0] || null;
+
+
+        renderTabla();
+
+      } catch (error) {
+
+        console.error(
+          'Error cargando umbrales:',
+          error
+        );
+
+
+        renderTablaVacia(
+          'No se pudo cargar la configuración.'
+        );
+
+
+        mostrarToast(
+          'Error al cargar la configuración',
+          true
+        );
+      }
+    }
+
+
+    // ─────────────────────────────────────────────────────────
+    // Tabla: loading
+    // ─────────────────────────────────────────────────────────
+
+    function renderTablaCargando() {
+
+      tablaUmbrales.innerHTML = `
+
+        <tr>
+
+          <td
+            colspan="5"
+            class="px-5 py-12 text-center text-on-surface-variant"
+          >
+
+            <div
+              class="flex flex-col items-center gap-2"
+            >
+
+              <span
+                class="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"
+              ></span>
+
+              <span>
+                Cargando configuración...
+              </span>
+
+            </div>
+
+          </td>
+
+        </tr>
+
+      `;
+    }
+
+
+    // ─────────────────────────────────────────────────────────
+    // Tabla: vacío/error
+    // ─────────────────────────────────────────────────────────
+
+    function renderTablaVacia(
+      mensaje
+    ) {
+
+      tablaUmbrales.innerHTML = `
+
+        <tr>
+
+          <td
+            colspan="5"
+            class="px-5 py-12 text-center text-on-surface-variant"
+          >
+
+            <div
+              class="flex flex-col items-center gap-2"
+            >
+
+              <span
+                class="material-symbols-outlined text-[30px] opacity-50"
+              >
+                tune
+              </span>
+
+              <span>
+                ${escaparHtml(mensaje)}
+              </span>
+
+            </div>
+
+          </td>
+
+        </tr>
+
+      `;
+    }
+
+
+    // ─────────────────────────────────────────────────────────
+    // Obtener valor actual
+    // ─────────────────────────────────────────────────────────
+
+    function obtenerValorActual(
+      variable
+    ) {
+
+      if (!ultimaLectura) {
+        return null;
+      }
+
+
+      const valor =
+        parseFloat(
+          ultimaLectura[variable]
+        );
+
+
+      return Number.isFinite(valor)
+        ? valor
+        : null;
+    }
+
+
+    // ─────────────────────────────────────────────────────────
+    // Render tabla
+    // ─────────────────────────────────────────────────────────
+
+    function renderTabla() {
+
+      const filasSensores =
+        SENSORES.map(sensor => {
+
+          const umbral =
+            umbralesActuales[
+              sensor.variable
+            ];
+
+
+          const valorActual =
+            obtenerValorActual(
+              sensor.variable
+            );
+
+
+          const notificacionesActivas =
+            !umbral ||
+            umbral.notificaciones_activas !== false;
+
+
+          return `
+
+            <tr
+              class="sensor-row hover:bg-surface-container-low"
+              data-variable="${sensor.variable}"
+            >
+
+              <!-- Sensor -->
+
+              <td class="px-5 py-5">
+
+                <div
+                  class="flex items-center gap-3"
+                >
+
+                  <div
+                    class="sensor-icon w-10 h-10 rounded-lg bg-surface-container-high text-on-surface-variant flex items-center justify-center shrink-0"
+                  >
+
+                    <span
+                      class="material-symbols-outlined"
+                      aria-hidden="true"
+                    >
+                      ${sensor.icon}
+                    </span>
+
+                  </div>
+
+
+                  <div>
+
+                    <p
+                      class="font-bold text-on-surface"
+                    >
+                      ${sensor.label}
+                    </p>
+
+                    <p
+                      class="text-label-sm text-on-surface-variant"
+                    >
+                      ${sensor.unidad}
+                    </p>
+
+                  </div>
+
+                </div>
+
+              </td>
+
+
+              <!-- Valor actual -->
+
+              <td class="px-5 py-5">
+
+                <div
+                  class="inline-flex items-center gap-2"
+                >
+
+                  <span
+                    class="font-data-mono text-body-md text-primary font-bold"
+                  >
+                    ${
+                      valorActual !== null
+                        ? `${valorActual.toFixed(1)}${sensor.unidad}`
+                        : '—'
+                    }
+                  </span>
+
+                  ${
+                    valorActual !== null
+                      ? `
+                        <span
+                          class="w-1.5 h-1.5 rounded-full bg-primary"
+                          title="Valor disponible"
+                        ></span>
+                      `
+                      : ''
+                  }
+
+                </div>
+
+              </td>
+
+
+              <!-- Mínimo -->
+
+              <td class="px-5 py-5">
+
+                <div class="flex justify-center">
+
+                  <div class="relative">
+
+                    <input
+                      class="input-min w-24 text-center px-2 py-2.5 border border-outline-variant rounded-lg bg-surface font-data-mono text-body-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none disabled:opacity-50 disabled:bg-surface-container-high"
+                      type="number"
+                      step="0.1"
+                      value="${umbral ? umbral.umbral_min : ''}"
+                      placeholder="—"
+                      ${esAdmin ? '' : 'disabled'}
+                    />
+
+                  </div>
+
+                </div>
+
+              </td>
+
+
+              <!-- Máximo -->
+
+              <td class="px-5 py-5">
+
+                <div class="flex justify-center">
+
+                  <div class="relative">
+
+                    <input
+                      class="input-max w-24 text-center px-2 py-2.5 border border-outline-variant rounded-lg bg-surface font-data-mono text-body-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none disabled:opacity-50 disabled:bg-surface-container-high"
+                      type="number"
+                      step="0.1"
+                      value="${umbral ? umbral.umbral_max : ''}"
+                      placeholder="—"
+                      ${esAdmin ? '' : 'disabled'}
+                    />
+
+                  </div>
+
+                </div>
+
+              </td>
+
+
+              <!-- Notificaciones -->
+
+              <td class="px-5 py-5">
+
+                <div class="flex justify-center">
+
+                  <label
+                    class="relative inline-flex items-center cursor-pointer"
+                    title="${
+                      notificacionesActivas
+                        ? 'Notificaciones activas'
+                        : 'Notificaciones desactivadas'
+                    }"
+                  >
+
+                    <input
+                      class="input-notif sr-only peer"
+                      type="checkbox"
+                      ${
+                        notificacionesActivas
+                          ? 'checked'
+                          : ''
+                      }
+                      ${esAdmin ? '' : 'disabled'}
+                    />
+
+
+                    <div
+                      class="w-11 h-6 bg-surface-container-high border border-outline-variant rounded-full peer peer-checked:bg-primary peer-checked:border-primary after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full peer-disabled:opacity-50"
+                    ></div>
+
+                  </label>
+
+                </div>
+
+              </td>
+
+            </tr>
+
+          `;
+
+        }).join('');
+
+
+      // -------------------------------------------------------
+      // CO2: hardware actual no disponible
+      // -------------------------------------------------------
+
+      const filaCO2 = `
+
+        <tr
+          class="bg-surface-container-low opacity-65"
+        >
+
+          <td class="px-5 py-5">
+
+            <div
+              class="flex items-center gap-3"
+            >
+
+              <div
+                class="w-10 h-10 rounded-lg bg-surface-container-high text-on-surface-variant flex items-center justify-center"
+              >
+
+                <span
+                  class="material-symbols-outlined"
+                  aria-hidden="true"
+                >
+                  co2
+                </span>
+
+              </div>
+
+
+              <div>
+
+                <p
+                  class="font-bold text-on-surface"
+                >
+                  Niveles de CO₂
+                </p>
+
+                <p
+                  class="text-label-sm text-on-surface-variant"
+                >
+                  No disponible
+                </p>
+
+              </div>
+
+            </div>
+
+          </td>
+
+
+          <td
+            colspan="4"
+            class="px-5 py-5"
+          >
+
+            <div
+              class="flex items-center gap-2 text-on-surface-variant text-body-sm"
+            >
+
+              <span
+                class="material-symbols-outlined text-[18px]"
+                aria-hidden="true"
+              >
+                info
+              </span>
+
+              El sensor de CO₂ no está disponible
+              en el hardware actual.
+
+            </div>
+
+          </td>
+
+        </tr>
+
+      `;
+
+
+      tablaUmbrales.innerHTML =
+        filasSensores +
+        filaCO2;
+
+
+      actualizarModoLectura();
+    }
+
+
+    // ─────────────────────────────────────────────────────────
+    // Modo administrador / solo lectura
+    // ─────────────────────────────────────────────────────────
+
+    function actualizarModoLectura() {
+
+      if (esAdmin) {
+
+        modoLectura.classList.add(
+          'hidden'
+        );
+
+      } else {
+
+        modoLectura.classList.remove(
+          'hidden'
+        );
+      }
+    }
+
+
+    // ─────────────────────────────────────────────────────────
+    // Guardar
+    // ─────────────────────────────────────────────────────────
+
+    async function guardarTodo() {
+
+      if (!esAdmin) {
+
+        mostrarToast(
+          'No tenés permisos para modificar los umbrales',
+          true
+        );
+
+        return;
+      }
+
+
+      if (!dispositivoActual) {
+
+        mostrarToast(
+          'Seleccioná un dispositivo',
+          true
+        );
+
+        return;
+      }
+
+
+      const filas =
+        document.querySelectorAll(
+          '#tabla-umbrales tr[data-variable]'
+        );
+
+
+      const promesas = [];
+      let huboError = false;
+
+
+      filas.forEach(fila => {
+
+        const variable =
+          fila.dataset.variable;
+
+
+        const inputMin =
+          fila.querySelector(
+            '.input-min'
+          );
+
+
+        const inputMax =
+          fila.querySelector(
+            '.input-max'
+          );
+
+
+        const inputNotif =
+          fila.querySelector(
+            '.input-notif'
+          );
+
+
+        const umbralMin =
+          parseFloat(
+            inputMin.value
+          );
+
+
+        const umbralMax =
+          parseFloat(
+            inputMax.value
+          );
+
+
+        const notificacionesActivas =
+          inputNotif.checked;
+
+
+        if (
+          !Number.isFinite(umbralMin) ||
+          !Number.isFinite(umbralMax)
+        ) {
+
+          huboError = true;
+
+          inputMin.classList.toggle(
+            'border-error',
+            !Number.isFinite(umbralMin)
+          );
+
+
+          inputMax.classList.toggle(
+            'border-error',
+            !Number.isFinite(umbralMax)
+          );
+
+
+          return;
+        }
+
+
+        inputMin.classList.remove(
+          'border-error'
+        );
+
+
+        inputMax.classList.remove(
+          'border-error'
+        );
+
+
+        if (umbralMin >= umbralMax) {
+
+          huboError = true;
+
+
+          inputMin.classList.add(
+            'border-error'
+          );
+
+
+          inputMax.classList.add(
+            'border-error'
+          );
+
+
+          return;
+        }
+
+
+        promesas.push(
+
+          fetch(
+            `${API}/api/umbrales`,
+            {
+              method: 'POST',
+
+              headers: {
+                'Content-Type':
+                  'application/json',
+
+                Authorization: token
+              },
+
+              body: JSON.stringify({
+
+                dispositivoCodigo:
+                  dispositivoActual,
+
+                variable,
+
+                umbralMin,
+
+                umbralMax,
+
+                notificacionesActivas
+
+              })
+
+            }
+          )
+          .then(async response => {
+
+            if (
+              response.status === 401
+            ) {
+
+              manejarNoAutorizado();
+
+              return {
+                error:
+                  'Sesión expirada'
+              };
+            }
+
+
+            const data =
+              await response
+                .json()
+                .catch(
+                  () => ({})
+                );
+
+
+            if (!response.ok) {
+
+              return {
+                error:
+                  data.error ||
+                  'No se pudo guardar el umbral'
+              };
+            }
+
+
+            return data;
+
+          })
+
+        );
+
+      });
+
+
+      if (huboError) {
+
+        mostrarToast(
+          'Revisá que los mínimos sean menores que los máximos.',
+          true
+        );
+
+        return;
+      }
+
+
+      try {
+
+        const resultados =
+          await Promise.all(
+            promesas
+          );
+
+
+        const error =
+          resultados.find(
+            resultado =>
+              resultado &&
+              resultado.error
+          );
+
+
+        if (error) {
+
+          mostrarToast(
+            error.error,
+            true
+          );
+
+          return;
+        }
+
+
+        mostrarToast(
+          'Umbrales guardados correctamente'
+        );
+
+
+        await cargarUmbrales();
+
+      } catch (error) {
+
+        console.error(
+          'Error guardando umbrales:',
+          error
+        );
+
+
+        mostrarToast(
+          'Error al guardar los cambios',
+          true
+        );
+      }
+    }
+
+
+    // ─────────────────────────────────────────────────────────
+    // Eventos
+    // ─────────────────────────────────────────────────────────
+
+    selectDispositivo.addEventListener(
+      'change',
+      () => {
+
+        selectDispositivoMobile.value =
+          selectDispositivo.value;
+
+        cargarUmbrales();
+      }
     );
-  });
 
-  if (huboError) return mostrarToast('Revisá los valores mínimo/máximo', true);
 
-  try {
-    const resultados = await Promise.all(promesas);
-    const falló = resultados.some(r => r.error);
-    if (falló) mostrarToast(resultados.find(r => r.error).error, true);
-    else { mostrarToast('Umbrales guardados correctamente'); cargarUmbrales(); }
-  } catch (e) {
-    mostrarToast('Error al guardar', true);
-  }
-}
+    selectDispositivoMobile.addEventListener(
+      'change',
+      () => {
 
-// Init
-initShell().then(() => {
-  cargarDispositivos().then(cargarUmbrales);
-});
-</script>
-</body></html>
+        selectDispositivo.value =
+          selectDispositivoMobile.value;
+
+        cargarUmbrales();
+      }
+    );
+
+
+    document
+      .getElementById(
+        'btn-guardar'
+      )
+      .addEventListener(
+        'click',
+        guardarTodo
+      );
+
+
+    // ─────────────────────────────────────────────────────────
+    // Inicialización
+    // ─────────────────────────────────────────────────────────
+
+    initShell()
+      .then(async () => {
+
+        actualizarModoLectura();
+
+        await cargarDispositivos();
+
+        await cargarUmbrales();
+
+      });
+
+  </script>
+
+</body>
+</html>

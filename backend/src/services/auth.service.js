@@ -23,8 +23,10 @@ async function login(username, password) {
     return { error: 'Usuario o contraseña incorrectos' };
   }
 
+  // clienteId viaja en el token junto con rol: es lo que el middleware
+  // extraerCliente usa para filtrar todas las queries de este usuario.
   const token = jwt.sign(
-    { sub: usuario.id, username: usuario.username },
+    { sub: usuario.id, username: usuario.username, rol: usuario.rol, clienteId: usuario.cliente_id },
     JWT_SECRET,
     { expiresIn: JWT_EXPIRES_IN }
   );
@@ -33,12 +35,13 @@ async function login(username, password) {
     token,
     username: usuario.username,
     nombre: usuario.nombre,
+    rol: usuario.rol,
   };
 }
 
 async function obtenerPorId(id) {
   const { rows } = await pool.query(
-    'SELECT id, username, nombre, creado_en FROM usuarios WHERE id = $1',
+    'SELECT id, username, nombre, rol, creado_en FROM usuarios WHERE id = $1',
     [id]
   );
   return rows[0] || null;
@@ -63,4 +66,14 @@ async function cambiarPassword(id, passwordActual, passwordNueva) {
   return { ok: true };
 }
 
-module.exports = { login, obtenerPorId, cambiarPassword };
+// Edita el nombre visible del perfil propio (RF20). No toca username ni rol:
+// eso sigue siendo exclusivo de CU09 (gestión de usuarios por un admin).
+async function actualizarPerfil(id, { nombre }) {
+  const { rows } = await pool.query(
+    'UPDATE usuarios SET nombre = $1 WHERE id = $2 RETURNING id, username, nombre, rol, creado_en',
+    [nombre, id]
+  );
+  return rows[0] || null;
+}
+
+module.exports = { login, obtenerPorId, cambiarPassword, actualizarPerfil };

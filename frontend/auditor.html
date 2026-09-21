@@ -15,11 +15,35 @@
 <!-- Sidebar (inyectado por shared/app.js) -->
 <div id="sidebar-placeholder"></div>
 
+<!-- Modal "Gestionar alerta" (comentario, RF11) -->
+<div id="modal-gestionar" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+  <div class="bg-white rounded p-stack-lg w-full max-w-md mx-4 flex flex-col gap-stack-md">
+    <h3 id="modal-gestionar-titulo" class="font-headline-md text-on-secondary-container">Gestionar alerta</h3>
+    <div class="flex flex-col gap-1">
+      <label class="text-label-bold text-on-surface-variant uppercase">Comentario (opcional)</label>
+      <textarea id="modal-gestionar-comentario" rows="3" maxlength="500" class="px-3 py-2 border border-outline-variant rounded-lg text-body-sm outline-none focus:border-primary resize-none" placeholder="Ej: se ajustó la ventilación del invernadero"></textarea>
+    </div>
+    <div class="flex justify-end gap-2">
+      <button onclick="cerrarModalGestionar()" class="px-4 py-2 text-on-surface-variant font-label-bold text-label-bold uppercase rounded hover:bg-surface-container-low transition-all">Cancelar</button>
+      <button onclick="confirmarGestion()" class="px-4 py-2 bg-primary text-on-primary font-label-bold text-label-bold uppercase rounded hover:opacity-90 transition-all">Confirmar</button>
+    </div>
+  </div>
+</div>
+
 <!-- Main -->
 <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
-  <header class="flex justify-between items-center w-full px-gutter h-16 border-b border-outline-variant bg-surface shrink-0 z-10">
+  <header class="flex flex-wrap justify-between items-center gap-3 w-full px-gutter py-3 h-auto min-h-16 border-b border-outline-variant bg-surface shrink-0 z-10">
     <span class="text-headline-md font-headline-md font-bold text-primary">Auditoría de Alertas</span>
-    <div class="flex items-center gap-3">
+    <div class="flex flex-wrap items-center gap-3">
+      <div class="flex items-center gap-2">
+        <label class="text-label-bold text-on-surface-variant uppercase">Desde</label>
+        <input type="date" id="filtro-desde" onchange="cambiarFiltro()" class="text-body-sm border border-outline-variant rounded-lg px-3 py-2 bg-surface-container-low outline-none"/>
+      </div>
+      <div class="flex items-center gap-2">
+        <label class="text-label-bold text-on-surface-variant uppercase">Hasta</label>
+        <input type="date" id="filtro-hasta" onchange="cambiarFiltro()" class="text-body-sm border border-outline-variant rounded-lg px-3 py-2 bg-surface-container-low outline-none"/>
+      </div>
+      <button onclick="limpiarFiltroFechas()" class="text-body-sm text-on-surface-variant hover:underline">Limpiar fechas</button>
       <select id="filtro-estado" onchange="cambiarFiltro()" class="text-body-sm border border-outline-variant rounded-lg px-3 py-2 bg-surface-container-low outline-none">
         <option value="">Todos los estados</option>
         <option value="pendiente">Pendiente</option>
@@ -97,11 +121,13 @@
   </main>
 </div>
 
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <script src="shared/app.js"></script>
 <script>
 let paginaActual = 1;
 const LIMITE = 10;
 let chartDistribucion;
+let alertaEnGestion = null; // { id, estadoActual }
 
 function initChart() {
   chartDistribucion = new Chart(document.getElementById('chart-distribucion').getContext('2d'), {
@@ -125,6 +151,12 @@ function cambiarFiltro() {
   cargarAlertas();
 }
 
+function limpiarFiltroFechas() {
+  document.getElementById('filtro-desde').value = '';
+  document.getElementById('filtro-hasta').value = '';
+  cambiarFiltro();
+}
+
 function cambiarPagina(delta) {
   paginaActual += delta;
   cargarAlertas();
@@ -140,10 +172,14 @@ async function cargarAlertas() {
   const h = { Authorization: token };
   const estado = document.getElementById('filtro-estado').value;
   const dispositivo = document.getElementById('filtro-dispositivo').value;
+  const fechaDesde = document.getElementById('filtro-desde').value;
+  const fechaHasta = document.getElementById('filtro-hasta').value;
 
   const params = new URLSearchParams({ pagina: paginaActual, limite: LIMITE });
   if (estado) params.set('estado', estado);
   if (dispositivo) params.set('dispositivo', dispositivo);
+  if (fechaDesde) params.set('fechaDesde', fechaDesde);
+  if (fechaHasta) params.set('fechaHasta', fechaHasta);
 
   const res = await fetch(`${API}/api/alertas?${params}`, { headers: h });
   if (res.status === 401) return manejarNoAutorizado();
@@ -156,9 +192,12 @@ async function cargarAlertas() {
       <td class="px-6 py-4 capitalize">${a.variable}</td>
       <td class="px-6 py-4 text-error font-bold">${parseFloat(a.valor).toFixed(1)}</td>
       <td class="px-6 py-4 text-on-surface-variant">[${parseFloat(a.umbral_min).toFixed(1)} – ${parseFloat(a.umbral_max).toFixed(1)}]</td>
-      <td class="px-6 py-4">${badgeEstado(a.estado)}</td>
+      <td class="px-6 py-4">
+        ${badgeEstado(a.estado)}
+        ${a.comentario ? `<span class="material-symbols-outlined text-[16px] text-on-surface-variant align-middle ml-1 cursor-help" title="${a.comentario.replace(/"/g, '&quot;')}">comment</span>` : ''}
+      </td>
       <td class="px-6 py-4 text-center">
-        <button onclick="gestionar(${a.id}, '${a.estado}')" class="text-primary hover:underline font-label-bold uppercase text-[12px]">
+        <button onclick='abrirModalGestionar(${a.id}, "${a.estado}", ${JSON.stringify(a.comentario || '')})' class="text-primary hover:underline font-label-bold uppercase text-[12px]">
           ${a.estado === 'atendida' ? 'Reabrir' : 'Gestionar'}
         </button>
       </td>
@@ -170,14 +209,34 @@ async function cargarAlertas() {
   document.getElementById('btn-next').disabled = resultado.pagina >= resultado.totalPaginas;
 }
 
-async function gestionar(id, estadoActual) {
-  const nuevoEstado = estadoActual === 'atendida' ? 'pendiente' : 'atendida';
-  const res = await fetch(`${API}/api/alertas/${id}`, {
+// Modal "Gestionar" (RF11): pide un comentario opcional antes de
+// atender/reabrir la alerta.
+function abrirModalGestionar(id, estadoActual, comentarioActual) {
+  alertaEnGestion = { id, estadoActual };
+  const pasaA = estadoActual === 'atendida' ? 'pendiente' : 'atendida';
+  document.getElementById('modal-gestionar-titulo').textContent =
+    pasaA === 'atendida' ? 'Marcar alerta como atendida' : 'Reabrir alerta';
+  document.getElementById('modal-gestionar-comentario').value = comentarioActual || '';
+  document.getElementById('modal-gestionar').classList.remove('hidden');
+}
+
+function cerrarModalGestionar() {
+  alertaEnGestion = null;
+  document.getElementById('modal-gestionar').classList.add('hidden');
+}
+
+async function confirmarGestion() {
+  if (!alertaEnGestion) return;
+  const nuevoEstado = alertaEnGestion.estadoActual === 'atendida' ? 'pendiente' : 'atendida';
+  const comentario = document.getElementById('modal-gestionar-comentario').value.trim();
+
+  const res = await fetch(`${API}/api/alertas/${alertaEnGestion.id}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', Authorization: token },
-    body: JSON.stringify({ estado: nuevoEstado }),
+    body: JSON.stringify({ estado: nuevoEstado, comentario }),
   });
   if (res.status === 401) return manejarNoAutorizado();
+  cerrarModalGestionar();
   cargarAlertas();
 }
 

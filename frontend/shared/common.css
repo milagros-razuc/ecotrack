@@ -18,3 +18,8 @@
 /* Dropdown de perfil (sidebar) */
 #profile-menu{display:none;}
 #profile-menu.open{display:block;}
+
+/* Pop-up de alerta en tiempo real (RF10, RI05) */
+#alerta-popup{transition:all .4s;transform:translateX(130%);opacity:0;pointer-events:none;}
+#alerta-popup.show{transform:translateX(0);opacity:1;pointer-events:auto;}
+.dark #alerta-popup{background:#2a2a2a!important;}

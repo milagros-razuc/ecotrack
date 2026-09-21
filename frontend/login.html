@@ -1,118 +1,516 @@
 <!DOCTYPE html>
-<html class="light" lang="es"><head>
-<meta charset="utf-8"/>
-<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>EcoTrack - Login</title>
-<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
-<script src="shared/tailwind-config.js"></script>
-<link href="shared/common.css" rel="stylesheet"/>
-<style>
-  body { font-family: 'Inter', sans-serif; }
-</style>
-</head>
-<body class="bg-surface-container min-h-screen flex items-center justify-center relative overflow-hidden">
-<div class="absolute inset-0 z-0 opacity-10 bg-cover bg-center" style="background-image: url('https://lh3.googleusercontent.com/aida/ADBb0uh-651_0fm4AUQJkdkgm7kxUBia37r9aHrB1lKSNFifMy1fSXgegNJM3y_i4sUhIjIQv8rii8wfJngMwafdG0kUiLiP9PFD6dYUYscsdFQnHXvWahtrVJ2QiBmNfok6P8pcXLE6MPr6OBXhRVjBE8YdWlopsQJjVVxBshQIe8mfAKoooB6MBqXCiRIRsuiilg-vfOxOGTVvJ2j4f8jcYl1fjSmfE5e-fH-epl2usGgxoKImDGRpLGe4P9PG')"></div>
-<main class="relative z-10 w-full max-w-[440px] px-gutter py-stack-xl">
-  <div class="bg-surface-container-lowest border border-outline-variant p-margin flex flex-col gap-stack-lg">
-    <div class="flex flex-col items-center gap-stack-md text-center">
-      <div class="w-48">
-        <img alt="EcoTrack Logo" class="w-full h-full object-contain" src="ecotrack-logo.png"/>
-      </div>
-      <p class="font-body-sm text-body-sm text-on-surface-variant mt-stack-xs uppercase tracking-widest font-semibold">Global Monitoring Portal</p>
-    </div>
+<html class="light" lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 
-    <!-- Error message -->
-    <div id="error-msg" class="hidden bg-error-container border border-error text-on-error-container text-body-sm p-3 rounded flex items-center gap-2">
-      <span class="material-symbols-outlined text-error text-[18px]">error</span>
-      <span id="error-text">Usuario o contraseña incorrectos</span>
-    </div>
+  <title>EcoTrack - Iniciar sesión</title>
 
-    <form id="login-form" class="flex flex-col gap-stack-md">
-      <div class="flex flex-col gap-stack-sm">
-        <label class="font-label-bold text-label-bold text-on-surface-variant uppercase" for="username">Usuario</label>
-        <div class="relative group">
-          <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline">person</span>
-          <input class="w-full pl-10 pr-4 py-3 bg-surface border border-outline-variant text-on-surface font-body-md focus:border-on-surface-variant focus:ring-0 transition-all outline-none" id="username" placeholder="Ingresá tu usuario" type="text" autocomplete="username"/>
-        </div>
-      </div>
-      <div class="flex flex-col gap-stack-sm">
-        <label class="font-label-bold text-label-bold text-on-surface-variant uppercase" for="password">Contraseña</label>
-        <div class="relative group">
-          <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline">lock</span>
-          <input class="w-full pl-10 pr-4 py-3 bg-surface border border-outline-variant text-on-surface font-body-md focus:border-on-surface-variant focus:ring-0 transition-all outline-none" id="password" placeholder="••••••••" type="password" autocomplete="current-password"/>
-        </div>
-      </div>
-      <button id="btn-login" class="w-full h-[48px] bg-primary text-on-primary font-label-bold text-label-bold uppercase tracking-wider flex items-center justify-center gap-stack-sm hover:brightness-110 active:scale-[0.98] transition-all" type="submit">
-        <span id="btn-text">Iniciar Sesión</span>
-        <span class="material-symbols-outlined text-[20px]">login</span>
-      </button>
-    </form>
-  </div>
-  <div class="mt-stack-xl flex justify-between px-2">
-    <div class="flex items-center gap-stack-xs">
-      <span class="w-2 h-2 rounded-full bg-primary-container animate-pulse"></span>
-      <span class="font-label-bold text-label-bold text-on-surface-variant uppercase">System Active</span>
-    </div>
-    <span class="font-label-bold text-label-bold text-on-surface-variant opacity-50">V. 1.0.0</span>
-  </div>
-</main>
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 
-<script>
-const API = `http://${location.hostname}:3000`;
+  <!-- Fuentes -->
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
 
-// Si ya está logueado, ir directo al dashboard
-if (localStorage.getItem('ecotrack_token')) {
-  window.location.href = 'index.html';
-}
+  <link
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+    rel="stylesheet"
+  />
 
-document.getElementById('login-form').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const username = document.getElementById('username').value.trim();
-  const password = document.getElementById('password').value;
-  const btn = document.getElementById('btn-login');
-  const btnText = document.getElementById('btn-text');
-  const errorMsg = document.getElementById('error-msg');
-  const errorText = document.getElementById('error-text');
+  <!-- Configuración compartida -->
+  <script src="shared/tailwind-config.js"></script>
+  <link href="shared/common.css" rel="stylesheet"/>
 
-  if (!username || !password) {
-    errorText.textContent = 'Completá usuario y contraseña';
-    errorMsg.classList.remove('hidden');
-    return;
-  }
-
-  btn.disabled = true;
-  btnText.textContent = 'Ingresando...';
-  errorMsg.classList.add('hidden');
-
-  try {
-    const res = await fetch(`${API}/api/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password })
-    });
-    const data = await res.json();
-
-    if (!res.ok) {
-      errorText.textContent = data.error || 'Error al iniciar sesión';
-      errorMsg.classList.remove('hidden');
-      btn.disabled = false;
-      btnText.textContent = 'Iniciar Sesión';
-      return;
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
     }
 
-    localStorage.setItem('ecotrack_token', data.token);
-    localStorage.setItem('ecotrack_username', data.username || username);
-    localStorage.setItem('ecotrack_nombre', data.nombre);
-    window.location.href = 'index.html';
+    .login-card {
+      box-shadow:
+        0 16px 40px rgba(0, 0, 0, 0.06),
+        0 3px 10px rgba(0, 0, 0, 0.03);
+    }
 
-  } catch (err) {
-    errorText.textContent = 'No se pudo conectar al servidor';
-    errorMsg.classList.remove('hidden');
-    btn.disabled = false;
-    btnText.textContent = 'Iniciar Sesión';
-  }
-});
-</script>
-</body></html>
+    .login-input:focus {
+      box-shadow: 0 0 0 3px rgba(0, 109, 54, 0.08);
+    }
+
+    .login-button:disabled {
+      pointer-events: none;
+    }
+  </style>
+</head>
+
+<body class="bg-surface-container min-h-screen flex items-center justify-center relative overflow-hidden">
+
+  <!-- Fondo decorativo -->
+  <div
+    class="absolute inset-0 z-0 opacity-[0.06] bg-cover bg-center"
+    style="background-image: url('https://lh3.googleusercontent.com/aida/ADBb0uh-651_0fm4AUQJkdkgm7kxUBia37r9aHrB1lKSNFifMy1fSXgegNJM3y_i4sUhIjIQv8rii8wfJngMwafdG0kUiLiP9PFD6dYUYscsdFQnHXvWahtrVJ2QiBmNfok6P8pcXLE6MPr6OBXhRVjBE8YdWlopsQJjVVxBshQIe8mfAKoooB6MBqXCiRIRsuiilg-vfOxOGTVvJ2j4f8jcYl1fjSmfE5e-fH-epl2usGgxoKImDGRpLGe4P9PG')"
+    aria-hidden="true">
+  </div>
+
+  <!-- Contenido -->
+  <main class="relative z-10 w-full max-w-[420px] px-gutter py-stack-xl">
+
+    <!-- Card de login -->
+    <section
+      class="login-card bg-surface-container-lowest border border-outline-variant rounded-xl p-margin flex flex-col gap-stack-lg"
+      aria-labelledby="login-title"
+    >
+
+      <!-- Logo y título -->
+      <header class="flex flex-col items-center gap-stack-sm text-center">
+
+        <div class="w-40">
+          <img
+            alt="EcoTrack"
+            class="w-full h-auto object-contain"
+            src="ecotrack-logo.png"
+          />
+        </div>
+
+        <div>
+          <h1
+            id="login-title"
+            class="sr-only"
+          >
+            Iniciar sesión
+          </h1>
+
+          <p class="text-body-sm text-on-surface-variant tracking-wide">
+            Sistema de monitoreo ambiental
+          </p>
+        </div>
+
+      </header>
+
+
+      <!-- Mensaje de error -->
+      <div
+        id="error-msg"
+        class="hidden bg-error-container border border-error text-on-error-container text-body-sm p-3 rounded-lg flex items-center gap-2"
+        role="alert"
+        aria-live="polite"
+      >
+        <span
+          class="material-symbols-outlined text-error text-[18px]"
+          aria-hidden="true"
+        >
+          error
+        </span>
+
+        <span id="error-text">
+          Usuario o contraseña incorrectos
+        </span>
+      </div>
+
+
+      <!-- Formulario -->
+      <form
+        id="login-form"
+        class="flex flex-col gap-stack-md"
+        novalidate
+      >
+
+        <!-- Usuario -->
+        <div class="flex flex-col gap-stack-sm">
+
+          <label
+            class="font-label-bold text-label-bold text-on-surface-variant uppercase"
+            for="username"
+          >
+            Usuario
+          </label>
+
+          <div class="relative">
+
+            <span
+              class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline"
+              aria-hidden="true"
+            >
+              person
+            </span>
+
+            <input
+              id="username"
+              name="username"
+              class="login-input w-full pl-10 pr-4 py-3 rounded-lg bg-surface border border-outline-variant text-on-surface font-body-md focus:border-primary focus:ring-0 transition-all outline-none"
+              placeholder="Ingresá tu usuario"
+              type="text"
+              autocomplete="username"
+              required
+            />
+
+          </div>
+
+        </div>
+
+
+        <!-- Contraseña -->
+        <div class="flex flex-col gap-stack-sm">
+
+          <label
+            class="font-label-bold text-label-bold text-on-surface-variant uppercase"
+            for="password"
+          >
+            Contraseña
+          </label>
+
+          <div class="relative">
+
+            <span
+              class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline"
+              aria-hidden="true"
+            >
+              lock
+            </span>
+
+            <input
+              id="password"
+              name="password"
+              class="login-input w-full pl-10 pr-12 py-3 rounded-lg bg-surface border border-outline-variant text-on-surface font-body-md focus:border-primary focus:ring-0 transition-all outline-none"
+              placeholder="••••••••"
+              type="password"
+              autocomplete="current-password"
+              required
+            />
+
+            <!-- Mostrar / ocultar contraseña -->
+            <button
+              id="btn-toggle-password"
+              type="button"
+              class="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-primary transition-colors"
+              aria-label="Mostrar contraseña"
+              title="Mostrar contraseña"
+            >
+              <span
+                id="password-icon"
+                class="material-symbols-outlined text-[20px]"
+                aria-hidden="true"
+              >
+                visibility
+              </span>
+            </button>
+
+          </div>
+
+        </div>
+
+
+        <!-- Botón iniciar sesión -->
+        <button
+          id="btn-login"
+          class="login-button w-full h-[48px] rounded-lg bg-primary text-on-primary font-label-bold text-label-bold uppercase tracking-wider flex items-center justify-center gap-stack-sm hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-70 disabled:cursor-not-allowed"
+          type="submit"
+        >
+
+          <!-- Spinner -->
+          <span
+            id="btn-spinner"
+            class="hidden w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"
+            aria-hidden="true"
+          ></span>
+
+          <span id="btn-text">
+            Iniciar Sesión
+          </span>
+
+          <span
+            id="btn-icon"
+            class="material-symbols-outlined text-[20px]"
+            aria-hidden="true"
+          >
+            login
+          </span>
+
+        </button>
+
+      </form>
+
+    </section>
+
+
+    <!-- Estado del sistema -->
+    <footer class="mt-stack-xl flex justify-between items-center px-2">
+
+      <div class="flex items-center gap-stack-xs">
+
+        <span
+          class="w-2 h-2 rounded-full bg-primary animate-pulse"
+          aria-hidden="true"
+        ></span>
+
+        <span class="font-label-bold text-label-bold text-on-surface-variant uppercase">
+          Sistema activo
+        </span>
+
+      </div>
+
+      <span class="font-label-bold text-label-bold text-on-surface-variant opacity-50">
+        V. 1.0.0
+      </span>
+
+    </footer>
+
+  </main>
+
+
+  <script>
+    // ─────────────────────────────────────────────────────────────
+    // Configuración
+    // ─────────────────────────────────────────────────────────────
+
+    const API = `http://${location.hostname}:3000`;
+
+
+    // ─────────────────────────────────────────────────────────────
+    // Referencias DOM
+    // ─────────────────────────────────────────────────────────────
+
+    const loginForm = document.getElementById('login-form');
+    const usernameInput = document.getElementById('username');
+    const passwordInput = document.getElementById('password');
+
+    const loginButton = document.getElementById('btn-login');
+    const buttonText = document.getElementById('btn-text');
+    const buttonSpinner = document.getElementById('btn-spinner');
+    const buttonIcon = document.getElementById('btn-icon');
+
+    const errorMessage = document.getElementById('error-msg');
+    const errorText = document.getElementById('error-text');
+
+    const togglePasswordButton = document.getElementById('btn-toggle-password');
+    const passwordIcon = document.getElementById('password-icon');
+
+
+    // ─────────────────────────────────────────────────────────────
+    // Si ya existe una sesión, ir al dashboard
+    // ─────────────────────────────────────────────────────────────
+
+    if (localStorage.getItem('ecotrack_token')) {
+      window.location.replace('index.html');
+    }
+
+
+    // ─────────────────────────────────────────────────────────────
+    // Mostrar error
+    // ─────────────────────────────────────────────────────────────
+
+    function mostrarError(mensaje) {
+      errorText.textContent = mensaje;
+      errorMessage.classList.remove('hidden');
+    }
+
+
+    // ─────────────────────────────────────────────────────────────
+    // Ocultar error
+    // ─────────────────────────────────────────────────────────────
+
+    function ocultarError() {
+      errorMessage.classList.add('hidden');
+    }
+
+
+    // ─────────────────────────────────────────────────────────────
+    // Estado de carga del botón
+    // ─────────────────────────────────────────────────────────────
+
+    function mostrarEstadoCargando() {
+      loginButton.disabled = true;
+
+      buttonText.textContent = 'Ingresando...';
+
+      buttonSpinner.classList.remove('hidden');
+      buttonIcon.classList.add('hidden');
+    }
+
+
+    // ─────────────────────────────────────────────────────────────
+    // Restaurar botón
+    // ─────────────────────────────────────────────────────────────
+
+    function restaurarBoton() {
+      loginButton.disabled = false;
+
+      buttonText.textContent = 'Iniciar Sesión';
+
+      buttonSpinner.classList.add('hidden');
+      buttonIcon.classList.remove('hidden');
+    }
+
+
+    // ─────────────────────────────────────────────────────────────
+    // Mostrar / ocultar contraseña
+    // ─────────────────────────────────────────────────────────────
+
+    function togglePassword() {
+
+      const mostrar = passwordInput.type === 'password';
+
+      passwordInput.type = mostrar
+        ? 'text'
+        : 'password';
+
+      passwordIcon.textContent = mostrar
+        ? 'visibility_off'
+        : 'visibility';
+
+      togglePasswordButton.setAttribute(
+        'aria-label',
+        mostrar
+          ? 'Ocultar contraseña'
+          : 'Mostrar contraseña'
+      );
+
+      togglePasswordButton.setAttribute(
+        'title',
+        mostrar
+          ? 'Ocultar contraseña'
+          : 'Mostrar contraseña'
+      );
+    }
+
+
+    // ─────────────────────────────────────────────────────────────
+    // Eventos
+    // ─────────────────────────────────────────────────────────────
+
+    togglePasswordButton.addEventListener(
+      'click',
+      togglePassword
+    );
+
+
+    usernameInput.addEventListener(
+      'input',
+      ocultarError
+    );
+
+
+    passwordInput.addEventListener(
+      'input',
+      ocultarError
+    );
+
+
+    // ─────────────────────────────────────────────────────────────
+    // Login
+    // ─────────────────────────────────────────────────────────────
+
+    loginForm.addEventListener('submit', async (event) => {
+
+      event.preventDefault();
+
+      ocultarError();
+
+      const username = usernameInput.value.trim();
+      const password = passwordInput.value;
+
+
+      // Validación básica
+      if (!username || !password) {
+
+        mostrarError(
+          'Completá usuario y contraseña'
+        );
+
+        if (!username) {
+          usernameInput.focus();
+        } else {
+          passwordInput.focus();
+        }
+
+        return;
+      }
+
+
+      mostrarEstadoCargando();
+
+
+      try {
+
+        const response = await fetch(
+          `${API}/api/auth/login`,
+          {
+            method: 'POST',
+
+            headers: {
+              'Content-Type': 'application/json'
+            },
+
+            body: JSON.stringify({
+              username,
+              password
+            })
+          }
+        );
+
+
+        const data = await response.json();
+
+
+        // Credenciales incorrectas u otro error de API
+        if (!response.ok) {
+
+          mostrarError(
+            data.error || 'Error al iniciar sesión'
+          );
+
+          restaurarBoton();
+
+          return;
+        }
+
+
+        // ─────────────────────────────────────────────
+        // Guardar sesión
+        // ─────────────────────────────────────────────
+
+        localStorage.setItem(
+          'ecotrack_token',
+          data.token
+        );
+
+        localStorage.setItem(
+          'ecotrack_username',
+          data.username || username
+        );
+
+        localStorage.setItem(
+          'ecotrack_nombre',
+          data.nombre || ''
+        );
+
+        localStorage.setItem(
+          'ecotrack_rol',
+          data.rol || 'comun'
+        );
+
+
+        // Ir al dashboard
+        window.location.replace('index.html');
+
+      } catch (error) {
+
+        console.error(
+          'Error de conexión durante el login:',
+          error
+        );
+
+        mostrarError(
+          'No se pudo conectar al servidor'
+        );
+
+        restaurarBoton();
+      }
+
+    });
+  </script>
+
+</body>
+</html>

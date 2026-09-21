@@ -1,0 +1,1330 @@
+<!DOCTYPE html>
+<html class="light" lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+
+  <title>EcoTrack - Usuarios</title>
+
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+
+  <!-- Fuentes -->
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
+
+  <link
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+    rel="stylesheet"
+  />
+
+  <!-- Configuración compartida -->
+  <script src="shared/tailwind-config.js"></script>
+  <link href="shared/common.css" rel="stylesheet"/>
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+
+    #toast {
+      transition:
+        transform 0.3s ease,
+        opacity 0.3s ease;
+      transform: translate(-50%, 120px);
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    #toast.show {
+      transform: translate(-50%, 0);
+      opacity: 1;
+    }
+
+    .table-row {
+      transition: background-color 0.15s ease;
+    }
+  </style>
+</head>
+
+
+<body
+  class="bg-background font-body-md text-on-background flex h-screen overflow-hidden"
+  data-page="usuarios"
+>
+
+
+  <!-- =========================================================
+       Toast
+       ========================================================= -->
+
+  <div
+    id="toast"
+    class="fixed bottom-8 left-1/2 z-50 bg-primary text-on-primary px-5 py-3 rounded-lg shadow-xl flex items-center gap-3 font-bold text-body-sm"
+    role="status"
+    aria-live="polite"
+  >
+    <span
+      id="toast-icon"
+      class="material-symbols-outlined text-[20px]"
+      aria-hidden="true"
+    >
+      check_circle
+    </span>
+
+    <span id="toast-text">
+      Guardado
+    </span>
+  </div>
+
+
+  <!-- =========================================================
+       Sidebar
+       ========================================================= -->
+
+  <div id="sidebar-placeholder"></div>
+
+
+  <!-- =========================================================
+       Contenido principal
+       ========================================================= -->
+
+  <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
+
+
+    <!-- =======================================================
+         Header
+         ======================================================= -->
+
+    <header
+      class="flex justify-between items-center w-full px-gutter h-16 border-b border-outline-variant bg-surface shrink-0 z-10"
+    >
+
+      <div class="flex items-center gap-3">
+
+        <div
+          class="w-9 h-9 rounded-lg bg-primary-container text-on-primary-container flex items-center justify-center"
+        >
+          <span
+            class="material-symbols-outlined text-[21px]"
+            aria-hidden="true"
+          >
+            group
+          </span>
+        </div>
+
+        <div>
+          <h1 class="text-headline-md font-headline-md font-bold text-primary">
+            Gestión de Usuarios
+          </h1>
+
+          <p class="hidden sm:block text-label-sm text-on-surface-variant">
+            Administración de cuentas y permisos
+          </p>
+        </div>
+
+      </div>
+
+
+      <!-- Acciones del header -->
+      <div class="flex items-center gap-2">
+
+        <button
+          id="btn-nuevo-usuario"
+          type="button"
+          class="px-4 py-2.5 bg-primary text-on-primary font-label-bold text-label-bold uppercase tracking-wider hover:brightness-110 active:scale-[0.98] transition-all flex items-center gap-2 rounded-lg"
+        >
+          <span
+            class="material-symbols-outlined text-[18px]"
+            aria-hidden="true"
+          >
+            person_add
+          </span>
+
+          <span class="hidden sm:inline">
+            Nuevo Usuario
+          </span>
+        </button>
+
+
+        <button
+          onclick="toggleDark()"
+          id="btn-dark"
+          type="button"
+          class="p-2 text-on-surface-variant hover:bg-surface-container-high rounded-full transition-colors"
+          title="Modo oscuro"
+          aria-label="Cambiar modo oscuro"
+        >
+          <span
+            class="material-symbols-outlined"
+            aria-hidden="true"
+          >
+            dark_mode
+          </span>
+        </button>
+
+      </div>
+
+    </header>
+
+
+    <!-- =======================================================
+         Main
+         ======================================================= -->
+
+    <main class="flex-1 overflow-y-auto p-gutter lg:p-margin">
+
+      <div class="max-w-container-max mx-auto space-y-stack-lg">
+
+
+        <!-- ===================================================
+             Resumen
+             =================================================== -->
+
+        <section
+          class="bg-surface-container-lowest border border-outline-variant rounded-xl px-5 py-4 flex items-center justify-between"
+        >
+
+          <div class="flex items-center gap-3">
+
+            <div
+              class="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center"
+            >
+              <span
+                class="material-symbols-outlined text-on-surface-variant"
+                aria-hidden="true"
+              >
+                manage_accounts
+              </span>
+            </div>
+
+            <div>
+              <p class="text-label-bold uppercase text-on-surface-variant">
+                Usuarios registrados
+              </p>
+
+              <p
+                id="contador-usuarios"
+                class="text-headline-md font-bold text-on-surface"
+              >
+                —
+              </p>
+            </div>
+
+          </div>
+
+          <span
+            class="hidden sm:flex items-center gap-2 text-label-sm text-on-surface-variant"
+          >
+            <span class="w-2 h-2 rounded-full bg-primary"></span>
+            Gestión administrativa
+          </span>
+
+        </section>
+
+
+        <!-- ===================================================
+             Formulario de alta
+             =================================================== -->
+
+        <section
+          id="form-alta"
+          class="hidden bg-surface-container-lowest border border-outline-variant rounded-xl p-5"
+        >
+
+          <div class="flex items-start justify-between gap-4 mb-5">
+
+            <div>
+
+              <div class="flex items-center gap-2">
+
+                <span
+                  class="material-symbols-outlined text-primary"
+                  aria-hidden="true"
+                >
+                  person_add
+                </span>
+
+                <h2 class="font-bold text-on-surface">
+                  Nuevo usuario
+                </h2>
+
+              </div>
+
+              <p class="text-body-sm text-on-surface-variant mt-1">
+                Completá los datos para crear una nueva cuenta.
+              </p>
+
+            </div>
+
+
+            <button
+              id="btn-cerrar-alta"
+              type="button"
+              class="p-1.5 rounded-full text-on-surface-variant hover:bg-surface-container-high transition-colors"
+              title="Cerrar"
+              aria-label="Cerrar formulario"
+            >
+              <span
+                class="material-symbols-outlined"
+                aria-hidden="true"
+              >
+                close
+              </span>
+            </button>
+
+          </div>
+
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+
+            <!-- Usuario -->
+            <div class="flex flex-col gap-1.5">
+
+              <label
+                for="alta-username"
+                class="text-label-bold text-on-surface-variant uppercase"
+              >
+                Usuario
+              </label>
+
+              <input
+                id="alta-username"
+                class="px-3 py-2.5 border border-outline-variant rounded-lg text-body-sm outline-none focus:border-primary focus:ring-0 transition-all bg-surface"
+                placeholder="jperez"
+                autocomplete="off"
+              />
+
+            </div>
+
+
+            <!-- Contraseña -->
+            <div class="flex flex-col gap-1.5">
+
+              <label
+                for="alta-password"
+                class="text-label-bold text-on-surface-variant uppercase"
+              >
+                Contraseña
+              </label>
+
+              <input
+                id="alta-password"
+                type="password"
+                class="px-3 py-2.5 border border-outline-variant rounded-lg text-body-sm outline-none focus:border-primary focus:ring-0 transition-all bg-surface"
+                placeholder="Mín. 6 caracteres"
+                autocomplete="new-password"
+              />
+
+            </div>
+
+
+            <!-- Nombre -->
+            <div class="flex flex-col gap-1.5">
+
+              <label
+                for="alta-nombre"
+                class="text-label-bold text-on-surface-variant uppercase"
+              >
+                Nombre
+              </label>
+
+              <input
+                id="alta-nombre"
+                class="px-3 py-2.5 border border-outline-variant rounded-lg text-body-sm outline-none focus:border-primary focus:ring-0 transition-all bg-surface"
+                placeholder="Juan Pérez"
+                autocomplete="off"
+              />
+
+            </div>
+
+
+            <!-- Rol -->
+            <div class="flex flex-col gap-1.5">
+
+              <label
+                for="alta-rol"
+                class="text-label-bold text-on-surface-variant uppercase"
+              >
+                Rol
+              </label>
+
+              <select
+                id="alta-rol"
+                class="px-3 py-2.5 border border-outline-variant rounded-lg text-body-sm outline-none focus:border-primary focus:ring-0 transition-all bg-surface"
+              >
+                <option value="comun">
+                  Común
+                </option>
+
+                <option value="admin">
+                  Administrador
+                </option>
+              </select>
+
+            </div>
+
+          </div>
+
+
+          <!-- Error -->
+          <p
+            id="alta-error"
+            class="hidden mt-4 text-error text-body-sm"
+            role="alert"
+          ></p>
+
+
+          <!-- Acciones -->
+          <div class="flex justify-end gap-2 mt-5">
+
+            <button
+              id="btn-cancelar-alta"
+              type="button"
+              class="px-4 py-2.5 border border-outline-variant text-on-surface-variant font-label-bold text-label-bold uppercase rounded-lg hover:bg-surface-container-high transition-all"
+            >
+              Cancelar
+            </button>
+
+            <button
+              id="btn-crear-usuario"
+              type="button"
+              class="px-4 py-2.5 bg-primary text-on-primary font-label-bold text-label-bold uppercase rounded-lg hover:brightness-110 active:scale-[0.98] transition-all flex items-center gap-2"
+            >
+              <span
+                class="material-symbols-outlined text-[18px]"
+                aria-hidden="true"
+              >
+                person_add
+              </span>
+
+              Crear usuario
+            </button>
+
+          </div>
+
+        </section>
+
+
+        <!-- ===================================================
+             Tabla
+             =================================================== -->
+
+        <section
+          class="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden"
+        >
+
+          <!-- Cabecera tabla -->
+          <div
+            class="px-5 py-4 border-b border-outline-variant flex items-center justify-between"
+          >
+
+            <div>
+
+              <h2 class="font-bold text-on-surface">
+                Usuarios
+              </h2>
+
+              <p class="text-body-sm text-on-surface-variant mt-0.5">
+                Cuentas registradas en EcoTrack
+              </p>
+
+            </div>
+
+            <span
+              class="material-symbols-outlined text-on-surface-variant"
+              aria-hidden="true"
+            >
+              group
+            </span>
+
+          </div>
+
+
+          <div class="overflow-x-auto">
+
+            <table class="w-full text-left border-collapse">
+
+              <thead
+                class="bg-surface-container-high text-on-surface-variant text-label-bold uppercase"
+              >
+
+                <tr>
+
+                  <th class="px-5 py-3.5">
+                    Usuario
+                  </th>
+
+                  <th class="px-5 py-3.5">
+                    Nombre
+                  </th>
+
+                  <th class="px-5 py-3.5">
+                    Rol
+                  </th>
+
+                  <th class="px-5 py-3.5">
+                    Creado
+                  </th>
+
+                  <th class="px-5 py-3.5 text-center">
+                    Acción
+                  </th>
+
+                </tr>
+
+              </thead>
+
+
+              <tbody
+                id="tabla-usuarios"
+                class="text-body-sm"
+              >
+
+                <tr>
+
+                  <td
+                    colspan="5"
+                    class="px-5 py-10 text-center text-on-surface-variant"
+                  >
+                    <div class="flex flex-col items-center gap-2">
+
+                      <span
+                        class="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"
+                      ></span>
+
+                      <span>
+                        Cargando usuarios...
+                      </span>
+
+                    </div>
+                  </td>
+
+                </tr>
+
+              </tbody>
+
+            </table>
+
+          </div>
+
+        </section>
+
+      </div>
+
+    </main>
+
+  </div>
+
+
+  <!-- =========================================================
+       Scripts compartidos
+       ========================================================= -->
+
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <script src="shared/app.js"></script>
+
+
+  <!-- =========================================================
+       Lógica específica de Usuarios
+       ========================================================= -->
+
+  <script>
+
+    // ─────────────────────────────────────────────────────────
+    // Protección adicional de la página
+    // ─────────────────────────────────────────────────────────
+
+    if (!esAdmin) {
+      window.location.replace('index.html');
+    }
+
+
+    // ─────────────────────────────────────────────────────────
+    // Estado
+    // ─────────────────────────────────────────────────────────
+
+    let usuarios = [];
+    let editandoId = null;
+    let toastTimeout = null;
+
+
+    // ─────────────────────────────────────────────────────────
+    // Referencias DOM
+    // ─────────────────────────────────────────────────────────
+
+    const formAlta = document.getElementById('form-alta');
+
+    const contadorUsuarios =
+      document.getElementById('contador-usuarios');
+
+    const tablaUsuarios =
+      document.getElementById('tabla-usuarios');
+
+    const altaError =
+      document.getElementById('alta-error');
+
+
+    // ─────────────────────────────────────────────────────────
+    // Toast
+    // ─────────────────────────────────────────────────────────
+
+    function mostrarToast(texto, esError = false) {
+
+      const toast = document.getElementById('toast');
+      const icon = document.getElementById('toast-icon');
+      const text = document.getElementById('toast-text');
+
+      text.textContent = texto;
+
+      icon.textContent = esError
+        ? 'error'
+        : 'check_circle';
+
+      toast.classList.toggle(
+        'bg-error',
+        esError
+      );
+
+      toast.classList.toggle(
+        'bg-primary',
+        !esError
+      );
+
+      toast.classList.add('show');
+
+      clearTimeout(toastTimeout);
+
+      toastTimeout = setTimeout(() => {
+        toast.classList.remove('show');
+      }, 3000);
+    }
+
+
+    // ─────────────────────────────────────────────────────────
+    // Formulario alta
+    // ─────────────────────────────────────────────────────────
+
+    function abrirFormAlta() {
+
+      formAlta.classList.remove('hidden');
+
+      document.getElementById('alta-username').focus();
+
+      altaError.classList.add('hidden');
+    }
+
+
+    function cerrarFormAlta() {
+
+      formAlta.classList.add('hidden');
+
+      altaError.classList.add('hidden');
+
+      document.getElementById('alta-username').value = '';
+      document.getElementById('alta-password').value = '';
+      document.getElementById('alta-nombre').value = '';
+      document.getElementById('alta-rol').value = 'comun';
+    }
+
+
+    // ─────────────────────────────────────────────────────────
+    // Badge de rol
+    // ─────────────────────────────────────────────────────────
+
+    function badgeRol(rol) {
+
+      if (rol === 'admin') {
+
+        return `
+          <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary-container text-on-primary-container text-[11px] font-bold uppercase">
+            <span class="material-symbols-outlined text-[14px]">
+              admin_panel_settings
+            </span>
+            Admin
+          </span>
+        `;
+      }
+
+      return `
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface-container-high text-on-surface-variant text-[11px] font-bold uppercase">
+          <span class="material-symbols-outlined text-[14px]">
+            person
+          </span>
+          Común
+        </span>
+      `;
+    }
+
+
+    // ─────────────────────────────────────────────────────────
+    // Cargar usuarios
+    // ─────────────────────────────────────────────────────────
+
+    async function cargarUsuarios() {
+
+      try {
+
+        const response = await fetch(
+          `${API}/api/usuarios`,
+          {
+            headers: {
+              Authorization: token
+            }
+          }
+        );
+
+
+        if (response.status === 401) {
+          return manejarNoAutorizado();
+        }
+
+
+        if (response.status === 403) {
+
+          mostrarToast(
+            'No tenés permisos para ver esta página',
+            true
+          );
+
+          return;
+        }
+
+
+        if (!response.ok) {
+          throw new Error('No se pudieron cargar los usuarios');
+        }
+
+
+        usuarios = await response.json();
+
+        renderTabla();
+
+      } catch (error) {
+
+        console.error(
+          'Error cargando usuarios:',
+          error
+        );
+
+        tablaUsuarios.innerHTML = `
+          <tr>
+            <td
+              colspan="5"
+              class="px-5 py-10 text-center text-error"
+            >
+              <div class="flex flex-col items-center gap-2">
+
+                <span class="material-symbols-outlined text-[28px]">
+                  error
+                </span>
+
+                <span>
+                  No se pudieron cargar los usuarios.
+                </span>
+
+              </div>
+            </td>
+          </tr>
+        `;
+      }
+    }
+
+
+    // ─────────────────────────────────────────────────────────
+    // Render tabla
+    // ─────────────────────────────────────────────────────────
+
+    function renderTabla() {
+
+      contadorUsuarios.textContent =
+        usuarios.length;
+
+
+      if (!usuarios.length) {
+
+        tablaUsuarios.innerHTML = `
+          <tr>
+            <td
+              colspan="5"
+              class="px-5 py-12 text-center text-on-surface-variant"
+            >
+              <div class="flex flex-col items-center gap-2">
+
+                <span class="material-symbols-outlined text-[32px] opacity-50">
+                  group_off
+                </span>
+
+                <span>
+                  No hay usuarios registrados.
+                </span>
+
+              </div>
+            </td>
+          </tr>
+        `;
+
+        return;
+      }
+
+
+      tablaUsuarios.innerHTML = usuarios
+        .map(renderFilaUsuario)
+        .join('');
+    }
+
+
+    // ─────────────────────────────────────────────────────────
+    // Render de una fila
+    // ─────────────────────────────────────────────────────────
+
+    function renderFilaUsuario(usuario) {
+
+      const esUsuarioActual =
+        usuario.username === username;
+
+
+      const indicadorActual = esUsuarioActual
+        ? `
+          <span class="ml-1.5 text-on-surface-variant font-normal">
+            (vos)
+          </span>
+        `
+        : '';
+
+
+      if (editandoId === usuario.id) {
+
+        return `
+          <tr class="border-b border-outline-variant bg-surface-container-low">
+
+            <td class="px-5 py-4 font-bold text-on-surface">
+              ${usuario.username}
+              ${indicadorActual}
+            </td>
+
+            <td class="px-5 py-4">
+
+              <input
+                id="edit-nombre"
+                class="px-2.5 py-2 border border-outline-variant rounded-lg text-body-sm w-44 bg-surface outline-none focus:border-primary"
+                value="${escaparHtml(usuario.nombre || '')}"
+              />
+
+            </td>
+
+            <td class="px-5 py-4">
+
+              <select
+                id="edit-rol"
+                class="px-2.5 py-2 border border-outline-variant rounded-lg text-body-sm bg-surface outline-none focus:border-primary"
+              >
+
+                <option
+                  value="comun"
+                  ${usuario.rol === 'comun' ? 'selected' : ''}
+                >
+                  Común
+                </option>
+
+                <option
+                  value="admin"
+                  ${usuario.rol === 'admin' ? 'selected' : ''}
+                >
+                  Administrador
+                </option>
+
+              </select>
+
+            </td>
+
+            <td class="px-5 py-4 text-on-surface-variant">
+              ${formatearFecha(usuario.creado_en)}
+            </td>
+
+            <td class="px-5 py-4">
+
+              <div class="flex items-center justify-center gap-2">
+
+                <button
+                  onclick="guardarEdicion(${usuario.id})"
+                  class="px-3 py-1.5 rounded-lg bg-primary text-on-primary font-label-bold uppercase text-[11px] hover:brightness-110 transition-all"
+                >
+                  Guardar
+                </button>
+
+                <button
+                  onclick="cancelarEdicion()"
+                  class="px-3 py-1.5 rounded-lg border border-outline-variant text-on-surface-variant font-label-bold uppercase text-[11px] hover:bg-surface-container-high transition-all"
+                >
+                  Cancelar
+                </button>
+
+              </div>
+
+            </td>
+
+          </tr>
+        `;
+      }
+
+
+      return `
+        <tr class="table-row border-b border-outline-variant hover:bg-surface-container-low">
+
+          <td class="px-5 py-4 font-bold text-on-surface">
+            ${escaparHtml(usuario.username)}
+            ${indicadorActual}
+          </td>
+
+          <td class="px-5 py-4 text-on-surface">
+            ${escaparHtml(usuario.nombre || '—')}
+          </td>
+
+          <td class="px-5 py-4">
+            ${badgeRol(usuario.rol)}
+          </td>
+
+          <td class="px-5 py-4 text-on-surface-variant">
+            ${formatearFecha(usuario.creado_en)}
+          </td>
+
+          <td class="px-5 py-4">
+
+            <div class="flex items-center justify-center gap-1">
+
+              <button
+                onclick="editarUsuario(${usuario.id})"
+                class="p-2 rounded-lg text-primary hover:bg-primary-container transition-colors"
+                title="Editar usuario"
+                aria-label="Editar usuario"
+              >
+                <span class="material-symbols-outlined text-[19px]">
+                  edit
+                </span>
+              </button>
+
+              <button
+                onclick="eliminarUsuario(${usuario.id}, '${escaparAtributo(usuario.username)}')"
+                class="p-2 rounded-lg text-error hover:bg-error-container transition-colors"
+                title="Eliminar usuario"
+                aria-label="Eliminar usuario"
+              >
+                <span class="material-symbols-outlined text-[19px]">
+                  delete
+                </span>
+              </button>
+
+            </div>
+
+          </td>
+
+        </tr>
+      `;
+    }
+
+
+    // ─────────────────────────────────────────────────────────
+    // Utilidades
+    // ─────────────────────────────────────────────────────────
+
+    function formatearFecha(fecha) {
+
+      if (!fecha) {
+        return '—';
+      }
+
+      return new Date(fecha)
+        .toLocaleDateString('es-AR');
+    }
+
+
+    function escaparHtml(valor) {
+
+      return String(valor)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+
+    function escaparAtributo(valor) {
+
+      return String(valor)
+        .replace(/\\/g, '\\\\')
+        .replace(/'/g, "\\'");
+    }
+
+
+    // ─────────────────────────────────────────────────────────
+    // Editar usuario
+    // ─────────────────────────────────────────────────────────
+
+    function editarUsuario(id) {
+
+      editandoId = id;
+
+      renderTabla();
+    }
+
+
+    function cancelarEdicion() {
+
+      editandoId = null;
+
+      renderTabla();
+    }
+
+
+    // ─────────────────────────────────────────────────────────
+    // Guardar edición
+    // ─────────────────────────────────────────────────────────
+
+    async function guardarEdicion(id) {
+
+      const nombre =
+        document.getElementById('edit-nombre').value.trim();
+
+      const rol =
+        document.getElementById('edit-rol').value;
+
+
+      if (!nombre) {
+
+        mostrarToast(
+          'El nombre no puede estar vacío',
+          true
+        );
+
+        return;
+      }
+
+
+      try {
+
+        const response = await fetch(
+          `${API}/api/usuarios/${id}`,
+          {
+            method: 'PATCH',
+
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: token
+            },
+
+            body: JSON.stringify({
+              nombre,
+              rol
+            })
+          }
+        );
+
+
+        if (response.status === 401) {
+          return manejarNoAutorizado();
+        }
+
+
+        const data = await response.json();
+
+
+        if (!response.ok) {
+
+          mostrarToast(
+            data.error || 'No se pudo guardar',
+            true
+          );
+
+          return;
+        }
+
+
+        editandoId = null;
+
+        mostrarToast(
+          'Usuario actualizado correctamente'
+        );
+
+        await cargarUsuarios();
+
+      } catch (error) {
+
+        console.error(
+          'Error actualizando usuario:',
+          error
+        );
+
+        mostrarToast(
+          'No se pudo conectar con el servidor',
+          true
+        );
+      }
+    }
+
+
+    // ─────────────────────────────────────────────────────────
+    // Eliminar usuario
+    // ─────────────────────────────────────────────────────────
+
+    async function eliminarUsuario(
+      id,
+      usernameObjetivo
+    ) {
+
+      const confirmar = confirm(
+        `¿Eliminar al usuario ${usernameObjetivo}?\n\nEsta acción no se puede deshacer.`
+      );
+
+
+      if (!confirmar) {
+        return;
+      }
+
+
+      try {
+
+        const response = await fetch(
+          `${API}/api/usuarios/${id}`,
+          {
+            method: 'DELETE',
+            headers: {
+              Authorization: token
+            }
+          }
+        );
+
+
+        if (response.status === 401) {
+          return manejarNoAutorizado();
+        }
+
+
+        if (!response.ok && response.status !== 204) {
+
+          const data =
+            await response.json().catch(() => ({}));
+
+          mostrarToast(
+            data.error ||
+            'No se pudo eliminar el usuario',
+            true
+          );
+
+          return;
+        }
+
+
+        mostrarToast(
+          'Usuario eliminado correctamente'
+        );
+
+        await cargarUsuarios();
+
+      } catch (error) {
+
+        console.error(
+          'Error eliminando usuario:',
+          error
+        );
+
+        mostrarToast(
+          'No se pudo conectar con el servidor',
+          true
+        );
+      }
+    }
+
+
+    // ─────────────────────────────────────────────────────────
+    // Crear usuario
+    // ─────────────────────────────────────────────────────────
+
+    async function crearUsuario() {
+
+      const username =
+        document.getElementById('alta-username')
+          .value
+          .trim();
+
+      const password =
+        document.getElementById('alta-password')
+          .value;
+
+      const nombre =
+        document.getElementById('alta-nombre')
+          .value
+          .trim();
+
+      const rol =
+        document.getElementById('alta-rol')
+          .value;
+
+
+      altaError.classList.add('hidden');
+
+
+      // Validaciones básicas
+      if (!username) {
+
+        altaError.textContent =
+          'Ingresá un nombre de usuario.';
+
+        altaError.classList.remove('hidden');
+
+        document.getElementById(
+          'alta-username'
+        ).focus();
+
+        return;
+      }
+
+
+      if (!password || password.length < 6) {
+
+        altaError.textContent =
+          'La contraseña debe tener al menos 6 caracteres.';
+
+        altaError.classList.remove('hidden');
+
+        document.getElementById(
+          'alta-password'
+        ).focus();
+
+        return;
+      }
+
+
+      try {
+
+        const response = await fetch(
+          `${API}/api/usuarios`,
+          {
+            method: 'POST',
+
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: token
+            },
+
+            body: JSON.stringify({
+              username,
+              password,
+              nombre: nombre || undefined,
+              rol
+            })
+          }
+        );
+
+
+        if (response.status === 401) {
+          return manejarNoAutorizado();
+        }
+
+
+        const data =
+          await response.json();
+
+
+        if (!response.ok) {
+
+          altaError.textContent =
+            data.error ||
+            'No se pudo crear el usuario';
+
+          altaError.classList.remove('hidden');
+
+          return;
+        }
+
+
+        cerrarFormAlta();
+
+        mostrarToast(
+          'Usuario creado correctamente'
+        );
+
+        await cargarUsuarios();
+
+      } catch (error) {
+
+        console.error(
+          'Error creando usuario:',
+          error
+        );
+
+        altaError.textContent =
+          'No se pudo conectar con el servidor';
+
+        altaError.classList.remove('hidden');
+      }
+    }
+
+
+    // ─────────────────────────────────────────────────────────
+    // Eventos
+    // ─────────────────────────────────────────────────────────
+
+    document
+      .getElementById('btn-nuevo-usuario')
+      .addEventListener(
+        'click',
+        abrirFormAlta
+      );
+
+
+    document
+      .getElementById('btn-cerrar-alta')
+      .addEventListener(
+        'click',
+        cerrarFormAlta
+      );
+
+
+    document
+      .getElementById('btn-cancelar-alta')
+      .addEventListener(
+        'click',
+        cerrarFormAlta
+      );
+
+
+    document
+      .getElementById('btn-crear-usuario')
+      .addEventListener(
+        'click',
+        crearUsuario
+      );
+
+
+    // Enter dentro del formulario
+    document
+      .getElementById('form-alta')
+      .addEventListener('keydown', event => {
+
+        if (
+          event.key === 'Enter' &&
+          event.target.tagName !== 'SELECT'
+        ) {
+
+          event.preventDefault();
+
+          crearUsuario();
+        }
+      });
+
+
+    // ─────────────────────────────────────────────────────────
+    // Inicialización
+    // ─────────────────────────────────────────────────────────
+
+    initShell()
+      .then(() => cargarUsuarios());
+
+  </script>
+
+</body>
+</html>

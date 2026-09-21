@@ -3,6 +3,7 @@ const dispositivosService = require('../services/dispositivos.service');
 const lecturasService = require('../services/lecturas.service');
 const umbralesService = require('../services/umbrales.service');
 const alertasService = require('../services/alertas.service');
+const { lecturaMqttSchema } = require('../schemas');
 
 async function evaluarUmbral(io, dispositivoCodigo, variable, valor) {
   if (valor === undefined || valor === null) return;
@@ -50,7 +51,35 @@ function iniciarMQTT(io) {
   mqttClient.on('message', async (topic, message) => {
     try {
       const dispositivoCodigo = topic.split('/')[1];
-      const data = JSON.parse(message.toString());
+
+      let dataCruda;
+      try {
+        dataCruda = JSON.parse(message.toString());
+      } catch (err) {
+        console.error(`Mensaje MQTT descartado de ${dispositivoCodigo}: no es JSON válido`);
+        return;
+      }
+
+      // RF04/RNF03: único canal de ingesta que llegaba sin validar. Un
+      // payload con campos faltantes, de tipo incorrecto o fuera de rango
+      // físico se descarta acá, antes de tocar dispositivos/lecturas.
+      const resultado = lecturaMqttSchema.safeParse(dataCruda);
+      if (!resultado.success) {
+        const detalle = resultado.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join('; ');
+        console.error(`Mensaje MQTT descartado de ${dispositivoCodigo}: ${detalle}`);
+        return;
+      }
+      const data = resultado.data;
+
+      // Si el dispositivo fue dado de baja (activo = false), se descarta
+      // el mensaje antes de tocar lecturas/alertas. Un dispositivo nuevo
+      // (todavía no existe en la tabla) devuelve null acá y sigue de largo
+      // normalmente, para no bloquear el alta automática del primer mensaje.
+      const activo = await dispositivosService.estaActivo(dispositivoCodigo);
+      if (activo === false) {
+        console.log(`Mensaje MQTT descartado: ${dispositivoCodigo} está dado de baja`);
+        return;
+      }
 
       await dispositivosService.registrarConexion(dispositivoCodigo);
       await lecturasService.guardar({

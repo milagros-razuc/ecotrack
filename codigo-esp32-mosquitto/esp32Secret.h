@@ -1,0 +1,6 @@
+#define SECRET_SSID "Fastnet_24-5Ghz-Razuc"
+#define SECRET_PASS "Milagros.2026"
+#define SECRET_MQTT_HOST "192.168.1.73"
+#define SECRET_DEVICE_ID "ESP32-001"
+#define SECRET_MQTT_USER "esp32-001"
+#define SECRET_MQTT_PASS "1234"

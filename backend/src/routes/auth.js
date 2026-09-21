@@ -2,7 +2,7 @@ const express = require('express');
 const authService = require('../services/auth.service');
 const verificarToken = require('../middleware/auth');
 const validar = require('../middleware/validar');
-const { loginSchema, changePasswordSchema } = require('../schemas');
+const { loginSchema, changePasswordSchema, actualizarPerfilSchema } = require('../schemas');
 
 const router = express.Router();
 
@@ -25,6 +25,21 @@ router.post('/login', validar(loginSchema), async (req, res, next) => {
 router.get('/me', verificarToken, async (req, res, next) => {
   try {
     const usuario = await authService.obtenerPorId(req.usuario.sub);
+    if (!usuario) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+    res.json(usuario);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Edita el nombre del perfil propio (RF20). Username y rol no se tocan
+// acá: cambiarlos sigue siendo tarea exclusiva de CU09 (gestión de usuarios).
+router.patch('/me', verificarToken, validar(actualizarPerfilSchema), async (req, res, next) => {
+  try {
+    const { nombre } = req.body;
+    const usuario = await authService.actualizarPerfil(req.usuario.sub, { nombre });
     if (!usuario) {
       return res.status(404).json({ error: 'Usuario no encontrado' });
     }
