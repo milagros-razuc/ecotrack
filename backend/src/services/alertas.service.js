@@ -71,9 +71,7 @@ async function listar({ dispositivo, estado, variable, pagina, limite, clienteId
 }
 
 // Solo actualiza si la alerta pertenece a un dispositivo del cliente
-// logueado; si el id existe pero es de otro cliente, no matchea ninguna
-// fila y devuelve null (se ve igual que "no encontrada" desde afuera).
-// comentario es opcional (RF11): si no viene, no se pisa el que ya hubiera.
+// logueado
 async function actualizarEstado(id, estado, clienteId, comentario) {
   const params = [estado, id, clienteId];
   let setComentario = '';

@@ -34,7 +34,7 @@ router.get('/me', verificarToken, async (req, res, next) => {
   }
 });
 
-// Edita el nombre del perfil propio (RF20). Username y rol no se tocan
+// Edita el nombre del perfil propio. Username y rol no se tocan
 // acá: cambiarlos sigue siendo tarea exclusiva de CU09 (gestión de usuarios).
 router.patch('/me', verificarToken, validar(actualizarPerfilSchema), async (req, res, next) => {
   try {

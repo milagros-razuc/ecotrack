@@ -72,9 +72,7 @@ function iniciarMQTT(io) {
       const data = resultado.data;
 
       // Si el dispositivo fue dado de baja (activo = false), se descarta
-      // el mensaje antes de tocar lecturas/alertas. Un dispositivo nuevo
-      // (todavía no existe en la tabla) devuelve null acá y sigue de largo
-      // normalmente, para no bloquear el alta automática del primer mensaje.
+      // el mensaje antes de tocar lecturas/alertas. 
       const activo = await dispositivosService.estaActivo(dispositivoCodigo);
       if (activo === false) {
         console.log(`Mensaje MQTT descartado: ${dispositivoCodigo} está dado de baja`);

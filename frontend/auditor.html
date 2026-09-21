@@ -9,13 +9,17 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.min.js"></script>
 <script src="shared/tailwind-config.js"></script>
 <link href="shared/common.css" rel="stylesheet"/>
+<style>
+.tab-auditor.active{background:#eae7e7;font-weight:700;}
+.dark .tab-auditor.active{background:#333!important;}
+</style>
 </head>
 <body class="bg-background font-body-md text-on-background flex h-screen overflow-hidden" data-page="auditor">
 
 <!-- Sidebar (inyectado por shared/app.js) -->
 <div id="sidebar-placeholder"></div>
 
-<!-- Modal "Gestionar alerta" (comentario, RF11) -->
+<!-- Modal "Gestionar alerta" (comentario) -->
 <div id="modal-gestionar" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40">
   <div class="bg-white rounded p-stack-lg w-full max-w-md mx-4 flex flex-col gap-stack-md">
     <h3 id="modal-gestionar-titulo" class="font-headline-md text-on-secondary-container">Gestionar alerta</h3>
@@ -33,25 +37,8 @@
 <!-- Main -->
 <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
   <header class="flex flex-wrap justify-between items-center gap-3 w-full px-gutter py-3 h-auto min-h-16 border-b border-outline-variant bg-surface shrink-0 z-10">
-    <span class="text-headline-md font-headline-md font-bold text-primary">Auditoría de Alertas</span>
+    <span class="text-headline-md font-headline-md font-bold text-primary">Auditoría</span>
     <div class="flex flex-wrap items-center gap-3">
-      <div class="flex items-center gap-2">
-        <label class="text-label-bold text-on-surface-variant uppercase">Desde</label>
-        <input type="date" id="filtro-desde" onchange="cambiarFiltro()" class="text-body-sm border border-outline-variant rounded-lg px-3 py-2 bg-surface-container-low outline-none"/>
-      </div>
-      <div class="flex items-center gap-2">
-        <label class="text-label-bold text-on-surface-variant uppercase">Hasta</label>
-        <input type="date" id="filtro-hasta" onchange="cambiarFiltro()" class="text-body-sm border border-outline-variant rounded-lg px-3 py-2 bg-surface-container-low outline-none"/>
-      </div>
-      <button onclick="limpiarFiltroFechas()" class="text-body-sm text-on-surface-variant hover:underline">Limpiar fechas</button>
-      <select id="filtro-estado" onchange="cambiarFiltro()" class="text-body-sm border border-outline-variant rounded-lg px-3 py-2 bg-surface-container-low outline-none">
-        <option value="">Todos los estados</option>
-        <option value="pendiente">Pendiente</option>
-        <option value="atendida">Atendida</option>
-      </select>
-      <select id="filtro-dispositivo" onchange="cambiarFiltro()" class="text-body-sm border border-outline-variant rounded-lg px-3 py-2 bg-surface-container-low outline-none">
-        <option value="">Todos los dispositivos</option>
-      </select>
       <button onclick="toggleDark()" id="btn-dark" class="p-2 text-on-surface-variant hover:bg-surface-container-high rounded-full transition-colors" title="Modo oscuro">
         <span class="material-symbols-outlined">dark_mode</span>
       </button>
@@ -61,60 +48,136 @@
   <main class="flex-1 overflow-y-auto p-gutter lg:p-margin">
     <div class="max-w-container-max mx-auto space-y-stack-xl">
 
-      <!-- Tabla de alertas -->
-      <section class="bg-white precision-border rounded overflow-hidden">
-        <div class="overflow-x-auto">
-          <table class="w-full text-left border-collapse">
-            <thead class="bg-surface-container-high text-on-surface-variant text-label-bold uppercase">
-              <tr>
-                <th class="px-6 py-4">Timestamp</th>
-                <th class="px-6 py-4">Dispositivo</th>
-                <th class="px-6 py-4">Variable</th>
-                <th class="px-6 py-4">Valor</th>
-                <th class="px-6 py-4">Umbral</th>
-                <th class="px-6 py-4">Estado</th>
-                <th class="px-6 py-4 text-center">Acción</th>
-              </tr>
-            </thead>
-            <tbody id="tabla-alertas" class="text-body-sm">
-              <tr><td colspan="7" class="px-6 py-4 text-center text-on-surface-variant">Cargando...</td></tr>
-            </tbody>
-          </table>
-        </div>
-        <div class="px-6 py-4 flex justify-between items-center bg-white border-t border-outline-variant">
-          <span id="info-paginacion" class="text-body-sm text-on-surface-variant">—</span>
-          <div class="flex gap-2">
-            <button id="btn-prev" onclick="cambiarPagina(-1)" class="p-2 border border-outline-variant hover:bg-surface-container transition-colors disabled:opacity-40" disabled>
-              <span class="material-symbols-outlined">chevron_left</span>
-            </button>
-            <button id="btn-next" onclick="cambiarPagina(1)" class="p-2 border border-outline-variant hover:bg-surface-container transition-colors disabled:opacity-40">
-              <span class="material-symbols-outlined">chevron_right</span>
-            </button>
-          </div>
-        </div>
-      </section>
+      <!-- Pestañas: Alertas  -->
+      <div class="flex gap-2">
+        <button id="tab-btn-alertas" onclick="cambiarTab('alertas')" class="tab-auditor active px-4 py-2 rounded text-body-sm font-label-bold border border-outline-variant transition-colors">Alertas</button>
+        <button id="tab-btn-actividad" data-admin-only onclick="cambiarTab('actividad')" class="tab-auditor px-4 py-2 rounded text-body-sm font-label-bold border border-outline-variant transition-colors">Registro de actividad</button>
+      </div>
 
-      <!-- Distribución + estado de red -->
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-gutter">
-        <div class="lg:col-span-2 bg-white precision-border rounded p-stack-lg">
-          <h3 class="font-headline-md text-on-secondary-container mb-stack-md">Distribución de Alertas por Variable</h3>
-          <canvas id="chart-distribucion" height="90"></canvas>
+      <!-- ══════════════ Vista: Alertas ══════════════ -->
+      <div id="vista-alertas">
+        <div class="flex flex-wrap items-center gap-3 mb-stack-lg">
+          <div class="flex items-center gap-2">
+            <label class="text-label-bold text-on-surface-variant uppercase">Desde</label>
+            <input type="date" id="filtro-desde" onchange="cambiarFiltro()" class="text-body-sm border border-outline-variant rounded-lg px-3 py-2 bg-surface-container-low outline-none"/>
+          </div>
+          <div class="flex items-center gap-2">
+            <label class="text-label-bold text-on-surface-variant uppercase">Hasta</label>
+            <input type="date" id="filtro-hasta" onchange="cambiarFiltro()" class="text-body-sm border border-outline-variant rounded-lg px-3 py-2 bg-surface-container-low outline-none"/>
+          </div>
+          <button onclick="limpiarFiltroFechas()" class="text-body-sm text-on-surface-variant hover:underline">Limpiar fechas</button>
+          <select id="filtro-estado" onchange="cambiarFiltro()" class="text-body-sm border border-outline-variant rounded-lg px-3 py-2 bg-surface-container-low outline-none">
+            <option value="">Todos los estados</option>
+            <option value="pendiente">Pendiente</option>
+            <option value="atendida">Atendida</option>
+          </select>
+          <select id="filtro-dispositivo" onchange="cambiarFiltro()" class="text-body-sm border border-outline-variant rounded-lg px-3 py-2 bg-surface-container-low outline-none">
+            <option value="">Todos los dispositivos</option>
+          </select>
         </div>
-        <div class="bg-on-secondary-container text-white rounded p-stack-lg flex flex-col justify-between">
-          <div>
-            <h3 class="font-headline-md mb-stack-md">Estado de Red</h3>
-            <p class="text-body-sm opacity-80 mb-stack-lg">Dispositivos activos según última conexión reportada.</p>
-            <div class="space-y-4">
-              <div class="flex justify-between items-center">
-                <span class="text-label-bold uppercase">Nodos Activos</span>
-                <span id="nodos-activos" class="font-data-mono">—</span>
-              </div>
-              <div class="w-full bg-white/20 h-2 rounded">
-                <div id="barra-nodos" class="bg-primary-fixed h-full rounded" style="width:0%"></div>
+
+        <!-- Tabla de alertas -->
+        <section class="bg-white precision-border rounded overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead class="bg-surface-container-high text-on-surface-variant text-label-bold uppercase">
+                <tr>
+                  <th class="px-6 py-4">Timestamp</th>
+                  <th class="px-6 py-4">Dispositivo</th>
+                  <th class="px-6 py-4">Variable</th>
+                  <th class="px-6 py-4">Valor</th>
+                  <th class="px-6 py-4">Umbral</th>
+                  <th class="px-6 py-4">Estado</th>
+                  <th class="px-6 py-4 text-center">Acción</th>
+                </tr>
+              </thead>
+              <tbody id="tabla-alertas" class="text-body-sm">
+                <tr><td colspan="7" class="px-6 py-4 text-center text-on-surface-variant">Cargando...</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="px-6 py-4 flex justify-between items-center bg-white border-t border-outline-variant">
+            <span id="info-paginacion" class="text-body-sm text-on-surface-variant">—</span>
+            <div class="flex gap-2">
+              <button id="btn-prev" onclick="cambiarPagina(-1)" class="p-2 border border-outline-variant hover:bg-surface-container transition-colors disabled:opacity-40" disabled>
+                <span class="material-symbols-outlined">chevron_left</span>
+              </button>
+              <button id="btn-next" onclick="cambiarPagina(1)" class="p-2 border border-outline-variant hover:bg-surface-container transition-colors disabled:opacity-40">
+                <span class="material-symbols-outlined">chevron_right</span>
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Distribución + estado de red -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-gutter mt-stack-xl">
+          <div class="lg:col-span-2 bg-white precision-border rounded p-stack-lg">
+            <h3 class="font-headline-md text-on-secondary-container mb-stack-md">Distribución de Alertas por Variable</h3>
+            <canvas id="chart-distribucion" height="90"></canvas>
+          </div>
+          <div class="bg-on-secondary-container text-white rounded p-stack-lg flex flex-col justify-between">
+            <div>
+              <h3 class="font-headline-md mb-stack-md">Estado de Red</h3>
+              <p class="text-body-sm opacity-80 mb-stack-lg">Dispositivos activos según última conexión reportada.</p>
+              <div class="space-y-4">
+                <div class="flex justify-between items-center">
+                  <span class="text-label-bold uppercase">Nodos Activos</span>
+                  <span id="nodos-activos" class="font-data-mono">—</span>
+                </div>
+                <div class="w-full bg-white/20 h-2 rounded">
+                  <div id="barra-nodos" class="bg-primary-fixed h-full rounded" style="width:0%"></div>
+                </div>
               </div>
             </div>
           </div>
         </div>
+      </div>
+
+      <!-- ══════════════ Vista: Actividad ══════════════ -->
+      <div id="vista-actividad" class="hidden">
+        <div class="flex flex-wrap items-center gap-3 mb-stack-lg">
+          <div class="flex items-center gap-2">
+            <label class="text-label-bold text-on-surface-variant uppercase">Desde</label>
+            <input type="date" id="act-filtro-desde" onchange="cambiarFiltroActividad()" class="text-body-sm border border-outline-variant rounded-lg px-3 py-2 bg-surface-container-low outline-none"/>
+          </div>
+          <div class="flex items-center gap-2">
+            <label class="text-label-bold text-on-surface-variant uppercase">Hasta</label>
+            <input type="date" id="act-filtro-hasta" onchange="cambiarFiltroActividad()" class="text-body-sm border border-outline-variant rounded-lg px-3 py-2 bg-surface-container-low outline-none"/>
+          </div>
+          <button onclick="limpiarFiltroFechasActividad()" class="text-body-sm text-on-surface-variant hover:underline">Limpiar fechas</button>
+          <input id="act-filtro-entidad" onkeyup="debounceFiltroActividad()" placeholder="Entidad (ej: dispositivo)" class="text-body-sm border border-outline-variant rounded-lg px-3 py-2 bg-surface-container-low outline-none w-44"/>
+          <input id="act-filtro-accion" onkeyup="debounceFiltroActividad()" placeholder="Acción (ej: crear)" class="text-body-sm border border-outline-variant rounded-lg px-3 py-2 bg-surface-container-low outline-none w-44"/>
+        </div>
+
+        <section class="bg-white precision-border rounded overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead class="bg-surface-container-high text-on-surface-variant text-label-bold uppercase">
+                <tr>
+                  <th class="px-6 py-4">Timestamp</th>
+                  <th class="px-6 py-4">Usuario</th>
+                  <th class="px-6 py-4">Acción</th>
+                  <th class="px-6 py-4">Entidad</th>
+                  <th class="px-6 py-4">Detalle</th>
+                </tr>
+              </thead>
+              <tbody id="tabla-actividad" class="text-body-sm">
+                <tr><td colspan="5" class="px-6 py-4 text-center text-on-surface-variant">Cargando...</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="px-6 py-4 flex justify-between items-center bg-white border-t border-outline-variant">
+            <span id="act-info-paginacion" class="text-body-sm text-on-surface-variant">—</span>
+            <div class="flex gap-2">
+              <button id="act-btn-prev" onclick="cambiarPaginaActividad(-1)" class="p-2 border border-outline-variant hover:bg-surface-container transition-colors disabled:opacity-40" disabled>
+                <span class="material-symbols-outlined">chevron_left</span>
+              </button>
+              <button id="act-btn-next" onclick="cambiarPaginaActividad(1)" class="p-2 border border-outline-variant hover:bg-surface-container transition-colors disabled:opacity-40">
+                <span class="material-symbols-outlined">chevron_right</span>
+              </button>
+            </div>
+          </div>
+        </section>
       </div>
 
     </div>
@@ -128,6 +191,19 @@ let paginaActual = 1;
 const LIMITE = 10;
 let chartDistribucion;
 let alertaEnGestion = null; // { id, estadoActual }
+
+// ─── Pestañas ────────────────────────────────────────────────────────────
+function cambiarTab(tab) {
+  const esAlertas = tab === 'alertas';
+  document.getElementById('vista-alertas').classList.toggle('hidden', !esAlertas);
+  document.getElementById('vista-actividad').classList.toggle('hidden', esAlertas);
+  document.getElementById('tab-btn-alertas').classList.toggle('active', esAlertas);
+  document.getElementById('tab-btn-actividad').classList.toggle('active', !esAlertas);
+  if (!esAlertas && !actividadCargadaUnaVez) {
+    actividadCargadaUnaVez = true;
+    cargarActividad();
+  }
+}
 
 function initChart() {
   chartDistribucion = new Chart(document.getElementById('chart-distribucion').getContext('2d'), {
@@ -209,8 +285,7 @@ async function cargarAlertas() {
   document.getElementById('btn-next').disabled = resultado.pagina >= resultado.totalPaginas;
 }
 
-// Modal "Gestionar" (RF11): pide un comentario opcional antes de
-// atender/reabrir la alerta.
+// Modal "Gestionar"
 function abrirModalGestionar(id, estadoActual, comentarioActual) {
   alertaEnGestion = { id, estadoActual };
   const pasaA = estadoActual === 'atendida' ? 'pendiente' : 'atendida';
@@ -260,6 +335,69 @@ async function cargarEstadoRed() {
   const total = dispositivos.length || 1;
   document.getElementById('nodos-activos').textContent = `${activos} / ${dispositivos.length}`;
   document.getElementById('barra-nodos').style.width = `${(activos / total) * 100}%`;
+}
+
+// ─── Actividad (RF14) ──────────────────────────────────────────────────
+let actPaginaActual = 1;
+let actividadCargadaUnaVez = false;
+let debounceTimer = null;
+
+function debounceFiltroActividad() {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(cambiarFiltroActividad, 400);
+}
+
+function cambiarFiltroActividad() {
+  actPaginaActual = 1;
+  cargarActividad();
+}
+
+function limpiarFiltroFechasActividad() {
+  document.getElementById('act-filtro-desde').value = '';
+  document.getElementById('act-filtro-hasta').value = '';
+  cambiarFiltroActividad();
+}
+
+function cambiarPaginaActividad(delta) {
+  actPaginaActual += delta;
+  cargarActividad();
+}
+
+async function cargarActividad() {
+  const h = { Authorization: token };
+  const entidad = document.getElementById('act-filtro-entidad').value.trim();
+  const accion = document.getElementById('act-filtro-accion').value.trim();
+  const fechaDesde = document.getElementById('act-filtro-desde').value;
+  const fechaHasta = document.getElementById('act-filtro-hasta').value;
+
+  const params = new URLSearchParams({ pagina: actPaginaActual, limite: LIMITE });
+  if (entidad) params.set('entidad', entidad);
+  if (accion) params.set('accion', accion);
+  if (fechaDesde) params.set('fechaDesde', fechaDesde);
+  if (fechaHasta) params.set('fechaHasta', fechaHasta);
+
+  const res = await fetch(`${API}/api/auditoria?${params}`, { headers: h });
+  if (res.status === 401) return manejarNoAutorizado();
+  if (res.status === 403) {
+    document.getElementById('tabla-actividad').innerHTML =
+      '<tr><td colspan="5" class="px-6 py-4 text-center text-error">No tenés permisos para ver esta sección</td></tr>';
+    return;
+  }
+  const resultado = await res.json();
+
+  document.getElementById('tabla-actividad').innerHTML = resultado.data.map(a => `
+    <tr class="bg-white border-b border-outline-variant hover:bg-primary-container/10 transition-colors">
+      <td class="px-6 py-4 text-on-surface-variant whitespace-nowrap">${new Date(a.timestamp).toLocaleString('es-AR')}</td>
+      <td class="px-6 py-4 font-bold text-on-surface">${a.usuario_username || '—'}</td>
+      <td class="px-6 py-4 capitalize">${a.accion}</td>
+      <td class="px-6 py-4 capitalize">${a.entidad}${a.entidad_id ? ` <span class="text-on-surface-variant font-normal">(${a.entidad_id})</span>` : ''}</td>
+      <td class="px-6 py-4 text-on-surface-variant">${a.detalle || '—'}</td>
+    </tr>`).join('') || '<tr><td colspan="5" class="px-6 py-4 text-center text-on-surface-variant">Sin actividad registrada</td></tr>';
+
+  document.getElementById('act-info-paginacion').textContent =
+    `Mostrando ${resultado.data.length ? (resultado.pagina - 1) * resultado.limite + 1 : 0}-${(resultado.pagina - 1) * resultado.limite + resultado.data.length} de ${resultado.total} registros`;
+  document.getElementById('act-btn-prev').disabled = resultado.pagina <= 1;
+  document.getElementById('act-btn-next').disabled = resultado.pagina >= resultado.totalPaginas;
 }
 
 // Init

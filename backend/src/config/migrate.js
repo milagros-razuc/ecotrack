@@ -48,7 +48,7 @@ async function inicializarDB() {
     ALTER TABLE alertas ADD COLUMN IF NOT EXISTS estado VARCHAR(20) DEFAULT 'pendiente'
   `);
 
-  // RF11: comentario libre que deja quien atiende la alerta.
+  // comentario libre que deja quien atiende la alerta.
   await pool.query(`
     ALTER TABLE alertas ADD COLUMN IF NOT EXISTS comentario TEXT
   `);
@@ -64,7 +64,7 @@ async function inicializarDB() {
     )
   `);
 
-  // Por si la tabla ya existía de antes sin esta columna (RF16/RF17)
+  // Por si la tabla ya existía de antes sin esta columna
   await pool.query(`
     ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS rol VARCHAR(20) NOT NULL DEFAULT 'comun'
   `);
@@ -106,8 +106,7 @@ async function inicializarDB() {
   `);
 
   // Si no existe ningún cliente todavía, creamos uno por defecto para no
-  // dejar huérfanos los dispositivos/usuarios que ya existían antes de
-  // esta migración (instalaciones nuevas también lo usan para el seed).
+  // dejar huérfanos los dispositivos/usuarios que ya existían
   const { rows: clientesExistentes } = await pool.query('SELECT id FROM clientes ORDER BY id ASC LIMIT 1');
   let clienteDefaultId;
   if (clientesExistentes.length === 0) {
@@ -123,7 +122,6 @@ async function inicializarDB() {
   }
 
   // Backfill: cualquier dispositivo/usuario que haya quedado sin cliente_id
-  // (datos previos a esta migración) se asigna al cliente por defecto.
   await pool.query('UPDATE dispositivos SET cliente_id = $1 WHERE cliente_id IS NULL', [clienteDefaultId]);
   await pool.query('UPDATE usuarios SET cliente_id = $1 WHERE cliente_id IS NULL', [clienteDefaultId]);
 
@@ -138,6 +136,68 @@ async function inicializarDB() {
   await pool.query('CREATE INDEX IF NOT EXISTS idx_usuarios_cliente ON usuarios(cliente_id)');
   // ────────────────────────────────────────────────────────────────────────
 
+  // ── Log de auditoría ─────────────────────────────────────────────
+  // Registra acciones administrativas (alta/baja/edición de dispositivos,
+  // umbrales y usuarios), separado del log de alertas que ya existe.
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS auditoria (
+      id SERIAL PRIMARY KEY,
+      cliente_id INTEGER NOT NULL REFERENCES clientes(id),
+      usuario_id INTEGER REFERENCES usuarios(id) ON DELETE SET NULL,
+      usuario_username VARCHAR(50),
+      accion VARCHAR(50) NOT NULL,
+      entidad VARCHAR(50) NOT NULL,
+      entidad_id VARCHAR(100),
+      detalle TEXT,
+      timestamp TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_auditoria_cliente ON auditoria(cliente_id)');
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_auditoria_timestamp ON auditoria(timestamp DESC)');
+  // ────────────────────────────────────────────────────────────────────────
+
+  // ── API pública (RF19/RI20) ──────────────────────────────────────────
+  // Claves de API para consumo externo de solo lectura, independientes de
+  // las credenciales del dashboard. Un cliente puede tener varias claves
+  // (una por integración: Grafana, un script de reportes, etc.), así se
+  // puede revocar una sin tumbar las demás — mitigación de riesgo prevista
+  // en 3.6 ("revocación inmediata de claves").
+  //
+  // Solo se guarda el hash SHA-256 de la clave (64 hex chars), nunca la
+  // clave en texto plano: no hace falta el salteo lento de bcrypt porque
+  // no es una contraseña de humano, son 256 bits random no adivinables por
+  // diccionario, y el hash exacto permite buscar por índice en O(1) al
+  // validar cada request (bcrypt no lo permite, hay que probar contra cada
+  // hash guardado). La clave completa se muestra una sola vez al crearla;
+  // si se pierde, no hay forma de recuperarla, solo revocar y generar otra.
+  //
+  // `prefijo` guarda los primeros caracteres SIN hashear (ej. "eco_a1b2c3"),
+  // solo para que el admin pueda identificar la clave en la lista sin
+  // tener que exponer ni poder reconstruir el resto.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS api_keys (
+      id SERIAL PRIMARY KEY,
+      cliente_id INTEGER NOT NULL REFERENCES clientes(id),
+      nombre VARCHAR(100) NOT NULL,
+      clave_hash VARCHAR(64) NOT NULL UNIQUE,
+      prefijo VARCHAR(12) NOT NULL,
+      activa BOOLEAN DEFAULT true,
+      creado_por INTEGER REFERENCES usuarios(id) ON DELETE SET NULL,
+      creado_en TIMESTAMPTZ DEFAULT NOW(),
+      ultimo_uso TIMESTAMPTZ,
+      revocada_en TIMESTAMPTZ
+    )
+  `);
+
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_api_keys_cliente ON api_keys(cliente_id)');
+  // El middleware busca por clave_hash en cada request público; ya es
+  // UNIQUE (índice automático), pero lo dejamos explícito para que quede
+  // documentado que es el camino de búsqueda caliente.
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_api_keys_hash ON api_keys(clave_hash)');
+  // ────────────────────────────────────────────────────────────────────────
+
   await pool.query(`
     INSERT INTO dispositivos (codigo, nombre, ubicacion, cliente_id)
     VALUES ('ESP32-001', 'Nodo Principal', 'Invernadero', $1)
@@ -145,7 +205,6 @@ async function inicializarDB() {
   `, [clienteDefaultId]);
 
   // Umbrales por defecto para ESP32-001, orientativos para un invernadero.
-  // Se pueden editar después desde la página de Configuración.
   await pool.query(`
     INSERT INTO umbrales (dispositivo_codigo, variable, umbral_min, umbral_max) VALUES
       ('ESP32-001', 'temperatura', 15, 35),
@@ -155,9 +214,8 @@ async function inicializarDB() {
   `);
 
   // Si la tabla usuarios ya existía de antes de agregar la columna rol,
-  // el ALTER TABLE anterior le puso 'comun' a todos por defecto. Nos
-  // asegura no quedar sin ningún admin: si no hay ninguno, promovemos
-  // al usuario más antiguo (típicamente el admin original creado a mano).
+  // el ALTER TABLE anterior le puso 'comun' a todos por defecto.
+  
   const { rows: admins } = await pool.query(`SELECT COUNT(*) FROM usuarios WHERE rol = 'admin'`);
   const { rows: totalUsuarios } = await pool.query('SELECT COUNT(*) FROM usuarios');
   if (parseInt(admins[0].count, 10) === 0 && parseInt(totalUsuarios[0].count, 10) > 0) {
@@ -185,8 +243,7 @@ async function inicializarDB() {
   }
 
   // Usuario común de prueba, solo para tener un segundo perfil con el que
-  // validar que las restricciones de RF17 (endpoints admin) funcionan bien.
-  // Se crea una sola vez: si ya existe el username, no hace nada.
+  // validar que las restricciones 
   const usernameTest = process.env.TEST_USER || 'operario1';
   const { rows: existeTest } = await pool.query(
     'SELECT id FROM usuarios WHERE username = $1',

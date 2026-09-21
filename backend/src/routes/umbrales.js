@@ -1,5 +1,6 @@
 const express = require('express');
 const umbralesService = require('../services/umbrales.service');
+const auditoriaService = require('../services/auditoria.service');
 const validar = require('../middleware/validar');
 const verificarRol = require('../middleware/rol');
 const { umbralSchema } = require('../schemas');
@@ -29,6 +30,17 @@ router.post('/', verificarRol('admin'), validar(umbralSchema), async (req, res, 
     if (resultado.error) {
       return res.status(404).json({ error: resultado.error });
     }
+
+    auditoriaService.registrar({
+      clienteId: req.clienteId,
+      usuarioId: req.usuario.sub,
+      usuarioUsername: req.usuario.username,
+      accion: 'configurar_umbral',
+      entidad: 'umbral',
+      entidadId: `${dispositivoCodigo}/${variable}`,
+      detalle: `${variable}: [${umbralMin} – ${umbralMax}] · Notificaciones ${notificacionesActivas === false ? 'desactivadas' : 'activadas'}`,
+    });
+
     res.json({ ok: true });
   } catch (err) {
     next(err);

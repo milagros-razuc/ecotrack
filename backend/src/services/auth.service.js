@@ -66,8 +66,7 @@ async function cambiarPassword(id, passwordActual, passwordNueva) {
   return { ok: true };
 }
 
-// Edita el nombre visible del perfil propio (RF20). No toca username ni rol:
-// eso sigue siendo exclusivo de CU09 (gestión de usuarios por un admin).
+// Edita el nombre visible del perfil propio 
 async function actualizarPerfil(id, { nombre }) {
   const { rows } = await pool.query(
     'UPDATE usuarios SET nombre = $1 WHERE id = $2 RETURNING id, username, nombre, rol, creado_en',

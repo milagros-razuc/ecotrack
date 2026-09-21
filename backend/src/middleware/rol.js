@@ -1,9 +1,7 @@
 // Restringe el acceso a los roles indicados. Debe usarse SIEMPRE después
 // de verificarToken, ya que depende de que req.usuario venga cargado
 // con el payload del JWT (que ahora incluye el campo "rol").
-//
-// Uso: router.use(verificarRol('admin'))
-//      router.post('/', verificarRol('admin'), validar(schema), handler)
+
 function verificarRol(...rolesPermitidos) {
   return (req, res, next) => {
     if (!req.usuario) {

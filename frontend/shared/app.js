@@ -19,7 +19,7 @@ function cerrarSesion() {
   window.location.href = 'login.html';
 }
 
-// Sesión expirada / inválida: cualquier fetch que devuelva 401 pasa por acá.
+// Sesión expirada / inválida.
 function manejarNoAutorizado() {
   cerrarSesion();
 }
@@ -29,18 +29,7 @@ function manejarNoAutorizado() {
 // script, por ejemplo:
 //   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 //   <script src="shared/app.js"></script>
-//
-// El token se manda como `auth.token` en el handshake. El servidor debe
-// validarlo de la misma forma que valida el header Authorization en las
-// rutas HTTP (ver middleware/auth.js) — si el socket del backend espera
-// el token en otro lugar (query string, header, etc.), hay que ajustar
-// esto para que coincida.
-//
-// ⚠️ Importante (RNF05): si el backend emite 'lectura'/'alerta' con
-// io.emit(...) sin filtrar por cliente_id (o sin usar rooms por
-// cliente), un usuario podría recibir eventos de dispositivos de OTRO
-// cliente por este canal, aunque la API REST ya esté bien aislada.
-// Verificar del lado del servidor antes de dar esto por cerrado.
+
 let socket = null;
 if (typeof io !== 'undefined') {
   socket = io(API, { auth: { token } });
@@ -49,16 +38,11 @@ if (typeof io !== 'undefined') {
     console.warn('Socket.IO: no se pudo conectar en tiempo real —', err.message);
   });
 
-  // Cualquier página puede reaccionar a una lectura nueva sin manejar el
-  // socket ella misma, solo escuchando este evento del navegador:
-  //   window.addEventListener('ecotrack:lectura', e => { ... e.detail ... })
   socket.on('lectura', (datos) => {
     window.dispatchEvent(new CustomEvent('ecotrack:lectura', { detail: datos }));
   });
 
-  // Alerta en tiempo real (RF10, RI05): dispara el pop-up definido más
-  // abajo y además reemite el evento por si alguna página quiere hacer
-  // algo más (ej. refrescar su propio listado de alertas).
+  // Alerta en tiempo real
   socket.on('alerta', (alerta) => {
     mostrarAlertaPopup(alerta);
     window.dispatchEvent(new CustomEvent('ecotrack:alerta', { detail: alerta }));
@@ -67,8 +51,6 @@ if (typeof io !== 'undefined') {
 
 // ─── Pop-up de alerta en tiempo real (RF10, RI05) ──────────────────────
 // El contenedor #alerta-popup viaja con el sidebar (shared/sidebar.html),
-// así que está disponible en cualquier página que use initShell(), no
-// solo en el panel principal.
 let colaAlertas = [];
 let popupAlertaVisible = false;
 
@@ -77,9 +59,7 @@ function mostrarAlertaPopup(alerta) {
   const yaEnCola = colaAlertas.some(a =>
     (a.dispositivo_codigo || a.dispositivoCodigo) === dispositivo && a.variable === alerta.variable
   );
-  // Evita que un dispositivo que repite la misma alerta (ej. sigue offline)
-  // llene la cola y dé la sensación de que el pop-up "no cierra": si ya hay
-  // una alerta idéntica esperando turno, no se apila una nueva.
+  // Evita que un dispositivo que repite la misma alerta 
   if (yaEnCola) return;
 
   colaAlertas.push(alerta);
@@ -105,9 +85,6 @@ function procesarColaAlertas() {
     `${variable}: ${isNaN(valor) ? '—' : valor.toFixed(1)}` +
     (isNaN(umbralMin) || isNaN(umbralMax) ? '' : ` (umbral ${umbralMin.toFixed(1)}–${umbralMax.toFixed(1)})`);
 
-  // 'hidden' + 'flex' son el respaldo (Tailwind, siempre carga); 'show' es
-  // la animación de entrada (common.css). Si common.css fallara, el popup
-  // igual se vería/ocultaría bien, solo que sin el slide-in.
   popup.classList.remove('hidden');
   popup.classList.add('flex');
   requestAnimationFrame(() => popup.classList.add('show'));
@@ -149,8 +126,6 @@ document.addEventListener('click', e => {
 });
 
 // ─── Carga del sidebar compartido ──────────────────────────────────────
-// Cada página necesita <div id="sidebar-placeholder"></div> y
-// <body data-page="index|historico|auditor|configuracion|usuarios">.
 async function initShell() {
   const res = await fetch('shared/sidebar.html');
   const placeholder = document.getElementById('sidebar-placeholder');
@@ -175,18 +150,11 @@ async function initShell() {
   document.getElementById('rol-sidebar').textContent = esAdmin ? 'Administrador' : 'Usuario';
 
   // Oculta cualquier elemento marcado data-admin-only si el usuario no es admin.
-  // Sirve tanto para el sidebar como para cualquier página que use este mismo
-  // atributo (por ejemplo, el botón "+ Agregar" de index.html, o "Guardar
-  // Cambios" en configuracion.html).
   if (!esAdmin) {
     document.querySelectorAll('[data-admin-only]').forEach(el => el.classList.add('hidden'));
   }
 }
 
-// Muestra un mensaje de error o éxito dentro de un modal, reutilizando el
-// mismo <p> que ya tenían para errores. No depende de mostrarToast(), que
-// solo existe en algunas páginas (auditor, configuracion, usuarios) — así
-// funciona igual en historico.html o cualquier página que no la defina.
 function mostrarMensajeModal(elId, texto, esError) {
   const el = document.getElementById(elId);
   if (!el) return;
@@ -195,7 +163,7 @@ function mostrarMensajeModal(elId, texto, esError) {
   el.classList.add(esError ? 'text-error' : 'text-primary');
 }
 
-// ─── Modal "Mi perfil" (RF20) ───────────────────────────────────────────
+// ─── Modal "Mi perfil" ───────────────────────────────────────────
 async function abrirPerfil() {
   document.getElementById('profile-menu')?.classList.remove('open');
   document.getElementById('modal-perfil').classList.remove('hidden');
