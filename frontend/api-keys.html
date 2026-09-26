@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html class="light" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>EcoTrack - Claves de API</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script src="shared/tailwind-config.js"></script>
+<link href="shared/common.css" rel="stylesheet"/>
+<style>
+#toast{transition:all .4s;transform:translateY(100px);opacity:0;}
+#toast.show{transform:translateY(0);opacity:1;}
+</style>
+</head>
+<body class="bg-background font-body-md text-on-background flex h-screen overflow-hidden" data-page="api-keys">
+
+<div id="toast" class="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 bg-primary text-white px-6 py-3 rounded-full shadow-xl flex items-center gap-3 font-bold text-body-sm">
+  <span class="material-symbols-outlined">check_circle</span>
+  <span id="toast-text">Guardado</span>
+</div>
+
+<!-- Sidebar (inyectado por shared/app.js) -->
+<div id="sidebar-placeholder"></div>
+
+<!-- Main -->
+<div class="flex-1 flex flex-col min-w-0 overflow-hidden">
+  <header class="flex justify-between items-center w-full px-gutter h-16 border-b border-outline-variant bg-surface shrink-0 z-10">
+    <span class="text-headline-md font-headline-md font-bold text-primary">Claves de API</span>
+    <div class="flex items-center gap-3">
+      <button onclick="abrirModalCrear()" class="px-4 py-2 bg-primary text-on-primary font-label-bold text-label-bold uppercase tracking-wider hover:opacity-90 transition-all flex items-center gap-2 rounded">
+        <span class="material-symbols-outlined text-[18px]">add_circle</span> Nueva Clave
+      </button>
+      <button onclick="toggleDark()" id="btn-dark" class="p-2 text-on-surface-variant hover:bg-surface-container-high rounded-full transition-colors" title="Modo oscuro">
+        <span class="material-symbols-outlined">dark_mode</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="flex-1 overflow-y-auto p-gutter lg:p-margin">
+    <div class="max-w-container-max mx-auto space-y-stack-xl">
+
+      <div class="bg-primary-container/20 border border-primary-container rounded p-stack-md flex items-start gap-3">
+        <span class="material-symbols-outlined text-primary">info</span>
+        <p class="text-body-sm text-on-surface-variant">
+          Las claves de API dan acceso de <strong>solo lectura</strong> a lecturas, alertas y dispositivos de tu organización, sin usar tu sesión del dashboard. Ideales para integraciones externas (Grafana, scripts de reportes, etc.). Revocar una clave corta el acceso al instante, sin afectar a las demás.
+        </p>
+      </div>
+
+      <section class="bg-white precision-border rounded overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead class="bg-surface-container-high text-on-surface-variant text-label-bold uppercase">
+              <tr>
+                <th class="px-6 py-4">Nombre</th>
+                <th class="px-6 py-4">Clave</th>
+                <th class="px-6 py-4">Estado</th>
+                <th class="px-6 py-4">Creada</th>
+                <th class="px-6 py-4">Último uso</th>
+                <th class="px-6 py-4 text-center">Acción</th>
+              </tr>
+            </thead>
+            <tbody id="tabla-claves" class="text-body-sm">
+              <tr><td colspan="6" class="px-6 py-4 text-center text-on-surface-variant">Cargando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<!-- Modal: crear clave -->
+<div id="modal-crear" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+  <div class="bg-white rounded p-stack-lg w-full max-w-sm mx-4 flex flex-col gap-stack-md">
+    <h3 class="font-headline-md text-on-secondary-container">Nueva clave de API</h3>
+    <div class="flex flex-col gap-1">
+      <label class="text-label-bold text-on-surface-variant uppercase">Nombre</label>
+      <input id="crear-nombre" class="px-3 py-2 border border-outline-variant rounded-lg text-body-sm outline-none focus:border-primary" placeholder="Ej: Integración con Grafana"/>
+      <p class="text-body-sm text-on-surface-variant">Usalo para identificar más tarde para qué es esta clave.</p>
+    </div>
+    <p id="crear-error" class="hidden text-error text-body-sm"></p>
+    <div class="flex justify-end gap-2">
+      <button onclick="cerrarModalCrear()" class="px-4 py-2 text-on-surface-variant font-label-bold text-label-bold uppercase rounded hover:bg-surface-container-low transition-all">Cancelar</button>
+      <button onclick="crearClave()" class="px-4 py-2 bg-primary text-on-primary font-label-bold text-label-bold uppercase rounded hover:opacity-90 transition-all">Generar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: clave generada (se muestra UNA sola vez) -->
+<div id="modal-clave-generada" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+  <div class="bg-white rounded p-stack-lg w-full max-w-lg mx-4 flex flex-col gap-stack-md">
+    <div class="flex items-center gap-2">
+      <span class="material-symbols-outlined text-error">warning</span>
+      <h3 class="font-headline-md text-on-secondary-container">Copiá tu clave ahora</h3>
+    </div>
+    <p class="text-body-sm text-on-surface-variant">
+      Por seguridad, esta es la <strong>única vez</strong> que se muestra completa. Si la perdés, vas a tener que revocarla y generar una nueva.
+    </p>
+    <div class="flex items-center gap-2 bg-surface-container-low border border-outline-variant rounded-lg px-3 py-3">
+      <code id="clave-generada-texto" class="flex-1 font-data-mono text-body-sm break-all select-all">—</code>
+      <button onclick="copiarClave()" class="p-2 text-on-surface-variant hover:text-primary shrink-0" title="Copiar">
+        <span class="material-symbols-outlined text-[20px]">content_copy</span>
+      </button>
+    </div>
+    <div class="flex justify-end">
+      <button onclick="cerrarModalClaveGenerada()" class="px-4 py-2 bg-primary text-on-primary font-label-bold text-label-bold uppercase rounded hover:opacity-90 transition-all">Ya la copié, cerrar</button>
+    </div>
+  </div>
+</div>
+
+<script src="shared/app.js"></script>
+<script>
+// Guard extra: igual que usuarios.html, cubre el acceso directo por URL
+// (el link del sidebar ya está oculto por data-admin-only, y el backend
+// igual lo rechazaría con 403 vía verificarRol('admin')).
+if (!esAdmin) {
+  window.location.href = 'index.html';
+}
+
+let claveGeneradaActual = '';
+
+function mostrarToast(texto, esError) {
+  const toast = document.getElementById('toast');
+  document.getElementById('toast-text').textContent = texto;
+  toast.querySelector('.material-symbols-outlined').textContent = esError ? 'error' : 'check_circle';
+  toast.classList.toggle('bg-error', !!esError);
+  toast.classList.toggle('bg-primary', !esError);
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 3000);
+}
+
+function badgeEstado(clave) {
+  if (!clave.activa || clave.revocada_en) {
+    return `<span class="px-2 py-1 rounded-full bg-error-container text-on-error-container text-[11px] font-bold uppercase">Revocada</span>`;
+  }
+  return `<span class="px-2 py-1 rounded-full bg-primary-container text-on-primary-container text-[11px] font-bold uppercase">Activa</span>`;
+}
+
+function formatearFecha(f) {
+  return f ? new Date(f).toLocaleString('es-AR') : '—';
+}
+
+async function cargarClaves() {
+  const res = await fetch(`${API}/api/api-keys`, { headers: { Authorization: token } });
+  if (res.status === 401) return manejarNoAutorizado();
+  if (res.status === 403) { mostrarToast('No tenés permisos para ver esta página', true); return; }
+  const claves = await res.json();
+  renderTabla(claves);
+}
+
+function renderTabla(claves) {
+  document.getElementById('tabla-claves').innerHTML = claves.map(c => `
+    <tr class="bg-white border-b border-outline-variant hover:bg-primary-container/10 transition-colors">
+      <td class="px-6 py-4 font-bold text-on-surface">${c.nombre}</td>
+      <td class="px-6 py-4 font-data-mono text-on-surface-variant">${c.prefijo}…</td>
+      <td class="px-6 py-4">${badgeEstado(c)}</td>
+      <td class="px-6 py-4 text-on-surface-variant">${formatearFecha(c.creado_en)}</td>
+      <td class="px-6 py-4 text-on-surface-variant">${formatearFecha(c.ultimo_uso)}</td>
+      <td class="px-6 py-4 text-center">
+        ${(!c.activa || c.revocada_en)
+          ? '<span class="text-on-surface-variant text-[12px]">—</span>'
+          : `<button onclick="revocarClave(${c.id}, '${c.nombre.replace(/'/g, "\\'")}')" class="text-error hover:underline font-label-bold uppercase text-[12px]">Revocar</button>`}
+      </td>
+    </tr>`).join('') || '<tr><td colspan="6" class="px-6 py-4 text-center text-on-surface-variant">Todavía no generaste ninguna clave</td></tr>';
+}
+
+function abrirModalCrear() {
+  document.getElementById('crear-nombre').value = '';
+  document.getElementById('crear-error').classList.add('hidden');
+  document.getElementById('modal-crear').classList.remove('hidden');
+}
+
+function cerrarModalCrear() {
+  document.getElementById('modal-crear').classList.add('hidden');
+}
+
+async function crearClave() {
+  const nombre = document.getElementById('crear-nombre').value.trim();
+  const errorEl = document.getElementById('crear-error');
+  errorEl.classList.add('hidden');
+
+  const res = await fetch(`${API}/api/api-keys`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: token },
+    body: JSON.stringify({ nombre }),
+  });
+  if (res.status === 401) return manejarNoAutorizado();
+  const data = await res.json();
+  if (!res.ok) {
+    errorEl.textContent = data.error || 'No se pudo crear la clave';
+    errorEl.classList.remove('hidden');
+    return;
+  }
+
+  cerrarModalCrear();
+  claveGeneradaActual = data.clave;
+  document.getElementById('clave-generada-texto').textContent = data.clave;
+  document.getElementById('modal-clave-generada').classList.remove('hidden');
+  cargarClaves();
+}
+
+function cerrarModalClaveGenerada() {
+  document.getElementById('modal-clave-generada').classList.add('hidden');
+  claveGeneradaActual = '';
+}
+
+async function copiarClave() {
+  try {
+    await navigator.clipboard.writeText(claveGeneradaActual);
+    mostrarToast('Clave copiada al portapapeles');
+  } catch (e) {
+    mostrarToast('No se pudo copiar automáticamente, seleccioná el texto manualmente', true);
+  }
+}
+
+async function revocarClave(id, nombre) {
+  if (!confirm(`¿Revocar la clave "${nombre}"? Cualquier integración que la use dejará de funcionar de inmediato.`)) return;
+
+  const res = await fetch(`${API}/api/api-keys/${id}`, {
+    method: 'DELETE',
+    headers: { Authorization: token },
+  });
+  if (res.status === 401) return manejarNoAutorizado();
+  if (!res.ok && res.status !== 204) {
+    const data = await res.json().catch(() => ({}));
+    mostrarToast(data.error || 'No se pudo revocar la clave', true);
+    return;
+  }
+  mostrarToast('Clave revocada');
+  cargarClaves();
+}
+
+// Init
+initShell().then(() => {
+  cargarClaves();
+});
+</script>
+</body></html>

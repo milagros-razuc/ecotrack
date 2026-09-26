@@ -1,10 +1,9 @@
 const jwt = require('jsonwebtoken');
+const pool = require('../config/db');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
-function verificarToken(req, res, next) {
-  // El dashboard manda el token crudo en el header Authorization
-  // (sin el prefijo "Bearer "), así que lo leemos tal cual.
+async function verificarToken(req, res, next) {
   const token = req.headers.authorization;
 
   if (!token) {
@@ -13,6 +12,16 @@ function verificarToken(req, res, next) {
 
   try {
     const payload = jwt.verify(token, JWT_SECRET);
+
+    const { rows } = await pool.query(
+      'SELECT token_version FROM usuarios WHERE id = $1',
+      [payload.sub]
+    );
+
+    if (rows.length === 0 || rows[0].token_version !== payload.tv) {
+      return res.status(401).json({ error: 'Sesión invalidada' });
+    }
+
     req.usuario = payload;
     next();
   } catch (err) {

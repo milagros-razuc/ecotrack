@@ -43,15 +43,26 @@ async function inicializarDB() {
     )
   `);
 
+  await pool.query(`
+    ALTER TABLE alertas
+    ADD CONSTRAINT fk_alertas_dispositivo
+    FOREIGN KEY (dispositivo_codigo) REFERENCES dispositivos(codigo);
+  `);
+
   // dentro de inicializarDB(), después del CREATE TABLE alertas
   await pool.query(`
     ALTER TABLE alertas ADD COLUMN IF NOT EXISTS estado VARCHAR(20) DEFAULT 'pendiente'
+    
   `);
 
   // comentario libre que deja quien atiende la alerta.
   await pool.query(`
     ALTER TABLE alertas ADD COLUMN IF NOT EXISTS comentario TEXT
   `);
+
+  
+
+  
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS usuarios (
@@ -68,6 +79,10 @@ async function inicializarDB() {
   await pool.query(`
     ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS rol VARCHAR(20) NOT NULL DEFAULT 'comun'
   `);
+
+  await pool.query(`
+  ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 1
+`);
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS umbrales (

@@ -255,6 +255,14 @@ async function enviarCambiarPassword() {
     return;
   }
 
+  // El backend invalida todas las sesiones anteriores (token_version++) y
+  // devuelve un token nuevo para que esta misma sesión no se corte. Sin
+  // esto, el usuario quedaría deslogueado a la fuerza tras cambiar su
+  // propia contraseña.
+  if (data.token) {
+    localStorage.setItem('ecotrack_token', data.token);
+  }
+
   mostrarMensajeModal('password-error', 'Contraseña actualizada correctamente', false);
   setTimeout(cerrarCambiarPassword, 1000);
 }

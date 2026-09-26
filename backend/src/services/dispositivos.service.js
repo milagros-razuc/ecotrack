@@ -50,19 +50,19 @@ async function listarConEstado(clienteId) {
 // Da de alta o "reclama" un dispositivo para el cliente del admin logueado.
 
 async function crearOActualizar({ codigo, nombre, ubicacion, clienteId }) {
-  const { rows: existente } = await pool.query(
-    'SELECT cliente_id FROM dispositivos WHERE codigo = $1',
-    [codigo]
-  );
-  if (existente[0] && existente[0].cliente_id !== null && existente[0].cliente_id !== clienteId) {
-    return { error: 'Ese código de dispositivo ya pertenece a otro cliente' };
-  }
-
-  await pool.query(
-    `INSERT INTO dispositivos (codigo, nombre, ubicacion, activo, cliente_id) VALUES ($1, $2, $3, true, $4)
-     ON CONFLICT (codigo) DO UPDATE SET nombre = $2, ubicacion = $3, activo = true, cliente_id = $4`,
+  const result = await pool.query(
+    `INSERT INTO dispositivos (codigo, nombre, ubicacion, activo, cliente_id)
+     VALUES ($1, $2, $3, true, $4)
+     ON CONFLICT (codigo) DO UPDATE
+       SET nombre = $2, ubicacion = $3, activo = true, cliente_id = $4
+       WHERE dispositivos.cliente_id IS NULL OR dispositivos.cliente_id = $4
+     RETURNING cliente_id`,
     [codigo, nombre, ubicacion, clienteId]
   );
+
+  if (result.rowCount === 0) {
+    return { error: 'Ese código de dispositivo ya pertenece a otro cliente' };
+  }
   return { ok: true };
 }
 

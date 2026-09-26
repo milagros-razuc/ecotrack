@@ -37,8 +37,6 @@ async function actualizar(id, { nombre, rol }, clienteId) {
     return { error: 'Usuario no encontrado' };
   }
 
-  // Si se está bajando de admin a común, no puede ser el único admin
-  // activo DE ESE CLIENTE (cada cliente necesita su propio admin).
   if (rol && rol !== 'admin' && usuario.rol === 'admin') {
     const quedaOtroAdmin = await hayOtroAdminActivo(id, clienteId);
     if (!quedaOtroAdmin) {
@@ -48,11 +46,15 @@ async function actualizar(id, { nombre, rol }, clienteId) {
 
   const nuevoNombre = nombre !== undefined ? nombre : usuario.nombre;
   const nuevoRol = rol !== undefined ? rol : usuario.rol;
+  const rolCambio = nuevoRol !== usuario.rol;
 
   const result = await pool.query(
-    `UPDATE usuarios SET nombre = $1, rol = $2 WHERE id = $3 AND cliente_id = $4
+    `UPDATE usuarios
+       SET nombre = $1, rol = $2,
+           token_version = token_version + CASE WHEN $5 THEN 1 ELSE 0 END
+     WHERE id = $3 AND cliente_id = $4
      RETURNING id, username, nombre, rol, creado_en`,
-    [nuevoNombre, nuevoRol, id, clienteId]
+    [nuevoNombre, nuevoRol, id, clienteId, rolCambio]
   );
   return { usuario: result.rows[0] };
 }

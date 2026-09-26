@@ -26,10 +26,10 @@ async function login(username, password) {
   // clienteId viaja en el token junto con rol: es lo que el middleware
   // extraerCliente usa para filtrar todas las queries de este usuario.
   const token = jwt.sign(
-    { sub: usuario.id, username: usuario.username, rol: usuario.rol, clienteId: usuario.cliente_id },
-    JWT_SECRET,
-    { expiresIn: JWT_EXPIRES_IN }
-  );
+  { sub: usuario.id, username: usuario.username, rol: usuario.rol, clienteId: usuario.cliente_id, tv: usuario.token_version },
+  JWT_SECRET,
+  { expiresIn: JWT_EXPIRES_IN }
+);
 
   return {
     token,
@@ -61,9 +61,24 @@ async function cambiarPassword(id, passwordActual, passwordNueva) {
   }
 
   const nuevoHash = await bcrypt.hash(passwordNueva, 10);
-  await pool.query('UPDATE usuarios SET password_hash = $1 WHERE id = $2', [nuevoHash, id]);
+  const { rows: actualizado } = await pool.query(
+    `UPDATE usuarios SET password_hash = $1, token_version = token_version + 1
+     WHERE id = $2 RETURNING token_version, username, rol, cliente_id`,
+    [nuevoHash, id]
+  );
+  const u = actualizado[0];
 
-  return { ok: true };
+  // Se emite un token nuevo, ya con la token_version actualizada, para que
+  // la sesión actual (la que acaba de demostrar conocer la contraseña
+  // vigente) siga funcionando sin pedir un re-login. Cualquier OTRA sesión
+  // abierta con el token viejo queda invalidada de inmediato.
+  const token = jwt.sign(
+    { sub: id, username: u.username, rol: u.rol, clienteId: u.cliente_id, tv: u.token_version },
+    JWT_SECRET,
+    { expiresIn: JWT_EXPIRES_IN }
+  );
+
+  return { ok: true, token };
 }
 
 // Edita el nombre visible del perfil propio 

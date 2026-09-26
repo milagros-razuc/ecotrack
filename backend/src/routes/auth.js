@@ -2,11 +2,12 @@ const express = require('express');
 const authService = require('../services/auth.service');
 const verificarToken = require('../middleware/auth');
 const validar = require('../middleware/validar');
+const { loginLimiter } = require('../middleware/rateLimiter');
 const { loginSchema, changePasswordSchema, actualizarPerfilSchema } = require('../schemas');
 
 const router = express.Router();
 
-router.post('/login', validar(loginSchema), async (req, res, next) => {
+router.post('/login', loginLimiter, validar(loginSchema), async (req, res, next) => {   
   try {
     const { username, password } = req.body;
 
@@ -59,7 +60,7 @@ router.post('/change-password', verificarToken, validar(changePasswordSchema), a
       return res.status(400).json({ error: resultado.error });
     }
 
-    res.json({ ok: true });
+    res.json(resultado);
   } catch (err) {
     next(err);
   }
