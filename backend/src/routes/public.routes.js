@@ -10,6 +10,7 @@ const router = express.Router();
 // X-Api-Key en vez de sesión de dashboard. verificarApiKey resuelve
 // req.clienteId a partir de la clave.
 router.use(verificarApiKey);
+router.use(verificarApiKey, apiPublicaPorClave); 
 
 router.get('/dispositivos', async (req, res, next) => {
   try {

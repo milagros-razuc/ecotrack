@@ -15,7 +15,7 @@ const errorHandler = require('./middleware/errorHandler');
 const verificarToken = require('./middleware/auth');
 const extraerCliente = require('./middleware/cliente');
 
-const { apiKeyLimiter } = require('./middleware/rateLimiter');
+const { apiPublicaPorIp } = require('./middleware/rateLimiter');
 const app = express();
 
 app.use(morgan('dev'));
@@ -43,7 +43,7 @@ app.use('/api/api-keys', verificarToken, extraerCliente, apiKeysRouter);
 // dashboard, es tráfico externo autenticado con una API key (header
 // X-Api-Key) — publicRouter ya trae su propio middleware
 // (verificarApiKey) que resuelve req.clienteId a partir de la clave.
-app.use('/api/public', apiKeyLimiter, publicRouter);
+app.use('/api/public', apiPublicaPorIp, publicRouter);
 
 app.get('/health', (req, res) => res.json({ ok: true }));
 

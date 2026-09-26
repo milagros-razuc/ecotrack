@@ -257,7 +257,7 @@ Desde ahí, cualquier usuario admin puede crear, editar o eliminar cuentas desde
 
 ## Estructura del proyecto
 
-```
+```{
 ecotrack/
 ├── docker-compose.yml
 ├── .env.example
@@ -316,7 +316,7 @@ ecotrack/
         ├── common.css
         ├── tailwind-config.js
         └── ecotrack-logo.png
-```
+```}
 
 ---
 

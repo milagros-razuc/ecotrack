@@ -68,6 +68,11 @@ const actualizarPerfilSchema = z.object({
   nombre: z.string().min(1, 'El nombre no puede estar vacío').max(100),
 });
 
+// Para POST /api/api-keys (alta de clave de API, RF19/RI20)
+const crearApiKeySchema = z.object({
+  nombre: z.string().trim().min(1, 'El nombre es obligatorio').max(100, 'El nombre es demasiado largo'),
+});
+
 module.exports = {
   loginSchema,
   changePasswordSchema,
@@ -78,4 +83,5 @@ module.exports = {
   actualizarUsuarioSchema,
   lecturaMqttSchema,
   actualizarPerfilSchema,
+  crearApiKeySchema,
 };

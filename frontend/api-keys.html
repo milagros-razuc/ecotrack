@@ -150,20 +150,35 @@ async function cargarClaves() {
   renderTabla(claves);
 }
 
+function escaparHtml(valor) {
+  return String(valor ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 function renderTabla(claves) {
   document.getElementById('tabla-claves').innerHTML = claves.map(c => `
     <tr class="bg-white border-b border-outline-variant hover:bg-primary-container/10 transition-colors">
-      <td class="px-6 py-4 font-bold text-on-surface">${c.nombre}</td>
-      <td class="px-6 py-4 font-data-mono text-on-surface-variant">${c.prefijo}…</td>
+      <td class="px-6 py-4 font-bold text-on-surface">${escaparHtml(c.nombre)}</td>
+      <td class="px-6 py-4 font-data-mono text-on-surface-variant">${escaparHtml(c.prefijo)}…</td>
       <td class="px-6 py-4">${badgeEstado(c)}</td>
       <td class="px-6 py-4 text-on-surface-variant">${formatearFecha(c.creado_en)}</td>
       <td class="px-6 py-4 text-on-surface-variant">${formatearFecha(c.ultimo_uso)}</td>
       <td class="px-6 py-4 text-center">
         ${(!c.activa || c.revocada_en)
           ? '<span class="text-on-surface-variant text-[12px]">—</span>'
-          : `<button onclick="revocarClave(${c.id}, '${c.nombre.replace(/'/g, "\\'")}')" class="text-error hover:underline font-label-bold uppercase text-[12px]">Revocar</button>`}
+          : `<button class="btn-revocar text-error hover:underline font-label-bold uppercase text-[12px]" data-id="${escaparHtml(c.id)}" data-nombre="${escaparHtml(c.nombre)}">Revocar</button>`}
       </td>
     </tr>`).join('') || '<tr><td colspan="6" class="px-6 py-4 text-center text-on-surface-variant">Todavía no generaste ninguna clave</td></tr>';
+
+  // Listeners delegados: reemplaza el onclick inline con datos interpolados
+  // (vector de inyección si el nombre contiene comillas o HTML).
+  document.querySelectorAll('.btn-revocar').forEach(btn => {
+    btn.addEventListener('click', () => revocarClave(btn.dataset.id, btn.dataset.nombre));
+  });
 }
 
 function abrirModalCrear() {
