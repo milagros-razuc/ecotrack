@@ -1,50 +1,88 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+<!--
+Sync Impact Report
+- Version change: unversioned scaffold -> 1.0.0
+- Principles: I-V from README; VI (Tenant Isolation) and VII (Controlled and Auditable Access) added from requirements RNF05, RF14, RF19
+- Follow-up TODOs: none
+-->
+
+# EcoTrack Constitution
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. Modular Boundaries
+Each backend capability MUST keep routing, middleware, business services, persistence, and
+external integrations separated according to the existing project structure. MQTT ingestion,
+REST endpoints, and frontend views MUST communicate through explicit contracts rather than
+reaching into another layer's implementation. This keeps sensor ingestion and user-facing
+workflows independently changeable and testable.
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+### II. Secure By Default
+Authentication, authorization, and secret handling MUST be enforced at the backend boundary.
+Administrative operations MUST require the admin role, protected endpoints MUST validate the
+authenticated identity, and credentials or tokens MUST NOT be committed to source control.
+Client-side visibility rules MAY improve usability but MUST NOT replace backend enforcement.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+### III. Validated Data Contracts
+Every payload crossing an external boundary MUST be validated before it is persisted or acted
+upon. MQTT readings, API request bodies, query parameters, and authentication inputs MUST use
+the project's schemas and validation middleware where applicable. Validation errors MUST be
+reported without storing untrusted or structurally invalid data.
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+### IV. Testable Changes
+New business behavior MUST include focused automated tests at the service or route boundary.
+Changes to shared schemas, authentication, MQTT handling, persistence, or inter-service
+contracts MUST include integration coverage or an explicitly documented reason why it cannot
+be exercised in the available test environment. Existing tests MUST remain passing before a
+change is considered complete.
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+### V. Reliable and Observable Operation
+Database migrations MUST be safe to run repeatedly, device connectivity and ingestion failures
+MUST be diagnosable through logs or health signals, and API changes MUST preserve existing
+contracts unless a breaking change is explicitly documented. Implementations MUST prefer the
+smallest design that satisfies the requirement and MUST avoid speculative infrastructure.
+The MQTT topic ecotrack/<deviceId>/lecturas and its payload MUST remain backward compatible with deployed firmware unless a versioned change is documented.
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+### VI. Tenant Isolation
+Every database query, API response, and real-time event MUST be scoped to the requesting
+user's cliente_id, resolved from the session token or API key and never from request input.
+Alerts MUST be scoped through their device. Events from devices not assigned to a client
+MUST NOT be delivered to any client. Soft deletion (activo = false, revocation) MUST be
+preferred over physical deletion for devices and API keys, to preserve history and keys.
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+### VII. Controlled and Auditable Access
+Authentication endpoints and the public API MUST be rate limited, and authentication errors
+MUST NOT reveal whether a user exists. Sensitive actions (creating or deleting users,
+devices, and API keys; role and password changes) MUST be recorded in the audit log.
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+## Security and Technology Constraints
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+EcoTrack uses Node.js and Express for the backend, PostgreSQL for persistence, Mosquitto for
+MQTT, and static HTML/CSS/JavaScript for the frontend. Docker Compose MUST remain the
+reproducible local integration environment. Secrets MUST come from environment files or local
+untracked device configuration, and example files MUST contain placeholders rather than real
+credentials. Passwords MUST be hashed, JWT secrets MUST be configurable, and MQTT access MUST
+use authenticated broker accounts.
+Socket.io for real-time dashboard updates
+
+## Development Workflow and Quality Gates
+
+Each change MUST identify the affected API, data, device, and authorization contracts before
+implementation. The author MUST run the narrowest relevant automated tests, then the broader
+backend test suite when practical, and MUST verify that no new diagnostics or exposed secrets
+are introduced. API, environment, or operational behavior changes MUST be reflected in the
+README or the relevant project documentation.
+Requirements are defined in docs/requisitos.md. Every specification MUST cite the requirement IDs (RF, RNF, RI) it implements or changes, and MUST NOT contradict them without amending that document.
 
 ## Governance
 <!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+This constitution is the governing quality baseline for EcoTrack. Reviews and implementation
+plans MUST check compliance with the principles above. Amendments require a documented change
+to this file, an updated sync impact report, and a semantic version increment. The version uses
+MAJOR for incompatible governance changes or removals, MINOR for new principles or materially
+expanded obligations, and PATCH for clarifications that do not change obligations. The
+constitution MUST be reviewed whenever authentication, data contracts, deployment topology, or
+testing policy changes. Any unresolved TODO in this document MUST be visible in the sync impact
+report and resolved before the constitution is considered fully ratified.
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+**Version**: 1.0.0 | **Ratified**: TODO(RATIFICATION_DATE): original adoption date is not recorded | **Last Amended**: 2026-10-02
