@@ -1,2 +1,7 @@
 node_modules
 .env
+
+.env
+backend/.env
+mosquitto/config/passwd
+codigo-esp32-mosquitto/esp32Secret.h
