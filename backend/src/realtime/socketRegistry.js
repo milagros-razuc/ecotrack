@@ -12,8 +12,10 @@ function createSocketRegistry() {
   function register(socket, { userId, clienteId }) {
     socket.data.userId = userId;
     socket.data.clienteId = clienteId;
-    socket.join(clientRoom(clienteId));
-    socket.join(userRoom(userId));
+    if (clienteId !== undefined && clienteId !== null) {
+  socket.join(clientRoom(clienteId));
+  }
+  socket.join(userRoom(userId));
 
     const sockets = socketsByUser.get(String(userId)) || new Set();
     sockets.add(socket);
