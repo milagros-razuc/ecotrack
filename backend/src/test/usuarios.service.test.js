@@ -15,9 +15,9 @@ const fakePool = {
       return { rows: usuarios.filter(u => u.username === username) };
     }
 
-    if (s.startsWith('INSERT INTO usuarios (username, password_hash, nombre, rol)')) {
-      const [username, password_hash, nombre, rol] = params;
-      const nuevo = { id: nextId++, username, password_hash, nombre, rol, creado_en: new Date() };
+    if (s.startsWith('INSERT INTO usuarios (username, password_hash, nombre, rol, cliente_id)')) {
+      const [username, password_hash, nombre, rol, cliente_id] = params;
+      const nuevo = { id: nextId++, username, password_hash, nombre, rol, cliente_id, token_version: 1, creado_en: new Date() };
       usuarios.push(nuevo);
       const { password_hash: _omit, ...sinHash } = nuevo;
       return { rows: [sinHash] };
@@ -28,17 +28,19 @@ const fakePool = {
       return { rows: usuarios.filter(u => u.id === parseInt(id, 10)) };
     }
 
-    if (s.startsWith("SELECT COUNT(*) FROM usuarios WHERE rol = 'admin' AND id !=")) {
-      const [id] = params;
-      const count = usuarios.filter(u => u.rol === 'admin' && u.id !== parseInt(id, 10)).length;
+    if (s.startsWith("SELECT COUNT(*) FROM usuarios WHERE rol = 'admin' AND cliente_id = $1 AND id !=")) {
+      const [clienteId, id] = params;
+      const count = usuarios.filter(u => u.rol === 'admin' && u.cliente_id === clienteId && u.id !== parseInt(id, 10)).length;
       return { rows: [{ count: String(count) }] };
     }
 
-    if (s.startsWith('UPDATE usuarios SET nombre = $1, rol = $2 WHERE id = $3')) {
-      const [nombre, rol, id] = params;
+    if (s.startsWith('UPDATE usuarios SET nombre = $1, rol = $2, token_version =')) {
+      const [nombre, rol, id, clienteId, roleChanged] = params;
       const u = usuarios.find(u => u.id === parseInt(id, 10));
+      if (!u || u.cliente_id !== clienteId) return { rows: [] };
       u.nombre = nombre;
       u.rol = rol;
+      if (roleChanged) u.token_version += 1;
       const { password_hash: _omit, ...sinHash } = u;
       return { rows: [sinHash] };
     }
