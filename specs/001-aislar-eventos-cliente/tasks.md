@@ -37,14 +37,14 @@
 
 ### Tests for User Story 1
 
-- [ ] T006 [US1] Agregue en `backend/src/test/realtime.integration.test.js`, usando el fixture T005 y `socket.io-client`, pruebas para dos clientes simultáneos: una lectura de cliente A llega solo a A y una de cliente B llega solo a B.
-- [ ] T007 [US1] Agregue en `backend/src/test/realtime.integration.test.js`, usando el fixture T005, una prueba con dos usuarios del mismo cliente que reciben el mismo evento `alerta`, conservando nombre y payload existentes.
-- [ ] T008 [US1] Agregue en `backend/src/test/realtime.integration.test.js`, usando el fixture T005, una prueba de dispositivo sin cliente asignado que confirma que no se emiten `lectura` ni `alerta` a ningún socket.
+- [x] T006 [US1] Agregue en `backend/src/test/realtime.integration.test.js`, usando el fixture T005 y `socket.io-client`, pruebas para dos clientes simultáneos: una lectura de cliente A llega solo a A y una de cliente B llega solo a B.
+- [x] T007 [US1] Agregue en `backend/src/test/realtime.integration.test.js`, usando el fixture T005, una prueba con dos usuarios del mismo cliente que reciben el mismo evento `alerta`, conservando nombre y payload existentes.
+- [x] T008 [US1] Agregue en `backend/src/test/realtime.integration.test.js`, usando el fixture T005, una prueba de dispositivo sin cliente asignado que confirma que no se emiten `lectura` ni `alerta` a ningún socket.
 
 ### Implementation for User Story 1
 
-- [ ] T009 [US1] Añada en `backend/src/services/dispositivos.service.js` una consulta de ownership por `codigo` que devuelva `cliente_id`, incluyendo el caso `NULL` sin inferir un cliente.
-- [ ] T010 [US1] Exponga en `backend/src/mqtt/client.js` una función de procesamiento invocable por el fixture y reemplace ambos `io.emit` por emisiones a la room del `cliente_id` dueño del dispositivo, omitiendo toda emisión cuando el ownership sea `NULL` y sin cambiar ingesta MQTT, nombres ni payloads.
+- [x] T009 [US1] Añada en `backend/src/services/dispositivos.service.js` una consulta de ownership por `codigo` que devuelva `cliente_id`, incluyendo el caso `NULL` sin inferir un cliente.
+- [x] T010 [US1] Exponga en `backend/src/mqtt/client.js` una función de procesamiento invocable por el fixture y reemplace ambos `io.emit` por emisiones a la room del `cliente_id` dueño del dispositivo, omitiendo toda emisión cuando el ownership sea `NULL` y sin cambiar ingesta MQTT, nombres ni payloads.
 
 **Checkpoint**: US1 entrega eventos aislados y permite validar el MVP con `npm test` desde `backend/`.
 

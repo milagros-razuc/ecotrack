@@ -23,6 +23,14 @@ async function estaActivo(codigo) {
   return result.rows[0].activo;
 }
 
+async function obtenerClienteId(codigo) {
+  const result = await pool.query(
+    'SELECT cliente_id FROM dispositivos WHERE codigo = $1',
+    [codigo]
+  );
+  return result.rows[0]?.cliente_id ?? null;
+}
+
 async function listar(clienteId) {
   const result = await pool.query(
     'SELECT * FROM dispositivos WHERE activo = true AND cliente_id = $1 ORDER BY creado_en DESC',
@@ -83,4 +91,5 @@ module.exports = {
   crearOActualizar,
   eliminar,
   estaActivo,
+  obtenerClienteId,
 };

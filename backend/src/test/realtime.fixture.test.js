@@ -18,12 +18,14 @@ test('fixture realtime: token valido conecta y token ausente es rechazado', asyn
     reconnection: false,
   });
   const anonymousSocket = io(url, { reconnection: false });
+  const validConnection = once(validSocket, 'connect');
+  const anonymousConnection = once(anonymousSocket, 'connect_error');
 
   try {
-    await once(validSocket, 'connect');
+    await validConnection;
     assert.strictEqual(validSocket.connected, true);
 
-    const [error] = await once(anonymousSocket, 'connect_error');
+    const [error] = await anonymousConnection;
     assert.strictEqual(error.data.code, 'AUTHENTICATION_ERROR');
     assert.strictEqual(anonymousSocket.connected, false);
   } finally {

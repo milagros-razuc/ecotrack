@@ -47,11 +47,11 @@ async function seedDatabase(pool) {
   const clientB = clients.find((client) => client.nombre === clientBName);
 
   const { rows: users } = await pool.query(
-    `INSERT INTO usuarios (username, password_hash, nombre, rol, cliente_id, token_version)
+        `INSERT INTO usuarios (username, password_hash, nombre, rol, cliente_id, token_version)
      VALUES ($1, $2, 'Realtime A', 'admin', $3, 1),
-            ($4, $2, 'Realtime B', 'admin', $5, 1)
+               ($4, $2, 'Realtime B', 'admin', $5, 1)
      RETURNING id, username, cliente_id, token_version`,
-    [userAName, 'fixture-password-hash', clientA.id, userBName, clientB.id]
+            [userAName, 'fixture-password-hash', clientA.id, userBName, clientB.id]
   );
 
   await pool.query(
@@ -64,13 +64,20 @@ async function seedDatabase(pool) {
 
   return {
     clients: { a: clientA, b: clientB },
-    users: { a: users.find((user) => user.username === userAName), b: users.find((user) => user.username === userBName) },
+    users: {
+      a: users.find((user) => user.username === userAName),
+      b: users.find((user) => user.username === userBName),
+    },
     devices: { a: deviceA, b: deviceB, unassigned: deviceUnassigned },
   };
 }
 
 async function cleanupDatabase(pool, seed) {
-  await pool.query('DELETE FROM dispositivos WHERE codigo = ANY($1::text[])', [[seed.devices.a, seed.devices.b, seed.devices.unassigned]]);
+  const deviceCodes = [seed.devices.a, seed.devices.b, seed.devices.unassigned];
+  await pool.query('DELETE FROM lecturas WHERE dispositivo_codigo = ANY($1::text[])', [deviceCodes]);
+  await pool.query('DELETE FROM alertas WHERE dispositivo_codigo = ANY($1::text[])', [deviceCodes]);
+  await pool.query('DELETE FROM umbrales WHERE dispositivo_codigo = ANY($1::text[])', [deviceCodes]);
+  await pool.query('DELETE FROM dispositivos WHERE codigo = ANY($1::text[])', [deviceCodes]);
   await pool.query('DELETE FROM usuarios WHERE id = ANY($1::int[])', [[seed.users.a.id, seed.users.b.id]]);
   await pool.query('DELETE FROM clientes WHERE id = ANY($1::int[])', [[seed.clients.a.id, seed.clients.b.id]]);
 }
@@ -110,6 +117,7 @@ async function createRealtimeFixture() {
     } finally {
       await new Promise((resolve) => instance.io.close(resolve));
       await pool.end();
+      await require('../config/db').end();
     }
   }
 

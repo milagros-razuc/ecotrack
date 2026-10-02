@@ -4,8 +4,9 @@ const lecturasService = require('../services/lecturas.service');
 const umbralesService = require('../services/umbrales.service');
 const alertasService = require('../services/alertas.service');
 const { lecturaMqttSchema } = require('../schemas');
+const { clientRoom } = require('../realtime/socketRegistry');
 
-async function evaluarUmbral(io, dispositivoCodigo, variable, valor) {
+async function evaluarUmbral(io, dispositivoCodigo, variable, valor, clienteId) {
   if (valor === undefined || valor === null) return;
   const umbral = await umbralesService.obtener(dispositivoCodigo, variable);
   if (!umbral) return;
@@ -23,8 +24,9 @@ async function evaluarUmbral(io, dispositivoCodigo, variable, valor) {
 
     console.log(`Alerta: ${dispositivoCodigo} ${variable}=${valor} fuera de rango [${umbral.umbral_min}, ${umbral.umbral_max}]`);
 
-    // Emitir alerta a todos los clientes conectados
-    io.emit('alerta', {
+    if (clienteId === null || clienteId === undefined) return;
+
+    io.to(clientRoom(clienteId)).emit('alerta', {
       dispositivoCodigo,
       variable,
       valor,
@@ -48,7 +50,18 @@ function iniciarMQTT(io) {
     });
   });
 
-  mqttClient.on('message', async (topic, message) => {
+  mqttClient.on('message', (topic, message) => {
+    procesarMensaje(io, topic, message);
+  });
+
+  mqttClient.on('error', (err) => {
+    console.error('Error de conexión MQTT:', err.message);
+  });
+
+  return mqttClient;
+}
+
+async function procesarMensaje(io, topic, message) {
     try {
       const dispositivoCodigo = topic.split('/')[1];
 
@@ -80,6 +93,12 @@ function iniciarMQTT(io) {
       }
 
       await dispositivosService.registrarConexion(dispositivoCodigo);
+      let clienteId = null;
+      try {
+        clienteId = await dispositivosService.obtenerClienteId(dispositivoCodigo);
+      } catch (err) {
+        console.error(`No se pudo resolver el cliente de ${dispositivoCodigo}:`, err.message);
+      }
       await lecturasService.guardar({
         dispositivoCodigo,
         temperatura: data.temperatura,
@@ -89,28 +108,23 @@ function iniciarMQTT(io) {
 
       console.log(`Lectura guardada de ${dispositivoCodigo}:`, data);
 
-      // Emitir lectura nueva a todos los clientes
-      io.emit('lectura', {
-        dispositivoCodigo,
-        ...data,
-        timestamp: new Date().toISOString()
-      });
+      if (clienteId !== null && clienteId !== undefined) {
+        io.to(clientRoom(clienteId)).emit('lectura', {
+          dispositivoCodigo,
+          ...data,
+          timestamp: new Date().toISOString()
+        });
+      }
 
       await Promise.all([
-        evaluarUmbral(io, dispositivoCodigo, 'temperatura', data.temperatura),
-        evaluarUmbral(io, dispositivoCodigo, 'humedad', data.humedad),
-        evaluarUmbral(io, dispositivoCodigo, 'luminosidad', data.luminosidad),
+        evaluarUmbral(io, dispositivoCodigo, 'temperatura', data.temperatura, clienteId),
+        evaluarUmbral(io, dispositivoCodigo, 'humedad', data.humedad, clienteId),
+        evaluarUmbral(io, dispositivoCodigo, 'luminosidad', data.luminosidad, clienteId),
       ]);
     } catch (err) {
       console.error('Error procesando mensaje MQTT:', err.message);
     }
-  });
-
-  mqttClient.on('error', (err) => {
-    console.error('Error de conexión MQTT:', err.message);
-  });
-
-  return mqttClient;
 }
 
 module.exports = iniciarMQTT;
+module.exports.procesarMensaje = procesarMensaje;
