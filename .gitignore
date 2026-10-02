@@ -5,3 +5,4 @@ node_modules
 backend/.env
 mosquitto/config/passwd
 codigo-esp32-mosquitto/esp32Secret.h
+codigo-esp32-mosquitto/build
