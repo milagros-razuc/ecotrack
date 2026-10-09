@@ -1,5 +1,6 @@
 const bcrypt = require('bcryptjs');
 const pool = require('../config/db');
+const { getActiveRegistry } = require('../realtime/socketRegistry');
 
 async function listar(clienteId) {
   const result = await pool.query(
@@ -56,6 +57,11 @@ async function actualizar(id, { nombre, rol }, clienteId) {
      RETURNING id, username, nombre, rol, creado_en`,
     [nuevoNombre, nuevoRol, id, clienteId, rolCambio]
   );
+
+  if (rolCambio) {
+    getActiveRegistry()?.disconnectUserSockets(id);
+  }
+
   return { usuario: result.rows[0] };
 }
 
@@ -80,6 +86,7 @@ async function eliminar(id, solicitanteId, clienteId) {
   }
 
   await pool.query('DELETE FROM usuarios WHERE id = $1 AND cliente_id = $2', [id, clienteId]);
+  getActiveRegistry()?.disconnectUserSockets(id);
   return { ok: true };
 }
 

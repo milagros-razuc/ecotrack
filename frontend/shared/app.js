@@ -36,6 +36,17 @@ if (typeof io !== 'undefined') {
 
   socket.on('connect_error', (err) => {
     console.warn('Socket.IO: no se pudo conectar en tiempo real —', err.message);
+    if (window.ecotrackSocketAuth?.shouldEndSession(err)) {
+      socket.io.opts.reconnection = false;
+      cerrarSesion();
+    }
+  });
+
+  socket.on('disconnect', (reason) => {
+    if (window.ecotrackSocketAuth?.shouldEndSession(null, reason)) {
+      socket.io.opts.reconnection = false;
+      cerrarSesion();
+    }
   });
 
   socket.on('lectura', (datos) => {
@@ -255,14 +266,8 @@ async function enviarCambiarPassword() {
     return;
   }
 
-  // El backend invalida todas las sesiones anteriores (token_version++) y
-  // devuelve un token nuevo para que esta misma sesión no se corte. Sin
-  // esto, el usuario quedaría deslogueado a la fuerza tras cambiar su
-  // propia contraseña.
-  if (data.token) {
-    localStorage.setItem('ecotrack_token', data.token);
-  }
-
-  mostrarMensajeModal('password-error', 'Contraseña actualizada correctamente', false);
-  setTimeout(cerrarCambiarPassword, 1000);
+  // El backend invalida todas las sesiones, incluida la actual. El token nuevo
+  // se descarta deliberadamente y la sesión local se cierra sin depender del
+  // evento de desconexión del socket.
+  cerrarSesion();
 }

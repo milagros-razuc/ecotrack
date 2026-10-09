@@ -5,7 +5,7 @@ const app = require('./src/app');
 const inicializarDB = require('./src/config/migrate');
 const iniciarMQTT = require('./src/mqtt/client');
 const { validarToken } = require('./src/middleware/auth');
-const { createSocketRegistry } = require('./src/realtime/socketRegistry');
+const { createSocketRegistry, setActiveRegistry } = require('./src/realtime/socketRegistry');
 
 const PORT = process.env.PORT || 3000;
 
@@ -16,6 +16,7 @@ function crearServidor({ iniciarMqtt = true } = {}) {
     cors: { origin: '*', methods: ['GET', 'POST'] }
   });
   const socketRegistry = createSocketRegistry();
+  setActiveRegistry(socketRegistry);
 
   io.use(async (socket, next) => {
     try {
@@ -32,7 +33,7 @@ function crearServidor({ iniciarMqtt = true } = {}) {
 
   io.on('connection', (socket) => {
     const { sub: userId, clienteId } = socket.data.usuario;
-    socketRegistry.register(socket, { userId, clienteId });
+    socketRegistry.register(socket, { userId, clienteId, expiresAt: socket.data.usuario.exp });
     console.log('Cliente WebSocket conectado:', socket.id);
     socket.on('disconnect', () => {
       socketRegistry.unregister(socket);

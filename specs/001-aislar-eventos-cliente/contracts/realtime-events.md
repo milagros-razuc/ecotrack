@@ -1,5 +1,11 @@
 # Real-Time Event Contract
 
+## Clarifications
+
+- Changing a password disconnects every socket for that user, including the socket that made the
+  request. The endpoint may return a replacement token, but the dashboard discards it, clears
+  local session state, and redirects to `login.html`.
+
 ## Connection authentication
 
 The dashboard opens a Socket.IO connection with the existing session token in the authentication
@@ -15,9 +21,11 @@ membership. The browser cannot select or override a client.
 | User missing or `tv` mismatched | Handshake rejected with an authentication error |
 | Valid token | Socket joins its client room and user invalidation index |
 
-The server disconnects an already-connected socket when `exp` is reached or when the user's
-session becomes invalid because of a password change, deletion, or deactivation. The dashboard
-stops reconnection attempts for the authentication error and redirects to login.
+The server disconnects every already-connected socket for the user when `exp` is reached or
+when the user's session becomes invalid because of a password change, deletion, or deactivation.
+Changing a password includes the socket that made the request. The dashboard discards any
+replacement token returned by the password endpoint, clears local session state, stops
+reconnection attempts, and redirects to `login.html`.
 
 ## Events
 

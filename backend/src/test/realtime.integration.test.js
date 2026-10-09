@@ -1,4 +1,5 @@
 const assert = require('assert');
+const bcrypt = require('bcryptjs');
 const test = require('node:test');
 const jwt = require('jsonwebtoken');
 const { once } = require('events');
@@ -51,8 +52,32 @@ function waitGrace() {
   return new Promise((resolve) => setTimeout(resolve, 300));
 }
 
+function waitFor(predicate, timeout = 2000) {
+  const startedAt = Date.now();
+  return new Promise((resolve, reject) => {
+    const poll = () => {
+      if (predicate()) return resolve();
+      if (Date.now() - startedAt >= timeout) {
+        return reject(new Error('Condicion no cumplida dentro del tiempo limite'));
+      }
+      setTimeout(poll, 10);
+    };
+    poll();
+  });
+}
+
 function closeAll(...sockets) {
   sockets.forEach((socket) => socket.close());
+}
+
+async function createTempUser(rol) {
+  const { rows } = await fixture.pool.query(
+    `INSERT INTO usuarios (username, password_hash, nombre, rol, cliente_id, token_version)
+     VALUES ($1, 'fixture-password-hash', 'Temp', $2, $3, 1)
+     RETURNING id, username, cliente_id, token_version`,
+    [`realtime_tmp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, rol, fixture.seed.clients.a.id]
+  );
+  return rows[0];
 }
 
 function reading(temperature = 23.4) {
@@ -255,5 +280,177 @@ test('US1: un token sin clienteId no recibe eventos de ningún cliente', async (
     assert.ok(outcome === 'connected' || outcome === 'rejected');
   } finally {
     closeAll(socket);
+  }
+});
+
+test('US1: un token sin clienteId solo se une a su room de usuario', async () => {
+  const user = fixture.seed.users.a;
+  const token = jwt.sign(
+    { sub: user.id, username: user.username, rol: 'admin', tv: user.token_version },
+    TEST_JWT_SECRET
+  );
+  const socket = connectWithToken(token);
+
+  try {
+    await once(socket, 'connect');
+    const serverSocket = fixture.io.sockets.sockets.get(socket.id);
+    const rooms = [...serverSocket.rooms];
+
+    assert.ok(rooms.includes(`usuario:${user.id}`));
+    assert.strictEqual(rooms.some((room) => room.startsWith('cliente:')), false);
+  } finally {
+    closeAll(socket);
+  }
+});
+
+test('US2: el socket se desconecta al expirar el token y limpia su timer', async () => {
+  const socket = connectWithToken(fixture.signToken(fixture.seed.users.a, { expiresIn: '1s' }));
+  const disconnected = once(socket, 'disconnect');
+
+  try {
+    await once(socket, 'connect');
+    const [reason] = await disconnected;
+
+    assert.strictEqual(reason, 'io server disconnect');
+    assert.strictEqual(fixture.socketRegistry.socketsForUser(fixture.seed.users.a.id).size, 0);
+    assert.strictEqual(fixture.socketRegistry.hasExpiryTimer(socket.id), false);
+  } finally {
+    closeAll(socket);
+  }
+});
+
+test('US2: desconectar manualmente limpia el timer de exp', async () => {
+  const socket = connectWithToken(fixture.signToken(fixture.seed.users.a, { expiresIn: '30s' }));
+  const disconnected = once(socket, 'disconnect');
+
+  try {
+    await once(socket, 'connect');
+    socket.disconnect();
+    await disconnected;
+    await waitFor(() => fixture.socketRegistry.socketsForUser(fixture.seed.users.a.id).size === 0);
+
+    assert.strictEqual(fixture.socketRegistry.socketsForUser(fixture.seed.users.a.id).size, 0);
+    assert.strictEqual(fixture.socketRegistry.hasExpiryTimer(socket.id), false);
+  } finally {
+    closeAll(socket);
+  }
+});
+
+test('US2: cambio de contraseña desconecta los sockets del usuario', async () => {
+  const passwordSocket = connectWithToken(fixture.signToken(sameClientUser));
+  const passwordDisconnected = once(passwordSocket, 'disconnect');
+
+  try {
+    await once(passwordSocket, 'connect');
+    const passwordHash = await bcrypt.hash('password-anterior', 10);
+    await fixture.pool.query('UPDATE usuarios SET password_hash = $1 WHERE id = $2', [passwordHash, sameClientUser.id]);
+    const authService = require('../services/auth.service');
+    await authService.cambiarPassword(sameClientUser.id, 'password-anterior', 'password-nueva');
+    await passwordDisconnected;
+
+    assert.strictEqual(fixture.socketRegistry.socketsForUser(sameClientUser.id).size, 0);
+  } finally {
+    closeAll(passwordSocket);
+  }
+});
+
+test('US2: eliminar usuario desconecta sus sockets', async () => {
+  const usuariosService = require('../services/usuarios.service');
+  const target = await createTempUser('comun');
+  const socket = connectWithToken(fixture.signToken(target));
+  const disconnected = once(socket, 'disconnect');
+
+  try {
+    await once(socket, 'connect');
+    const deletion = await usuariosService.eliminar(target.id, sameClientUser.id, fixture.seed.clients.a.id);
+    await disconnected;
+
+    assert.strictEqual(deletion.ok, true);
+    assert.strictEqual(fixture.socketRegistry.socketsForUser(target.id).size, 0);
+  } finally {
+    closeAll(socket);
+  }
+});
+
+
+async function expectRejected(socket) {
+  try {
+    const [err] = await once(socket, 'connect_error');
+    assert.strictEqual(err.data?.code, 'AUTHENTICATION_ERROR');
+    assert.strictEqual(socket.connected, false);
+  } finally {
+    closeAll(socket);
+  }
+}
+
+test('US2: conexión sin token es rechazada en el handshake', async () => {
+  await expectRejected(io(baseUrl, { auth: {}, reconnection: false }));
+});
+
+test('US2: token con firma inválida es rechazado en el handshake', async () => {
+  const user = fixture.seed.users.a;
+  const forged = jwt.sign(
+    { sub: user.id, username: user.username, rol: 'admin', clienteId: user.cliente_id, tv: user.token_version },
+    'otro-secreto-que-no-es-el-del-servidor'
+  );
+  await expectRejected(connectWithToken(forged));
+});
+
+test('US2: token vencido es rechazado en el handshake', async () => {
+  const expired = fixture.signToken(fixture.seed.users.a, { expiresIn: '-10s' });
+  await expectRejected(connectWithToken(expired));
+});
+
+test('US2: token con tv desactualizado es rechazado en el handshake', async () => {
+  const stale = fixture.signToken({ ...sameClientUser, token_version: sameClientUser.token_version + 99 });
+  await expectRejected(connectWithToken(stale));
+});
+
+test('US3: el clienteId enviado por el navegador se ignora', async () => {
+  await seedTemperatureThreshold(fixture.seed.devices.a);
+  const clientBId = fixture.seed.clients.b.id;
+  const socket = io(baseUrl, {
+    auth: { token: fixture.signToken(fixture.seed.users.a), clienteId: clientBId },
+    query: { clienteId: String(clientBId) },
+    reconnection: false,
+  });
+
+  try {
+    await once(socket, 'connect');
+    const rooms = [...fixture.io.sockets.sockets.get(socket.id).rooms];
+    assert.strictEqual(rooms.includes(`cliente:${clientBId}`), false);
+
+    const readings = record(socket, 'lectura');
+    await fixture.procesarMensaje(`ecotrack/${fixture.seed.devices.b}/lecturas`, reading(24.5));
+    await fixture.procesarMensaje(`ecotrack/${fixture.seed.devices.a}/lecturas`, reading());
+    await waitGrace();
+    readings.stop();
+
+    assert.strictEqual(readings.events.length, 1);
+    assert.strictEqual(readings.events[0].dispositivoCodigo, fixture.seed.devices.a);
+  } finally {
+    closeAll(socket);
+  }
+});
+test('US2: cambio de rol por un admin desconecta los sockets del usuario', async () => {
+  const usuariosService = require('../services/usuarios.service');
+  const target = await createTempUser('admin');
+  const socket = connectWithToken(fixture.signToken(target));
+  const disconnected = once(socket, 'disconnect');
+
+  try {
+    await once(socket, 'connect');
+    const result = await usuariosService.actualizar(
+      target.id,
+      { nombre: 'Temp', rol: 'comun' },
+      fixture.seed.clients.a.id
+    );
+    assert.ok(result.usuario, `actualizar falló: ${result.error}`);
+    await disconnected;
+
+    assert.strictEqual(fixture.socketRegistry.socketsForUser(target.id).size, 0);
+  } finally {
+    closeAll(socket);
+    await fixture.pool.query('DELETE FROM usuarios WHERE id = $1', [target.id]);
   }
 });

@@ -1,6 +1,7 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const pool = require('../config/db');
+const { getActiveRegistry } = require('../realtime/socketRegistry');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = '12h';
@@ -67,11 +68,11 @@ async function cambiarPassword(id, passwordActual, passwordNueva) {
     [nuevoHash, id]
   );
   const u = actualizado[0];
+  getActiveRegistry()?.disconnectUserSockets(id);
 
-  // Se emite un token nuevo, ya con la token_version actualizada, para que
-  // la sesión actual (la que acaba de demostrar conocer la contraseña
-  // vigente) siga funcionando sin pedir un re-login. Cualquier OTRA sesión
-  // abierta con el token viejo queda invalidada de inmediato.
+  // Se emite un token nuevo con la token_version actualizada, pero cambiar la
+  // contraseña cierra todas las sesiones, incluida la actual; el frontend
+  // descarta este token y fuerza un nuevo login.
   const token = jwt.sign(
     { sub: id, username: u.username, rol: u.rol, clienteId: u.cliente_id, tv: u.token_version },
     JWT_SECRET,

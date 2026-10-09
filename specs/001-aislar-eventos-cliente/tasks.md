@@ -58,15 +58,15 @@
 
 ### Tests for User Story 2
 
-- [ ] T011 [US2] Agregue en `backend/src/test/realtime.integration.test.js`, usando T005 y `socket.io-client`, pruebas para handshake sin token, token inválido y token vencido, verificando error de autenticación y cero eventos recibidos.
-- [ ] T012 [US2] Agregue en `backend/src/test/realtime.integration.test.js`, usando T005, pruebas con `exp` controlado para desconexión al vencimiento, cambio de contraseña y eliminación del usuario, además de verificar que el timer queda limpio al desconectar antes del vencimiento y que no llegan eventos posteriores.
-- [ ] T013 [US2] Extraiga el clasificador puro de errores de autenticación a `frontend/shared/socket-auth.js` y cree `backend/src/test/frontend.socket-auth.test.js` para verificar `connect_error` de autenticación y `disconnect` con motivo `io server disconnect`; el test debe ejecutarse con el glob `node --test src/test/*.test.js` de `backend/package.json`.
+- [x] T011 [US2] Agregue en `backend/src/test/realtime.integration.test.js`, usando T005 y `socket.io-client`, pruebas para handshake sin token, token inválido y token vencido, verificando error de autenticación y cero eventos recibidos.
+- [x] T012 [US2] Agregue en `backend/src/test/realtime.integration.test.js`, usando T005, pruebas con `exp` controlado para desconexión al vencimiento, cambio de contraseña y eliminación del usuario, además de verificar que el timer queda limpio al desconectar antes del vencimiento y que no llegan eventos posteriores.
+- [x] T013 [US2] Extraiga el clasificador puro de errores de autenticación a `frontend/shared/socket-auth.js` y cree `backend/src/test/frontend.socket-auth.test.js` para verificar `connect_error` de autenticación y `disconnect` con motivo `io server disconnect`; el test debe ejecutarse con el glob `node --test src/test/*.test.js` de `backend/package.json`.
 
 ### Implementation for User Story 2
 
-- [ ] T014 [US2] Complete en `backend/src/realtime/socketRegistry.js` los temporizadores de `exp`, el borrado del timer en `disconnect` y `disconnectUserSockets(userId)` para desconectar todas las sesiones indexadas por usuario.
-- [ ] T015 [US2] Invoque `disconnectUserSockets(userId)` después de invalidar `token_version` en `backend/src/services/auth.service.js` y después de eliminar usuarios en `backend/src/services/usuarios.service.js`, sin cambiar sus contratos HTTP; conecte el mismo hook a cualquier operación existente de desactivación sin agregar una migración de usuario fuera de alcance.
-- [ ] T016 [US2] Integre la función de `frontend/shared/socket-auth.js` en `frontend/shared/app.js` y cargue el helper antes de `app.js` en las páginas frontend correspondientes para que solo ante un `connect_error` de autenticación o `disconnect` con motivo exacto `io server disconnect` se desactive `socket.io` reconnection, se cierre la sesión local y se redirija al login, manteniendo intactos `lectura`, `alerta` y el resto del dashboard.
+- [x] T014 [US2] Complete en `backend/src/realtime/socketRegistry.js` los temporizadores de `exp`, el borrado del timer en `disconnect` y `disconnectUserSockets(userId)` para desconectar todas las sesiones indexadas por usuario.
+- [x] T015 [US2] Invoque `disconnectUserSockets(userId)` después de invalidar `token_version` en `backend/src/services/auth.service.js` y después de eliminar usuarios en `backend/src/services/usuarios.service.js`, sin cambiar sus contratos HTTP; conecte el mismo hook a cualquier operación existente de desactivación sin agregar una migración de usuario fuera de alcance.
+- [x] T016 [US2] Integre la función de `frontend/shared/socket-auth.js` en `frontend/shared/app.js` y cargue el helper antes de `app.js` en las páginas frontend correspondientes para que solo ante un `connect_error` de autenticación o `disconnect` con motivo exacto `io server disconnect` se desactive `socket.io` reconnection, se cierre la sesión local y se redirija al login, manteniendo intactos `lectura`, `alerta` y el resto del dashboard.
 
 **Checkpoint**: US2 rechaza handshakes no autenticados, invalida sockets activos, limpia timers y evita reconexiones en bucle.
 
