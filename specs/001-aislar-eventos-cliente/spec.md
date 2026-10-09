@@ -45,7 +45,7 @@ Como sistema, quiero aceptar eventos en tiempo real solo para sesiones autentica
 
 1. **Given** una conexión sin token, **When** intenta conectarse al canal de eventos, **Then** la conexión es rechazada durante el handshake con un error de autenticación y no recibe `lectura` ni `alerta`.
 2. **Given** una conexión con token inválido o vencido, **When** intenta conectarse al canal de eventos, **Then** la conexión es rechazada y no recibe eventos.
-3. **Given** una sesión autenticada cuyo token deja de ser válido porque vence, cambia la contraseña, se elimina el usuario o se lo desactiva, **When** el servidor detecta la invalidez, **Then** desconecta inmediatamente el socket y no entrega eventos posteriores; al cambiar la contraseña, desconecta todos los sockets del usuario, incluido el actual.
+3. **Given** una sesión autenticada cuyo token deja de ser válido porque vence, cambia la contraseña, un administrador cambia su rol o se elimina el usuario, **When** el servidor detecta la invalidez, **Then** desconecta inmediatamente el socket y no entrega eventos posteriores; al cambiar la contraseña, desconecta todos los sockets del usuario, incluido el actual.
 4. **Given** el dashboard recibe un rechazo o una desconexión por token inválido o vencido, **When** el navegador procesa el error de autenticación, **Then** detiene los reintentos automáticos y redirige al usuario al login.
 
 ---
@@ -67,7 +67,7 @@ Como responsable de seguridad, quiero que el cliente de cada usuario se determin
 
 - Token vencido o inválido al conectar: la conexión se rechaza durante el handshake con un error de autenticación y no recibe eventos.
 - Dispositivo sin cliente asignado: sus lecturas y alertas no se transmiten a ningún usuario.
-- Token que vence, cambia por cambio de contraseña, o queda invalidado porque el usuario es eliminado o desactivado mientras el socket sigue abierto: el servidor desconecta inmediatamente la conexión.
+- Token que vence, o queda invalidado por cambio de contraseña, cambio de rol o eliminación del usuario mientras el socket sigue abierto: el servidor desconecta inmediatamente la conexión.
 - El dashboard no reintenta en bucle después de un rechazo o desconexión por autenticación y envía al usuario al login.
 - Varios usuarios del mismo cliente conectados: todos reciben los eventos del cliente común.
 - Varios usuarios de clientes distintos conectados al mismo tiempo: ningún usuario recibe eventos de otro cliente.
@@ -85,7 +85,7 @@ Como responsable de seguridad, quiero que el cliente de cada usuario se determin
 - **FR-006**: System MUST reject connections with missing, invalid, or expired tokens during the handshake with an authentication error, before they can receive `lectura` or `alerta` events. (RNF05, RI19)
 - **FR-007**: System MUST deliver the same matching events to all concurrently connected users of the same client and MUST prevent sharing events between different clients. (RNF05, RI19, RE03)
 - **FR-008**: The feature MUST preserve the existing event names and payload formats, MQTT ingestion behavior, dashboard behavior, and allowed-origin policy. (Out of scope constraints)
-- **FR-009**: System MUST disconnect every already-connected socket for a user when its token expires, its token version becomes invalid after a password change, or its user is deleted or deactivated, and MUST deliver no subsequent events to those sockets. A password change MUST disconnect the socket that initiated the change as well as all other sockets.
+- **FR-009**: System MUST disconnect every already-connected socket for a user when its token expires, its token version becomes invalid after a password change or a role change made by an administrator, or its user is deleted, and MUST deliver no subsequent events to those sockets. A password change MUST disconnect the socket that initiated the change as well as all other sockets.
 - **FR-010**: The dashboard MUST stop automatic reconnection attempts after a real-time authentication rejection or disconnection and MUST redirect the user to the login screen. The frontend implementation details belong in the implementation plan and MUST NOT change existing event names or payloads. (RNF01, RNF05, RI19)
 
 ### Key Entities *(include if feature involves data)*
@@ -111,4 +111,4 @@ Como responsable de seguridad, quiero que el cliente de cada usuario se determin
 - Device ownership is resolved from the persisted device identified by its globally unique code; the browser cannot select ownership.
 - The existing `lectura` and `alerta` event payload formats are contractual and remain unchanged.
 - CORS/origin restrictions, MQTT ingestion, the existing dashboard (CU03), API keys, rate limiting, and device claims are outside this feature.
-- A token becoming invalid because of expiry, password change, user deletion, or user deactivation is handled by disconnecting the affected sockets; changing the password disconnects every socket for that user, including the current one. The endpoint may return a replacement token, but the dashboard discards it, clears local session state, and redirects to login.
+- A token becoming invalid because of expiry, password change, role change, or user deletion is handled by disconnecting the affected sockets; changing the password disconnects every socket for that user, including the current one. The endpoint may return a replacement token, but the dashboard discards it, clears local session state, and redirects to login.
