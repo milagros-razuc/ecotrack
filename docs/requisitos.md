@@ -188,12 +188,20 @@ clientes es absoluto.
 
 - Solo un admin crea, modifica o elimina cuentas, y solo dentro de su cliente.
 - Nadie elimina su propia cuenta ni deja a su cliente sin admin.
+- Cambiar la contraseña o el rol de un usuario invalida todas sus sesiones abiertas (`token_version` + desconexión de sus sockets). En el cambio de contraseña se incluye la sesión que originó el cambio: debe iniciar sesión de nuevo.
 
 **Emparejamiento (configuración inicial del WiFi)**
 
 - El modo de configuración se desactiva solo tras un tiempo límite (ej. 5 minutos) o al
   conectar por WiFi.
 - Un dispositivo con credenciales guardadas no vuelve a anunciarse salvo reseteo forzado.
+
+**Producción y configuración**
+
+- Con `NODE_ENV=production` no existen credenciales por defecto: el arranque falla si
+  falta `ADMIN_PASS`, y no se crea el usuario de prueba.
+- Los orígenes permitidos por CORS (API REST y Socket.io) se configuran por entorno
+  (`CORS_ORIGIN`); no se aceptan orígenes arbitrarios.
 
 ---
 
