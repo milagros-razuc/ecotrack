@@ -14,8 +14,8 @@ description: "Tareas de implementación para endurecer el backend en producción
 
 **Purpose**: Preparar dependencias y configuración documentada sin introducir credenciales reales.
 
-- [ ] T001 [P] Agregar `helmet` como dependencia de producción y actualizar el lockfile en `backend/package.json` y `backend/package-lock.json`
-- [ ] T002 [P] Documentar `NODE_ENV`, `ADMIN_PASS` y `CORS_ORIGIN` con placeholders seguros en `backend/.env.example`
+- [X] T001 [P] Agregar `helmet` como dependencia de producción y actualizar el lockfile en `backend/package.json` y `backend/package-lock.json`
+- [X] T002 [P] Documentar `NODE_ENV`, `ADMIN_PASS` y `CORS_ORIGIN` con placeholders seguros en `backend/.env.example`
 
 ---
 
