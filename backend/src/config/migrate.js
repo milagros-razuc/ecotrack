@@ -224,7 +224,14 @@ async function inicializarDB() {
   const { rows } = await pool.query('SELECT COUNT(*) FROM usuarios');
   if (parseInt(rows[0].count, 10) === 0) {
     const username = process.env.ADMIN_USER || 'admin';
-    const password = process.env.ADMIN_PASS || 'admin123';
+    const configuredPassword = process.env.ADMIN_PASS?.trim();
+    if (process.env.NODE_ENV === 'production' && !configuredPassword) {
+      throw new Error('ADMIN_PASS es obligatorio en producción al crear el administrador inicial');
+    }
+    const password = configuredPassword || 'admin123';
+    if (!configuredPassword && process.env.NODE_ENV !== 'production') {
+      console.warn('ADMIN_PASS no está configurado: se usará la contraseña predeterminada solo en desarrollo.');
+    }
     const nombre = process.env.ADMIN_NOMBRE || 'AdministradorR';
     const hash = await bcrypt.hash(password, 10);
 
@@ -235,21 +242,23 @@ async function inicializarDB() {
     console.log(`Usuario admin creado: ${username} (rol: admin, cliente: ${clienteDefaultId})`);
   }
 
-  const usernameTest = process.env.TEST_USER || 'operario1';
-  const { rows: existeTest } = await pool.query(
-    'SELECT id FROM usuarios WHERE username = $1',
-    [usernameTest]
-  );
-  if (existeTest.length === 0) {
-    const passwordTest = process.env.TEST_USER_PASS || 'operario123';
-    const nombreTest = process.env.TEST_USER_NOMBRE || 'Usuario de Prueba';
-    const hashTest = await bcrypt.hash(passwordTest, 10);
-
-    await pool.query(
-      `INSERT INTO usuarios (username, password_hash, nombre, rol, cliente_id) VALUES ($1, $2, $3, 'comun', $4)`,
-      [usernameTest, hashTest, nombreTest, clienteDefaultId]
+  if (process.env.NODE_ENV !== 'production') {
+    const usernameTest = process.env.TEST_USER || 'operario1';
+    const { rows: existeTest } = await pool.query(
+      'SELECT id FROM usuarios WHERE username = $1',
+      [usernameTest]
     );
-    console.log(`Usuario de prueba creado: ${usernameTest} (rol: comun, cliente: ${clienteDefaultId})`);
+    if (existeTest.length === 0) {
+      const passwordTest = process.env.TEST_USER_PASS || 'operario123';
+      const nombreTest = process.env.TEST_USER_NOMBRE || 'Usuario de Prueba';
+      const hashTest = await bcrypt.hash(passwordTest, 10);
+
+      await pool.query(
+        `INSERT INTO usuarios (username, password_hash, nombre, rol, cliente_id) VALUES ($1, $2, $3, 'comun', $4)`,
+        [usernameTest, hashTest, nombreTest, clienteDefaultId]
+      );
+      console.log(`Usuario de prueba creado: ${usernameTest} (rol: comun, cliente: ${clienteDefaultId})`);
+    }
   }
 
   console.log('Base de datos lista');

@@ -33,11 +33,11 @@ description: "Tareas de implementación para endurecer el backend en producción
 
 ### Tests for User Story 1
 
-- [ ] T003 [US1] Añadir el grupo de tests de arranque para producción, desarrollo, `ADMIN_PASS` ausente/vacío, base con usuarios y ausencia de usuario de prueba en `backend/src/test/hardening.integration.test.js`. Leer primero `backend/src/config/db.js` para ver qué variables usa (`DB_HOST` y las demás). El test debe: (a) descomponer `TEST_DATABASE_URL`, crear una base temporal `hardening_<timestamp>` y eliminarla al terminar; (b) lanzar `migrate.js` en un proceso hijo (`child_process`) pasándole por variables de entorno `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD` y `DB_NAME` (o los nombres que use `db.js`) apuntando a la base temporal, junto con `NODE_ENV` y `ADMIN_PASS` según el caso; (c) verificar, antes de ejecutar nada, que el nombre de la base empieza con `hardening_` o termina en `_test`, y abortar sin tocar la base si no. El hijo nunca debe heredar `DB_NAME` ni `DB_HOST` del `.env` de desarrollo.
+- [X] T003 [US1] Añadir el grupo de tests de arranque para producción, desarrollo, `ADMIN_PASS` ausente/vacío, base con usuarios y ausencia de usuario de prueba en `backend/src/test/hardening.integration.test.js`. Leer primero `backend/src/config/db.js` para ver qué variables usa (`DB_HOST` y las demás). El test debe: (a) descomponer `TEST_DATABASE_URL`, crear una base temporal `hardening_<timestamp>` y eliminarla al terminar; (b) lanzar `migrate.js` en un proceso hijo (`child_process`) pasándole por variables de entorno `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD` y `DB_NAME` (o los nombres que use `db.js`) apuntando a la base temporal, junto con `NODE_ENV` y `ADMIN_PASS` según el caso; (c) verificar, antes de ejecutar nada, que el nombre de la base empieza con `hardening_` o termina en `_test`, y abortar sin tocar la base si no. El hijo nunca debe heredar `DB_NAME` ni `DB_HOST` del `.env` de desarrollo.
 
 ### Implementation for User Story 1
 
-- [ ] T004 [US1] Actualizar la inicialización de usuarios en `backend/src/config/migrate.js` para exigir `ADMIN_PASS` solo al crear el administrador inicial en producción (base sin usuarios), lanzar `Error` sin `process.exit`, conservar defaults de desarrollo con una advertencia en consola, y evitar usuarios de prueba en producción
+- [X] T004 [US1] Actualizar la inicialización de usuarios en `backend/src/config/migrate.js` para exigir `ADMIN_PASS` solo al crear el administrador inicial en producción (base sin usuarios), lanzar `Error` sin `process.exit`, conservar defaults de desarrollo con una advertencia en consola, y evitar usuarios de prueba en producción
 
 **Checkpoint**: La política de arranque puede validarse sin ejecutar las historias de integridad o CORS.
 
