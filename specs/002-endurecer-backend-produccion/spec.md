@@ -16,13 +16,14 @@ Como responsable de despliegue, quiero que el backend no arranque con credencial
 
 **Why this priority**: Un arranque con credenciales predecibles puede exponer inmediatamente todos los datos y operaciones administrativas.
 
-**Independent Test**: Ejecutar la inicialización con `NODE_ENV=production` sin `ADMIN_PASS` y comprobar que falla; ejecutarla con una contraseña válida y comprobar que no aparece ningún usuario de prueba. Ejecutar fuera de producción y comprobar que se mantienen los valores de desarrollo junto con una advertencia visible.
+**Independent Test**: Ejecutar la inicialización con `NODE_ENV=production` y sin `ADMIN_PASS` sobre una base sin usuarios, y comprobar que falla; ejecutarla con una contraseña válida y comprobar que no aparece ningún usuario de prueba. Ejecutarla sobre una base que ya tiene usuarios, sin `ADMIN_PASS`, y comprobar que el arranque se completa. Ejecutar fuera de producción y comprobar que se mantienen los valores de desarrollo junto con una advertencia visible.
 
 **Acceptance Scenarios**:
 
-1. **Given** el entorno está configurado como producción y `ADMIN_PASS` no existe, **When** se inicia la migración, **Then** el proceso falla antes de completar el arranque y comunica que falta la credencial requerida.
+1. **Given** el entorno es producción, la base no tiene usuarios y `ADMIN_PASS` no existe o está vacía, **When** se inicia la migración, **Then** el proceso falla antes de completar el arranque y comunica que falta la credencial requerida.
 2. **Given** el entorno está configurado como producción y `ADMIN_PASS` existe, **When** se inicializa la base, **Then** no se crea el usuario de prueba.
 3. **Given** el entorno no es producción y faltan valores de despliegue, **When** se inicializa la base, **Then** se conservan los valores de desarrollo y se emite una advertencia en consola.
+4. **Given** el entorno es producción, la base ya tiene usuarios y no existe `ADMIN_PASS`, **When** se inicia la migración, **Then** el arranque se completa normalmente.
 
 ---
 
@@ -49,7 +50,7 @@ Como usuario del dashboard y responsable de seguridad, quiero que las respuestas
 
 **Why this priority**: Un origen arbitrario puede consumir recursos y acceder a respuestas del backend desde una aplicación no autorizada.
 
-**Independent Test**: Configurar una lista explícita de orígenes, realizar una solicitud REST y una conexión Socket.io desde un origen permitido y otra desde un origen no permitido; comprobar que solo el origen permitido recibe cabeceras CORS.
+**Independent Test**: Configurar una lista explícita de orígenes, realizar una solicitud REST y una conexión Socket.io desde un origen permitido y otra desde un origen no permitido; comprobar que solo el origen permitido recibe cabeceras CORS. Verificar además que las respuestas incluyen las cabeceras de seguridad estándar.
 
 **Acceptance Scenarios**:
 
@@ -58,6 +59,7 @@ Como usuario del dashboard y responsable de seguridad, quiero que las respuestas
 3. **Given** `CORS_ORIGIN` contiene uno o más orígenes permitidos, **When** una conexión Socket.io proviene de uno de ellos, **Then** se acepta según la configuración.
 4. **Given** una conexión Socket.io proviene de un origen no listado, **When** intenta establecerse, **Then** no recibe autorización CORS.
 5. **Given** no se configuró `CORS_ORIGIN`, **When** se inicia el backend, **Then** solo se permite el origen local documentado por defecto.
+6. **Given** el backend está en ejecución, **When** se consulta cualquier endpoint, **Then** la respuesta incluye las cabeceras de seguridad estándar (por ejemplo `X-Content-Type-Options: nosniff`).
 
 ---
 
@@ -69,6 +71,7 @@ Como usuario del dashboard y responsable de seguridad, quiero que las respuestas
 - Se intenta insertar un valor inválido directamente en la base, sin pasar por el backend; la restricción de la base debe rechazarlo.
 - La configuración de producción usa una contraseña vacía; debe tratarse como credencial ausente.
 - El cambio no debe alterar nombres, cargas ni semántica de los eventos en tiempo real ni formatos de endpoints existentes.
+- Las solicitudes sin cabecera `Origin` (herramientas, scripts, sistemas externos de la API pública) no se ven afectadas por la configuración de CORS, que solo rige para navegadores.
 
 ## Requirements *(mandatory)*
 
@@ -85,7 +88,7 @@ Como usuario del dashboard y responsable de seguridad, quiero que las respuestas
 - **FR-009**: El backend MUST permitir configurar mediante `CORS_ORIGIN` una lista de orígenes separada por comas para las solicitudes REST y las conexiones en tiempo real.
 - **FR-010**: Si `CORS_ORIGIN` no está configurado, el backend MUST permitir únicamente `http://localhost:8080`.
 - **FR-011**: Las solicitudes REST y conexiones en tiempo real provenientes de orígenes no listados MUST NOT recibir autorización CORS.
-- **FR-012**: La configuración de `CORS_ORIGIN` MUST estar documentada en el archivo de ejemplo de variables de entorno, sin incluir credenciales reales.
+- **FR-012**: `CORS_ORIGIN`, `NODE_ENV` y `ADMIN_PASS` MUST estar documentadas en el archivo de ejemplo de variables de entorno, sin incluir credenciales reales.
 - **FR-013**: El cambio MUST preservar el contrato vigente de endpoints, formatos de eventos `lectura` y `alerta`, contrato MQTT y reglas de usuarios, incluyendo la invalidación de sesiones al cambiar contraseña o rol.
 
 ### Key Entities
@@ -100,12 +103,13 @@ Como usuario del dashboard y responsable de seguridad, quiero que las respuestas
 
 ### Measurable Outcomes
 
-- **SC-001**: 100% de los arranques en producción sin `ADMIN_PASS` fallan antes de dejar el backend operativo.
+- **SC-001**: 100% de los arranques en producción sobre una base sin usuarios y sin `ADMIN_PASS` fallan antes de dejar el backend operativo; los arranques sobre una base con usuarios no dependen de esa variable.
 - **SC-002**: 100% de las inicializaciones exitosas en producción crean cero usuarios de prueba.
 - **SC-003**: Dos ejecuciones consecutivas de la migración sobre una base válida terminan exitosamente en 100% de las pruebas de repetición.
 - **SC-004**: 100% de los intentos de persistir roles o estados fuera de los dominios definidos son rechazados por la base.
 - **SC-005**: En las pruebas de CORS, 100% de los orígenes listados reciben autorización y 100% de los no listados no reciben cabeceras CORS, tanto en REST como en Socket.io.
 - **SC-006**: Los nombres, cargas y formatos de los eventos y endpoints existentes permanecen sin cambios en la suite de regresión.
+- **SC-007**: 100% de las respuestas del backend incluyen las cabeceras de seguridad estándar.
 
 ## Assumptions
 
@@ -118,4 +122,4 @@ Como usuario del dashboard y responsable de seguridad, quiero que las respuestas
 
 ## Scope and Compatibility
 
-Este cambio cubre el endurecimiento operativo y de integridad requerido por RNF01, RNF03 y RNF06, además de las reglas “Producción y configuración” y “Usuarios” de `docs/requisitos.md`. No incorpora cambios de esquema distintos de las restricciones CHECK, no cambia formatos de eventos o endpoints y no modifica MQTT ni infraestructura de despliegue.
+Este cambio cubre el endurecimiento operativo y de integridad requerido por RNF01, RNF03 y RNF06, además de las reglas "Producción y configuración" y "Usuarios" de `docs/requisitos.md`. No incorpora cambios de esquema distintos de las restricciones CHECK, no cambia formatos de eventos o endpoints y no modifica MQTT ni infraestructura de despliegue.
