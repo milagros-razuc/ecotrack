@@ -31,10 +31,15 @@ tests de integración contra `TEST_DATABASE_URL`
 **Performance Goals**: Sin regresión perceptible en arranque, solicitudes REST o
 conexiones Socket.io; el parseo de CORS se realiza una vez al crear la aplicación/servidor.
 
-**Constraints**: No cambios fuera de `backend/src/config/migrate.js`,
-`backend/src/app.js`, `backend/index.js` y tests nuevos o modificados en
-`backend/src/test`; no cambiar formatos de eventos, endpoints, MQTT ni contrato de
-`change-password`. Las pruebas de base requieren `TEST_DATABASE_URL`.
+**Constraints**: Solo se pueden modificar `backend/src/config/migrate.js`,
+`backend/src/app.js`, `backend/index.js`, `backend/package.json` y
+`backend/package-lock.json` (únicamente para agregar `helmet`),
+`backend/.env.example` (documentar `NODE_ENV`, `ADMIN_PASS` y `CORS_ORIGIN`, sin
+valores reales), un archivo nuevo `backend/src/config/cors.js` y tests nuevos o
+modificados en `backend/src/test`. No cambiar formatos de eventos, endpoints, MQTT
+ni el contrato de `change-password`. Las pruebas de base requieren `TEST_DATABASE_URL`.
+`migrate.js` debe lanzar un `Error` (no llamar a `process.exit`) cuando falte
+`ADMIN_PASS` en producción sobre una base sin usuarios.
 
 **Scale/Scope**: Un backend existente, tablas `usuarios` y `alertas`, dos superficies
 de CORS (REST y Socket.io) y pruebas de arranque/migración.
@@ -90,20 +95,32 @@ specs/002-endurecer-backend-produccion/
 ```text
 backend/
 ├── index.js                         # servidor HTTP y configuración Socket.io
+├── package.json                     # solo: agregar helmet
+├── package-lock.json                # solo: reflejar helmet
+├── .env.example                     # solo: documentar NODE_ENV, ADMIN_PASS, CORS_ORIGIN
 └── src/
-    ├── app.js                       # Express, Helmet, CORS y rutas
+    ├── app.js                       # Express, Helmet, CORS y rutas (module.exports = app)
     ├── config/
+    │   ├── cors.js                  # nuevo: parseo de CORS_ORIGIN
     │   └── migrate.js               # esquema, CHECK/FK y arranque de usuarios
     └── test/
-        ├── hardening.integration.test.js
-        └── realtime.test-support.js # soporte existente, solo si hace falta ajustar CORS
+        ├── hardening.integration.test.js   # nuevo
+        └── realtime.test-support.js        # existente, solo si hace falta ajustar CORS
 ```
 
-**Structure Decision**: Se mantiene el backend CommonJS existente. La función compartida
-para parsear `CORS_ORIGIN` se definirá en `backend/src/app.js` y se expondrá para que
-`backend/index.js` reutilice exactamente la misma lista; así no se crea otro archivo
-fuera del alcance. Los tests de integración se ubicarán junto a los tests existentes en
-`backend/src/test`.
+**Structure Decision**: Se mantiene el backend CommonJS existente. La función que
+parsea `CORS_ORIGIN` (quita espacios, elimina duplicados, aplica el valor por defecto
+`http://localhost:8080`) vive en el archivo nuevo `backend/src/config/cors.js`, y la
+consumen `app.js` e `index.js`. `app.js` conserva `module.exports = app` sin cambios.
+Los tests de integración se ubican junto a los existentes en `backend/src/test`.
+
+**Estrategia de pruebas de arranque**: los tests de `migrate.js` en producción se
+ejecutan en un proceso hijo (`child_process`) con su propio `NODE_ENV` y `ADMIN_PASS`,
+contra una base temporal creada y eliminada por el propio test (por ejemplo
+`CREATE DATABASE hardening_<timestamp>` conectándose a `TEST_DATABASE_URL`). Ningún
+test de esta feature modifica las tablas de la base compartida ni borra datos de los
+tests de tiempo real. Las pruebas de CORS de Socket.io envían el encabezado `Origin`
+con la opción `extraHeaders` de `socket.io-client`.
 
 ## Complexity Tracking
 
