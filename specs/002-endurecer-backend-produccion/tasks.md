@@ -69,14 +69,14 @@ description: "Tareas de implementación para endurecer el backend en producción
 
 ### Tests for User Story 3
 
-- [ ] T007 [US3] Añadir el grupo de tests de CORS para normalización, espacios, duplicados, valor por defecto, REST y Socket.io (enviando el encabezado `Origin` con `extraHeaders` de `socket.io-client`) en `backend/src/test/hardening.integration.test.js`
-- [ ] T008 [US3] Añadir el grupo de tests de Helmet para `X-Content-Type-Options` y preservación de endpoints, payloads y eventos en `backend/src/test/hardening.integration.test.js` y `backend/src/test/realtime.test-support.js` solo si el ajuste del soporte existente es necesario
+- [X] T007 [US3] Añadir el grupo de tests de CORS para normalización, espacios, duplicados, valor por defecto, REST y Socket.io (enviando el encabezado `Origin` con `extraHeaders` de `socket.io-client`) en `backend/src/test/hardening.integration.test.js`
+- [X] T008 [US3] Añadir el grupo de tests de Helmet para `X-Content-Type-Options` y preservación de endpoints, payloads y eventos en `backend/src/test/hardening.integration.test.js` y `backend/src/test/realtime.test-support.js` solo si el ajuste del soporte existente es necesario
 
 ### Implementation for User Story 3
 
-- [ ] T009 [US3] Crear la función compartida de normalización de `CORS_ORIGIN` en `backend/src/config/cors.js`: separa por comas, elimina espacios y duplicados, usa `http://localhost:8080` si la variable está ausente o vacía, y lanza un `Error` descriptivo si algún valor es un comodín (`*`)
-- [ ] T010 [US3] Integrar Helmet y la política CORS compartida antes de las rutas sin cambiar `module.exports = app` en `backend/src/app.js`
-- [ ] T011 [US3] Reutilizar la misma lista de orígenes para configurar Socket.io en `backend/index.js`, manteniendo los eventos `lectura` y `alerta` y los clientes sin cabecera `Origin`
+- [X] T009 [US3] Crear la función compartida de normalización de `CORS_ORIGIN` en `backend/src/config/cors.js`: separa por comas, elimina espacios y duplicados, usa `http://localhost:8080` si la variable está ausente o vacía, y lanza un `Error` descriptivo si algún valor es un comodín (`*`)
+- [X] T010 [US3] Integrar Helmet y la política CORS compartida antes de las rutas sin cambiar `module.exports = app` en `backend/src/app.js`
+- [X] T011 [US3] Reutilizar la misma lista de orígenes para configurar Socket.io en `backend/index.js`, manteniendo los eventos `lectura` y `alerta` y los clientes sin cabecera `Origin`
 
 **Checkpoint**: REST y Socket.io comparten exactamente la política de orígenes y las respuestas incluyen protección HTTP sin cambios de contrato.
 

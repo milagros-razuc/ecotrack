@@ -6,6 +6,7 @@ const inicializarDB = require('./src/config/migrate');
 const iniciarMQTT = require('./src/mqtt/client');
 const { validarToken } = require('./src/middleware/auth');
 const { createSocketRegistry, setActiveRegistry } = require('./src/realtime/socketRegistry');
+const { obtenerOrigenesPermitidos } = require('./src/config/cors');
 
 const PORT = process.env.PORT || 3000;
 
@@ -13,7 +14,7 @@ function crearServidor({ iniciarMqtt = true } = {}) {
   // Crear servidor HTTP y socket.io sobre el mismo puerto
   const server = http.createServer(app);
   const io = new Server(server, {
-    cors: { origin: '*', methods: ['GET', 'POST'] }
+    cors: { origin: obtenerOrigenesPermitidos(), methods: ['GET', 'POST'] }
   });
   const socketRegistry = createSocketRegistry();
   setActiveRegistry(socketRegistry);

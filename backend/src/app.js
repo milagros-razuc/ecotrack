@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
 const morgan = require('morgan');
 
 const authRouter = require('./routes/auth');
@@ -16,11 +17,13 @@ const verificarToken = require('./middleware/auth');
 const extraerCliente = require('./middleware/cliente');
 
 const { apiPublicaPorIp } = require('./middleware/rateLimiter');
+const { obtenerOrigenesPermitidos } = require('./config/cors');
 const app = express();
 
 app.use(morgan('dev'));
+app.use(helmet());
 app.use(express.json());
-app.use(cors());
+app.use(cors({ origin: obtenerOrigenesPermitidos() }));
 
 // Pública: no requiere token. /me y /change-password validan la sesión
 app.use('/api/auth', authRouter);

@@ -1,7 +1,12 @@
 const assert = require('assert');
 const test = require('node:test');
 const { spawnSync } = require('child_process');
+const http = require('http');
 const { Pool } = require('pg');
+const { io } = require('socket.io-client');
+const { obtenerOrigenesPermitidos } = require('../config/cors');
+const app = require('../app');
+const { crearServidor } = require('../../index');
 
 function getTestDatabase() {
   const connectionString = process.env.TEST_DATABASE_URL;
@@ -231,4 +236,78 @@ test('la migración es repetible y protege roles, estados y la FK de alertas', a
       await pool.end();
     }
   });
+});
+
+function requestHealth(origin) {
+  return new Promise((resolve, reject) => {
+    const server = app.listen(0, () => {
+      const port = server.address().port;
+      const request = http.request(
+        {
+          hostname: '127.0.0.1',
+          port,
+          path: '/health',
+          headers: { Origin: origin },
+        },
+        (response) => {
+          let body = '';
+          response.on('data', (chunk) => { body += chunk; });
+          response.on('end', () => {
+            server.close(() => resolve({ response, body }));
+          });
+        }
+      );
+      request.on('error', (error) => server.close(() => reject(error)));
+      request.end();
+    });
+  });
+}
+
+test('CORS normaliza orígenes y preserva clientes sin Origin', async () => {
+  assert.deepStrictEqual(
+    obtenerOrigenesPermitidos(' https://dashboard.example,https://api.example, https://dashboard.example '),
+    ['https://dashboard.example', 'https://api.example']
+  );
+  assert.deepStrictEqual(obtenerOrigenesPermitidos(''), ['http://localhost:8080']);
+  assert.throws(
+    () => obtenerOrigenesPermitidos('https://dashboard.example, *'),
+    /no puede contener el comodín/
+  );
+
+  const allowed = await requestHealth('http://localhost:8080');
+  assert.strictEqual(allowed.response.headers['access-control-allow-origin'], 'http://localhost:8080');
+  assert.deepStrictEqual(JSON.parse(allowed.body), { ok: true });
+
+  const denied = await requestHealth('https://not-allowed.example');
+  assert.strictEqual(denied.response.headers['access-control-allow-origin'], undefined);
+});
+
+test('Socket.io comparte CORS y acepta clientes sin Origin', async () => {
+  const instance = crearServidor({ iniciarMqtt: false });
+  await new Promise((resolve) => instance.server.listen(0, resolve));
+  const port = instance.server.address().port;
+  const sockets = [
+    io(`http://127.0.0.1:${port}`, {
+      extraHeaders: { Origin: 'http://localhost:8080' },
+      reconnection: false,
+    }),
+    io(`http://127.0.0.1:${port}`, { reconnection: false }),
+  ];
+
+  try {
+    const errors = await Promise.all(sockets.map((socket) => new Promise((resolve) => {
+      socket.once('connect_error', resolve);
+      socket.once('connect', () => resolve(null));
+    })));
+    assert.ok(errors.every((error) => !error || error.data?.code === 'AUTHENTICATION_ERROR'));
+  } finally {
+    sockets.forEach((socket) => socket.close());
+    await new Promise((resolve) => instance.server.close(resolve));
+  }
+});
+
+test('Helmet agrega X-Content-Type-Options sin alterar el endpoint de salud', async () => {
+  const result = await requestHealth('http://localhost:8080');
+  assert.strictEqual(result.response.headers['x-content-type-options'], 'nosniff');
+  assert.deepStrictEqual(JSON.parse(result.body), { ok: true });
 });
