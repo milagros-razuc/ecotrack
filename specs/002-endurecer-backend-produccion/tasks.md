@@ -51,11 +51,11 @@ description: "Tareas de implementación para endurecer el backend en producción
 
 ### Tests for User Story 2
 
-- [ ] T005 [US2] Añadir el grupo de tests de migración/CHECK para repetición, rechazo de `usuarios.rol`, rechazo de `alertas.estado` e idempotencia de `fk_alertas_dispositivo` en `backend/src/test/hardening.integration.test.js`, usando la misma base temporal `hardening_*` de T003 (nunca la base compartida)
+- [X] T005 [US2] Añadir el grupo de tests de migración/CHECK para repetición, rechazo de `usuarios.rol`, rechazo de `alertas.estado` e idempotencia de `fk_alertas_dispositivo` en `backend/src/test/hardening.integration.test.js`, usando la misma base temporal `hardening_*` de T003 (nunca la base compartida)
 
 ### Implementation for User Story 2
 
-- [ ] T006 [US2] Actualizar `backend/src/config/migrate.js` para crear de forma idempotente (bloque `DO $$` que consulte `pg_constraint`) los CHECK de `usuarios.rol` y `alertas.estado` y la FK `fk_alertas_dispositivo`, sin duplicar restricciones ni alterar valores válidos
+- [X] T006 [US2] Actualizar `backend/src/config/migrate.js` para crear de forma idempotente (bloque `DO $$` que consulte `pg_constraint`) los CHECK de `usuarios.rol` y `alertas.estado` y la FK `fk_alertas_dispositivo`, sin duplicar restricciones ni alterar valores válidos
 
 **Checkpoint**: La migración es repetible y la base protege los dominios de datos directamente.
 

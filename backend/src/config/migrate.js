@@ -64,6 +64,21 @@ async function inicializarDB() {
 `);
 
   await pool.query(`
+  DO $$
+  BEGIN
+    IF NOT EXISTS (
+      SELECT 1
+      FROM pg_constraint
+      WHERE conname = 'chk_alertas_estado'
+        AND conrelid = 'alertas'::regclass
+    ) THEN
+      ALTER TABLE alertas ADD CONSTRAINT chk_alertas_estado
+        CHECK (estado IN ('pendiente', 'atendida'));
+    END IF;
+  END $$;
+`);
+
+  await pool.query(`
     CREATE INDEX IF NOT EXISTS idx_alertas_dispositivo_estado
       ON alertas (dispositivo_codigo, estado)
   `);
@@ -108,6 +123,20 @@ async function inicializarDB() {
   await pool.query(`
     ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS cliente_id INTEGER REFERENCES clientes(id)
   `);
+  await pool.query(`
+  DO $$
+  BEGIN
+    IF NOT EXISTS (
+      SELECT 1
+      FROM pg_constraint
+      WHERE conname = 'chk_usuarios_rol'
+        AND conrelid = 'usuarios'::regclass
+    ) THEN
+      ALTER TABLE usuarios ADD CONSTRAINT chk_usuarios_rol
+        CHECK (rol IN ('admin', 'comun'));
+    END IF;
+  END $$;
+`);
 
   const { rows: clientesExistentes } = await pool.query('SELECT id FROM clientes ORDER BY id ASC LIMIT 1');
   let clienteDefaultId;

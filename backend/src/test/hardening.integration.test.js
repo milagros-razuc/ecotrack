@@ -167,3 +167,68 @@ test('desarrollo conserva defaults y producción no crea el usuario de prueba', 
     }
   });
 });
+
+test('la migración es repetible y protege roles, estados y la FK de alertas', async (context) => {
+  if (!process.env.TEST_DATABASE_URL) {
+    context.skip('Configure TEST_DATABASE_URL para ejecutar las pruebas de hardening');
+    return;
+  }
+
+  await withTemporaryDatabase(async (database) => {
+    const migrationOptions = {
+      nodeEnv: 'production',
+      adminPass: 'temporary-production-password',
+    };
+    const firstMigration = runMigration(database, migrationOptions);
+    assert.strictEqual(firstMigration.status, 0, firstMigration.stderr);
+    const secondMigration = runMigration(database, {
+      nodeEnv: 'production',
+    });
+    assert.strictEqual(secondMigration.status, 0, secondMigration.stderr);
+
+    const pool = new Pool({
+      host: database.host,
+      port: database.port,
+      user: database.user,
+      password: database.password,
+      database: database.database,
+    });
+    try {
+      const { rows: constraints } = await pool.query(`
+        SELECT conname
+        FROM pg_constraint
+        WHERE conname IN ('chk_usuarios_rol', 'chk_alertas_estado', 'fk_alertas_dispositivo')
+        ORDER BY conname
+      `);
+      assert.deepStrictEqual(
+        constraints.map((constraint) => constraint.conname),
+        ['chk_alertas_estado', 'chk_usuarios_rol', 'fk_alertas_dispositivo']
+      );
+
+      const { rows: cliente } = await pool.query(
+        "SELECT id FROM clientes WHERE nombre = 'Cliente Principal' LIMIT 1"
+      );
+      await assert.rejects(
+        pool.query(
+          `INSERT INTO usuarios (username, password_hash, nombre, rol, cliente_id)
+           VALUES ($1, 'test-hash', 'Rol inválido', 'superadmin', $2)`,
+          [`invalid-role-${Date.now()}`, cliente[0].id]
+        )
+      );
+      await assert.rejects(
+        pool.query(
+          `INSERT INTO alertas (dispositivo_codigo, variable, valor, estado)
+           VALUES ('ESP32-001', 'temperatura', 20, 'descartada')`
+        )
+      );
+      await assert.rejects(
+        pool.query(
+          `INSERT INTO alertas (dispositivo_codigo, variable, valor, estado)
+           VALUES ('MISSING-DEVICE', 'temperatura', 20, 'pendiente')`
+        )
+      );
+    } finally {
+      await pool.end();
+    }
+  });
+});
