@@ -85,8 +85,7 @@ function runMigration(database, options = {}) {
 
   return spawnSync(
     process.execPath,
-    ['-e', "require('./src/config/migrate')().then(() => require('./src/config/db').end()).catch((error) => { console.error(error.message); process.exitCode = 1; })"],
-    {
+    ['-e', "require('./src/config/migrate')().then(() => 0).catch((error) => { console.error(error.message); return 1; }).then(async (code) => { await require('./src/config/db').end(); process.exitCode = code; })"],    {
       cwd: require('path').resolve(__dirname, '../..'),
       env,
       encoding: 'utf8',
