@@ -124,3 +124,5 @@ Como administrador de un cliente, quiero que los umbrales se eliminen cuando un 
 - Historical readings and alerts already stored before this feature are treated as belonging to the client that owned the device when each record was generated; any migration required to establish that ownership is part of implementation planning.
 - Existing authorization rules still determine which users and public credentials may act on behalf of a client; RNF18 adds historical ownership isolation rather than changing those permissions.
 - Requirement identifiers referenced in this specification include RNF18 supplied by the feature request and the related RF/RI requirements in `docs/requisitos.md`.
+
+> Nota: esta especificacion reemplaza la regla del spec 001 segun la cual las alertas de un dispositivo sin cliente se guardaban sin emitirse. Desde 003, las lecturas y alertas de un dispositivo sin propietario se descartan.
