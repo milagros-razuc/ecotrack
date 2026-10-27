@@ -64,6 +64,21 @@ async function inicializarDB() {
 `);
 
   await pool.query(`
+  DO $$
+  BEGIN
+    IF NOT EXISTS (
+      SELECT 1
+      FROM pg_constraint
+      WHERE conname = 'chk_alertas_estado'
+        AND conrelid = 'alertas'::regclass
+    ) THEN
+      ALTER TABLE alertas ADD CONSTRAINT chk_alertas_estado
+        CHECK (estado IN ('pendiente', 'atendida'));
+    END IF;
+  END $$;
+`);
+
+  await pool.query(`
     CREATE INDEX IF NOT EXISTS idx_alertas_dispositivo_estado
       ON alertas (dispositivo_codigo, estado)
   `);
@@ -108,6 +123,20 @@ async function inicializarDB() {
   await pool.query(`
     ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS cliente_id INTEGER REFERENCES clientes(id)
   `);
+  await pool.query(`
+  DO $$
+  BEGIN
+    IF NOT EXISTS (
+      SELECT 1
+      FROM pg_constraint
+      WHERE conname = 'chk_usuarios_rol'
+        AND conrelid = 'usuarios'::regclass
+    ) THEN
+      ALTER TABLE usuarios ADD CONSTRAINT chk_usuarios_rol
+        CHECK (rol IN ('admin', 'comun'));
+    END IF;
+  END $$;
+`);
 
   const { rows: clientesExistentes } = await pool.query('SELECT id FROM clientes ORDER BY id ASC LIMIT 1');
   let clienteDefaultId;
@@ -224,7 +253,14 @@ async function inicializarDB() {
   const { rows } = await pool.query('SELECT COUNT(*) FROM usuarios');
   if (parseInt(rows[0].count, 10) === 0) {
     const username = process.env.ADMIN_USER || 'admin';
-    const password = process.env.ADMIN_PASS || 'admin123';
+    const configuredPassword = process.env.ADMIN_PASS?.trim();
+    if (process.env.NODE_ENV === 'production' && !configuredPassword) {
+      throw new Error('ADMIN_PASS es obligatorio en producción al crear el administrador inicial');
+    }
+    const password = configuredPassword || 'admin123';
+    if (!configuredPassword && process.env.NODE_ENV !== 'production') {
+      console.warn('ADMIN_PASS no está configurado: se usará la contraseña predeterminada solo en desarrollo.');
+    }
     const nombre = process.env.ADMIN_NOMBRE || 'AdministradorR';
     const hash = await bcrypt.hash(password, 10);
 
@@ -235,21 +271,23 @@ async function inicializarDB() {
     console.log(`Usuario admin creado: ${username} (rol: admin, cliente: ${clienteDefaultId})`);
   }
 
-  const usernameTest = process.env.TEST_USER || 'operario1';
-  const { rows: existeTest } = await pool.query(
-    'SELECT id FROM usuarios WHERE username = $1',
-    [usernameTest]
-  );
-  if (existeTest.length === 0) {
-    const passwordTest = process.env.TEST_USER_PASS || 'operario123';
-    const nombreTest = process.env.TEST_USER_NOMBRE || 'Usuario de Prueba';
-    const hashTest = await bcrypt.hash(passwordTest, 10);
-
-    await pool.query(
-      `INSERT INTO usuarios (username, password_hash, nombre, rol, cliente_id) VALUES ($1, $2, $3, 'comun', $4)`,
-      [usernameTest, hashTest, nombreTest, clienteDefaultId]
+  if (process.env.NODE_ENV !== 'production') {
+    const usernameTest = process.env.TEST_USER || 'operario1';
+    const { rows: existeTest } = await pool.query(
+      'SELECT id FROM usuarios WHERE username = $1',
+      [usernameTest]
     );
-    console.log(`Usuario de prueba creado: ${usernameTest} (rol: comun, cliente: ${clienteDefaultId})`);
+    if (existeTest.length === 0) {
+      const passwordTest = process.env.TEST_USER_PASS || 'operario123';
+      const nombreTest = process.env.TEST_USER_NOMBRE || 'Usuario de Prueba';
+      const hashTest = await bcrypt.hash(passwordTest, 10);
+
+      await pool.query(
+        `INSERT INTO usuarios (username, password_hash, nombre, rol, cliente_id) VALUES ($1, $2, $3, 'comun', $4)`,
+        [usernameTest, hashTest, nombreTest, clienteDefaultId]
+      );
+      console.log(`Usuario de prueba creado: ${usernameTest} (rol: comun, cliente: ${clienteDefaultId})`);
+    }
   }
 
   console.log('Base de datos lista');
