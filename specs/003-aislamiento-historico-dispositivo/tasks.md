@@ -20,7 +20,7 @@ description: "Tareas de implementación para aislar el histórico al transferir 
 - [X] T001 [US1] Persistir y migrar `lecturas.cliente_id` y `alertas.cliente_id` en `backend/src/config/migrate.js`
 - [X] T002 [US1] Consultar el histórico de lecturas por pertenencia histórica en `backend/src/services/lecturas.service.js`
 - [X] T003 [US1] Consultar y actualizar alertas por pertenencia histórica en `backend/src/services/alertas.service.js`
-- [ ] T004 [US1] Ajustar las consultas restantes para que filtros, rangos, resúmenes, estados, API pública y rutas protegidas usen el `cliente_id` histórico en `backend/src/routes/alertas.js`, `backend/src/routes/lecturas.js`, `backend/src/routes/public.routes.js`, `backend/src/services/umbrales.service.js` y `backend/src/mqtt/client.js`; conservar los `JOIN` descriptivos sin usarlos para decidir visibilidad
+- [X] T004 [US1] Ajustar las consultas restantes para que filtros, rangos, resúmenes, estados, API pública y rutas protegidas usen el `cliente_id` histórico en `backend/src/routes/alertas.js`, `backend/src/routes/lecturas.js`, `backend/src/routes/public.routes.js`, `backend/src/services/umbrales.service.js` y `backend/src/mqtt/client.js`; conservar los `JOIN` descriptivos sin usarlos para decidir visibilidad
 
 ## User Story 2 - Transferir un dispositivo sin arrastrar datos al nuevo cliente (Priority: P1)
 
@@ -28,8 +28,8 @@ description: "Tareas de implementación para aislar el histórico al transferir 
 
 **Independent Test**: La baja deja el dispositivo sin dueño y sin umbrales; el reclamo posterior asigna B sin borrar ni reatribuir lecturas o alertas de A.
 
-- [ ] T005 [US2] Implementar la baja transaccional que establezca `cliente_id = NULL`, `activo = false`, `nombre = NULL` y `ubicacion = NULL`, elimine los umbrales y preserve lecturas, alertas y auditoría en `backend/src/services/dispositivos.service.js` y `backend/src/routes/dispositivos.js`
-- [ ] T006 [US2] Completar el reclamo de dispositivos sin dueño y bloquear persistencia, evaluación de umbrales, alertas y emisiones para lecturas recibidas mientras `cliente_id IS NULL` en `backend/src/services/dispositivos.service.js`, `backend/src/services/umbrales.service.js` y `backend/src/mqtt/client.js`
+- [X] T005 [US2] Implementar la baja transaccional que establezca `cliente_id = NULL`, `activo = false`, `nombre = NULL` y `ubicacion = NULL`, elimine los umbrales y preserve lecturas, alertas y auditoría en `backend/src/services/dispositivos.service.js` y `backend/src/routes/dispositivos.js`
+- [X] T006 [US2] Completar el reclamo de dispositivos sin dueño y bloquear persistencia, evaluación de umbrales, alertas y emisiones para lecturas recibidas mientras `cliente_id IS NULL` en `backend/src/services/dispositivos.service.js`, `backend/src/services/umbrales.service.js` y `backend/src/mqtt/client.js`
 
 ## User Story 3 - Aislar todos los canales de consulta y notificación (Priority: P1)
 
@@ -37,7 +37,7 @@ description: "Tareas de implementación para aislar el histórico al transferir 
 
 **Independent Test**: A conserva sus lecturas y alertas; B solo recibe datos generados desde su reclamo; el archivo de prueba cubre también la ausencia de umbrales tras la baja.
 
-- [ ] T007 [US3] Crear, sin ejecutar, el archivo de prueba de integración `backend/src/test/aislamiento-historico-dispositivo.integration.test.js` con el escenario A → baja → B → reclamo, verificaciones de `cliente_id IS NULL`, ausencia de umbrales, consultas de servicios/API pública y conservación del histórico de A
+- [X] T007 [US3] Crear, sin ejecutar, el archivo de prueba de integración `backend/src/test/aislamiento-historico-dispositivo.integration.test.js` con el escenario A → baja → B → reclamo, verificaciones de `cliente_id IS NULL`, ausencia de umbrales, consultas de servicios/API pública y conservación del histórico de A
 
 ## Dependencies
 

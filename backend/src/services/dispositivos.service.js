@@ -74,14 +74,33 @@ async function crearOActualizar({ codigo, nombre, ubicacion, clienteId }) {
   return { ok: true };
 }
 
-// Baja lógica , restringida al cliente dueño del dispositivo: no
-// afecta la fila si el código pertenece a otro cliente.
+// Baja lógica transaccional, restringida al cliente dueño del dispositivo:
+// libera el dispositivo y elimina sus umbrales sin tocar el histórico.
 async function eliminar(codigo, clienteId) {
-  const result = await pool.query(
-    `UPDATE dispositivos SET activo = false WHERE codigo = $1 AND cliente_id = $2 RETURNING codigo`,
-    [codigo, clienteId]
-  );
-  return result.rows[0] || null;
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await client.query(
+      `UPDATE dispositivos
+       SET cliente_id = NULL, activo = false, nombre = NULL, ubicacion = NULL
+       WHERE codigo = $1 AND cliente_id = $2
+       RETURNING codigo`,
+      [codigo, clienteId]
+    );
+    if (result.rowCount === 0) {
+      await client.query('ROLLBACK');
+      return null;
+    }
+
+    await client.query('DELETE FROM umbrales WHERE dispositivo_codigo = $1', [codigo]);
+    await client.query('COMMIT');
+    return result.rows[0];
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
 }
 
 module.exports = {

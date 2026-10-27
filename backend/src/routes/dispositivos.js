@@ -67,7 +67,7 @@ router.delete('/:codigo', verificarRol('admin'), async (req, res, next) => {
       accion: 'baja_dispositivo',
       entidad: 'dispositivo',
       entidadId: req.params.codigo,
-      detalle: `Dispositivo ${req.params.codigo} dado de baja (baja lógica)`,
+      detalle: `Dispositivo ${req.params.codigo} liberado y dado de baja`,
     });
 
     res.status(204).send();
