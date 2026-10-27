@@ -1,11 +1,16 @@
 const pool = require('../config/db');
 
 // Generada por el motor de alertas al procesar un mensaje MQTT: no depende
-// de un usuario logueado, no se filtra por cliente.
+// de un usuario logueado.
+// cliente_id se toma del dueño del dispositivo en este instante (RNF18), de
+// modo que el dato histórico no cambia de dueño si el dispositivo se
+// transfiere. Si el dispositivo no tiene dueño, no se inserta nada.
 async function registrar({ dispositivoCodigo, variable, valor, umbralMin, umbralMax }) {
   await pool.query(
-    `INSERT INTO alertas (dispositivo_codigo, variable, valor, umbral_min, umbral_max, estado)
-     VALUES ($1, $2, $3, $4, $5, 'pendiente')`,
+    `INSERT INTO alertas (dispositivo_codigo, variable, valor, umbral_min, umbral_max, estado, cliente_id)
+     SELECT d.codigo, $2::varchar, $3::numeric, $4::numeric, $5::numeric, 'pendiente', d.cliente_id
+     FROM dispositivos d
+     WHERE d.codigo = $1 AND d.cliente_id IS NOT NULL`,
     [dispositivoCodigo, variable, valor, umbralMin, umbralMax]
   );
 }
@@ -15,7 +20,7 @@ async function listar({ dispositivo, estado, variable, pagina, limite, clienteId
   const paginaSegura = Math.max(parseInt(pagina, 10) || 1, 1);
   const offset = (paginaSegura - 1) * limiteSeguro;
 
-  const condiciones = ['d.cliente_id = $1'];
+  const condiciones = ['a.cliente_id = $1'];
   const params = [clienteId];
 
   if (dispositivo) {
@@ -45,7 +50,7 @@ async function listar({ dispositivo, estado, variable, pagina, limite, clienteId
   const where = `WHERE ${condiciones.join(' AND ')}`;
 
   const totalResult = await pool.query(
-    `SELECT COUNT(*) FROM alertas a JOIN dispositivos d ON a.dispositivo_codigo = d.codigo ${where}`,
+    `SELECT COUNT(*) FROM alertas a ${where}`,
     params
   );
   const total = parseInt(totalResult.rows[0].count, 10);
@@ -70,8 +75,7 @@ async function listar({ dispositivo, estado, variable, pagina, limite, clienteId
   };
 }
 
-// Solo actualiza si la alerta pertenece a un dispositivo del cliente
-// logueado
+// Solo actualiza si la alerta pertenece al cliente logueado
 async function actualizarEstado(id, estado, clienteId, comentario) {
   const params = [estado, id, clienteId];
   let setComentario = '';
@@ -81,8 +85,7 @@ async function actualizarEstado(id, estado, clienteId, comentario) {
   }
   const result = await pool.query(
     `UPDATE alertas a SET estado = $1${setComentario}
-     FROM dispositivos d
-     WHERE a.id = $2 AND a.dispositivo_codigo = d.codigo AND d.cliente_id = $3
+     WHERE a.id = $2 AND a.cliente_id = $3
      RETURNING a.*`,
     params
   );
@@ -91,7 +94,7 @@ async function actualizarEstado(id, estado, clienteId, comentario) {
 
 async function distribucionPorVariable({ dispositivo, clienteId } = {}) {
   const params = [clienteId];
-  let where = 'WHERE d.cliente_id = $1';
+  let where = 'WHERE a.cliente_id = $1';
   if (dispositivo) {
     params.push(dispositivo);
     where += ` AND a.dispositivo_codigo = $${params.length}`;
@@ -99,7 +102,6 @@ async function distribucionPorVariable({ dispositivo, clienteId } = {}) {
   const result = await pool.query(
     `SELECT a.variable, COUNT(*) as cantidad
      FROM alertas a
-     JOIN dispositivos d ON a.dispositivo_codigo = d.codigo
      ${where}
      GROUP BY a.variable
      ORDER BY cantidad DESC`,
