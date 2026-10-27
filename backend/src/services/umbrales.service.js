@@ -2,7 +2,7 @@ const pool = require('../config/db');
 
 async function listar(dispositivoCodigo, clienteId) {
   const params = [clienteId];
-  let where = 'd.cliente_id = $1';
+  let where = 'd.cliente_id = $1 AND d.activo = true';
   if (dispositivoCodigo) {
     params.push(dispositivoCodigo);
     where += ` AND u.dispositivo_codigo = $${params.length}`;
@@ -21,7 +21,13 @@ async function listar(dispositivoCodigo, clienteId) {
 // depende de un usuario logueado: no se filtra por cliente_id a propósito.
 async function obtener(dispositivoCodigo, variable) {
   const result = await pool.query(
-    'SELECT * FROM umbrales WHERE dispositivo_codigo = $1 AND variable = $2',
+    `SELECT u.*
+     FROM umbrales u
+     JOIN dispositivos d ON d.codigo = u.dispositivo_codigo
+     WHERE u.dispositivo_codigo = $1
+       AND u.variable = $2
+       AND d.activo = true
+       AND d.cliente_id IS NOT NULL`,
     [dispositivoCodigo, variable]
   );
   return result.rows[0] || null;

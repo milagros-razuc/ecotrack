@@ -1,0 +1,267 @@
+﻿
+> ecotrack-backend@1.0.0 test
+> node --test --test-timeout=30000 --test-concurrency=1 src/test/*.test.js
+
+TAP version 13
+# Particiones de "lecturas" verificadas (mes actual + siguiente).
+# Base de datos lista
+# Backend EcoTrack corriendo en puerto 0
+# Lectura guardada de REALTIME-A-1793072110888_1e96f3de23c42: { temperatura: 24, humedad: 47, luminosidad: 65 }
+# Alerta: REALTIME-A-1793072110888_1e96f3de23c42 temperatura=24 fuera de rango [0.00, 20.00]
+# Lectura guardada de REALTIME-A-1793072110888_1e96f3de23c42: { temperatura: 18, humedad: 52, luminosidad: 70 }
+# Subtest: US3: la transferencia conserva el historico de A y aisla los datos de B
+ok 1 - US3: la transferencia conserva el historico de A y aisla los datos de B
+  ---
+  duration_ms: 327.8309
+  ...
+# Subtest: socket auth helper recognizes authentication errors
+ok 2 - socket auth helper recognizes authentication errors
+  ---
+  duration_ms: 1.376
+  ...
+# Subtest: socket auth helper ends the session for authentication disconnects
+ok 3 - socket auth helper ends the session for authentication disconnects
+  ---
+  duration_ms: 0.7743
+  ...
+# Subtest: producción exige ADMIN_PASS solo al crear el administrador inicial
+ok 4 - producción exige ADMIN_PASS solo al crear el administrador inicial
+  ---
+  duration_ms: 981.4647
+  ...
+# Subtest: desarrollo conserva defaults y producción no crea el usuario de prueba
+ok 5 - desarrollo conserva defaults y producción no crea el usuario de prueba
+  ---
+  duration_ms: 1122.9289
+  ...
+# Subtest: la migración es repetible y protege roles, estados y la FK de alertas
+ok 6 - la migración es repetible y protege roles, estados y la FK de alertas
+  ---
+  duration_ms: 711.3202
+  ...
+# [0mGET /health [32m200[0m 3.093 ms - 11[0m
+# [0mGET /health [32m200[0m 0.431 ms - 11[0m
+# Subtest: CORS normaliza orígenes y preserva clientes sin Origin
+ok 7 - CORS normaliza orígenes y preserva clientes sin Origin
+  ---
+  duration_ms: 23.1801
+  ...
+# Subtest: Socket.io comparte CORS y acepta clientes sin Origin
+ok 8 - Socket.io comparte CORS y acepta clientes sin Origin
+  ---
+  duration_ms: 46.2114
+  ...
+# [0mGET /health [32m200[0m 0.313 ms - 11[0m
+# Subtest: Helmet agrega X-Content-Type-Options sin alterar el endpoint de salud
+ok 9 - Helmet agrega X-Content-Type-Options sin alterar el endpoint de salud
+  ---
+  duration_ms: 3.3726
+  ...
+# Particiones de "lecturas" verificadas (mes actual + siguiente).
+# Base de datos lista
+# Backend EcoTrack corriendo en puerto 0
+# Cliente WebSocket conectado: aivToVTiLald8_aGAAAA
+# Cliente WebSocket desconectado: aivToVTiLald8_aGAAAA
+# Subtest: fixture realtime: token valido conecta y token ausente es rechazado
+ok 10 - fixture realtime: token valido conecta y token ausente es rechazado
+  ---
+  duration_ms: 463.6775
+  ...
+# Particiones de "lecturas" verificadas (mes actual + siguiente).
+# Base de datos lista
+# Backend EcoTrack corriendo en puerto 0
+# Cliente WebSocket conectado: h9mURDrkjxR9zTgEAAAA
+# Cliente WebSocket conectado: oceFHelwKfw2hUGXAAAB
+# Lectura guardada de REALTIME-A-1793072116341_fc42b35db1e56: { temperatura: 23.4, humedad: 47, luminosidad: 65 }
+# Lectura guardada de REALTIME-B-1793072116341_fc42b35db1e56: { temperatura: 24.5, humedad: 47, luminosidad: 65 }
+# Subtest: US1: cada cliente recibe solo sus propias lecturas
+ok 11 - US1: cada cliente recibe solo sus propias lecturas
+  ---
+  duration_ms: 859.2979
+  ...
+# Cliente WebSocket desconectado: h9mURDrkjxR9zTgEAAAA
+# Cliente WebSocket desconectado: oceFHelwKfw2hUGXAAAB
+# Cliente WebSocket conectado: rhMQCp24_0-IlhGPAAAC
+# Cliente WebSocket conectado: My1XWhvAkLpEZmo9AAAD
+# Lectura guardada de REALTIME-A-1793072116341_fc42b35db1e56: { temperatura: 23.4, humedad: 47, luminosidad: 65 }
+# Subtest: US1: dos usuarios del mismo cliente reciben la misma lectura
+ok 12 - US1: dos usuarios del mismo cliente reciben la misma lectura
+  ---
+  duration_ms: 346.5588
+  ...
+# Cliente WebSocket desconectado: rhMQCp24_0-IlhGPAAAC
+# Cliente WebSocket desconectado: My1XWhvAkLpEZmo9AAAD
+# Cliente WebSocket conectado: BOtH8J4ArQT3NNsrAAAE
+# Cliente WebSocket conectado: Ydp3qLrMc1YQNUoRAAAF
+# Mensaje MQTT descartado: REALTIME-NULL-1793072116341_fc42b35db1e56 no tiene dueño
+# Subtest: US1: un dispositivo sin cliente no emite eventos
+ok 13 - US1: un dispositivo sin cliente no emite eventos
+  ---
+  duration_ms: 347.3723
+  ...
+# Cliente WebSocket desconectado: BOtH8J4ArQT3NNsrAAAE
+# Cliente WebSocket desconectado: Ydp3qLrMc1YQNUoRAAAF
+# Cliente WebSocket conectado: duCDwfegLMvqI5p4AAAG
+# Cliente WebSocket conectado: moALD5dxpI1hlV43AAAH
+# Lectura guardada de REALTIME-A-1793072116341_fc42b35db1e56: { temperatura: 23.4, humedad: 47, luminosidad: 65 }
+# Alerta: REALTIME-A-1793072116341_fc42b35db1e56 temperatura=23.4 fuera de rango [0.00, 20.00]
+# Subtest: US1: las alertas llegan solo al cliente dueño del dispositivo
+ok 14 - US1: las alertas llegan solo al cliente dueño del dispositivo
+  ---
+  duration_ms: 352.4623
+  ...
+# Cliente WebSocket desconectado: duCDwfegLMvqI5p4AAAG
+# Cliente WebSocket desconectado: moALD5dxpI1hlV43AAAH
+# Cliente WebSocket conectado: _e3mbLeLsGtr4GTdAAAI
+# Cliente WebSocket conectado: k6YVhKc4ZKR-A44JAAAJ
+# Lectura guardada de REALTIME-A-1793072116341_fc42b35db1e56: { temperatura: 23.4, humedad: 47, luminosidad: 65 }
+# Alerta: REALTIME-A-1793072116341_fc42b35db1e56 temperatura=23.4 fuera de rango [0.00, 20.00]
+# Subtest: US1: dos usuarios del mismo cliente reciben la misma alerta
+ok 15 - US1: dos usuarios del mismo cliente reciben la misma alerta
+  ---
+  duration_ms: 349.6634
+  ...
+# Cliente WebSocket desconectado: _e3mbLeLsGtr4GTdAAAI
+# Cliente WebSocket desconectado: k6YVhKc4ZKR-A44JAAAJ
+# Cliente WebSocket conectado: q9c0lbJXyPj03Y_tAAAK
+# Cliente WebSocket conectado: NMeprpAB-sqxTX45AAAL
+# Mensaje MQTT descartado: REALTIME-NULL-1793072116341_fc42b35db1e56 no tiene dueño
+# Subtest: US1: una alerta de dispositivo sin cliente no se guarda ni se emite
+ok 16 - US1: una alerta de dispositivo sin cliente no se guarda ni se emite
+  ---
+  duration_ms: 350.0113
+  ...
+# Cliente WebSocket desconectado: q9c0lbJXyPj03Y_tAAAK
+# Cliente WebSocket desconectado: NMeprpAB-sqxTX45AAAL
+# Cliente WebSocket conectado: MjwKSyrbuxliGlrHAAAM
+# Lectura guardada de REALTIME-A-1793072116341_fc42b35db1e56: { temperatura: 23.4, humedad: 47, luminosidad: 65 }
+# Alerta: REALTIME-A-1793072116341_fc42b35db1e56 temperatura=23.4 fuera de rango [0.00, 20.00]
+# Lectura guardada de REALTIME-B-1793072116341_fc42b35db1e56: { temperatura: 24.5, humedad: 47, luminosidad: 65 }
+# Alerta: REALTIME-B-1793072116341_fc42b35db1e56 temperatura=24.5 fuera de rango [0.00, 20.00]
+# Subtest: US1: un token sin clienteId no recibe eventos de ningún cliente
+ok 17 - US1: un token sin clienteId no recibe eventos de ningún cliente
+  ---
+  duration_ms: 374.304
+  ...
+# Cliente WebSocket desconectado: MjwKSyrbuxliGlrHAAAM
+# Cliente WebSocket conectado: r8bebvG6mJGwL-VsAAAN
+# Subtest: US1: un token sin clienteId solo se une a su room de usuario
+ok 18 - US1: un token sin clienteId solo se une a su room de usuario
+  ---
+  duration_ms: 23.9336
+  ...
+# Cliente WebSocket desconectado: r8bebvG6mJGwL-VsAAAN
+# Cliente WebSocket conectado: -IRikjZ3YgQPd01jAAAO
+# Cliente WebSocket desconectado: -IRikjZ3YgQPd01jAAAO
+# Subtest: US2: el socket se desconecta al expirar el token y limpia su timer
+ok 19 - US2: el socket se desconecta al expirar el token y limpia su timer
+  ---
+  duration_ms: 749.8361
+  ...
+# Cliente WebSocket conectado: 8iZ0-18h5jxKEzBlAAAP
+# Cliente WebSocket desconectado: 8iZ0-18h5jxKEzBlAAAP
+# Subtest: US2: desconectar manualmente limpia el timer de exp
+ok 20 - US2: desconectar manualmente limpia el timer de exp
+  ---
+  duration_ms: 30.0801
+  ...
+# Cliente WebSocket conectado: lHSrudPwEImutZE2AAAQ
+# Cliente WebSocket desconectado: lHSrudPwEImutZE2AAAQ
+# Subtest: US2: cambio de contraseña desconecta los sockets del usuario
+ok 21 - US2: cambio de contraseña desconecta los sockets del usuario
+  ---
+  duration_ms: 256.772
+  ...
+# Cliente WebSocket conectado: f3IGUnwZKA1hCLfrAAAR
+# Cliente WebSocket desconectado: f3IGUnwZKA1hCLfrAAAR
+# Subtest: US2: eliminar usuario desconecta sus sockets
+ok 22 - US2: eliminar usuario desconecta sus sockets
+  ---
+  duration_ms: 35.3785
+  ...
+# Subtest: US2: conexión sin token es rechazada en el handshake
+ok 23 - US2: conexión sin token es rechazada en el handshake
+  ---
+  duration_ms: 22.6124
+  ...
+# Subtest: US2: token con firma inválida es rechazado en el handshake
+ok 24 - US2: token con firma inválida es rechazado en el handshake
+  ---
+  duration_ms: 23.8107
+  ...
+# Subtest: US2: token vencido es rechazado en el handshake
+ok 25 - US2: token vencido es rechazado en el handshake
+  ---
+  duration_ms: 18.172
+  ...
+# Subtest: US2: token con tv desactualizado es rechazado en el handshake
+ok 26 - US2: token con tv desactualizado es rechazado en el handshake
+  ---
+  duration_ms: 24.208
+  ...
+# Cliente WebSocket conectado: xKEgGynt7wuflMtoAAAW
+# Lectura guardada de REALTIME-B-1793072116341_fc42b35db1e56: { temperatura: 24.5, humedad: 47, luminosidad: 65 }
+# Alerta: REALTIME-B-1793072116341_fc42b35db1e56 temperatura=24.5 fuera de rango [0.00, 20.00]
+# Lectura guardada de REALTIME-A-1793072116341_fc42b35db1e56: { temperatura: 23.4, humedad: 47, luminosidad: 65 }
+# Alerta: REALTIME-A-1793072116341_fc42b35db1e56 temperatura=23.4 fuera de rango [0.00, 20.00]
+# Subtest: US3: el clienteId enviado por el navegador se ignora
+ok 27 - US3: el clienteId enviado por el navegador se ignora
+  ---
+  duration_ms: 360.1297
+  ...
+# Cliente WebSocket desconectado: xKEgGynt7wuflMtoAAAW
+# Cliente WebSocket conectado: rJmoyjK92gJ48b_wAAAX
+# Cliente WebSocket desconectado: rJmoyjK92gJ48b_wAAAX
+# Subtest: US2: cambio de rol por un admin desconecta los sockets del usuario
+ok 28 - US2: cambio de rol por un admin desconecta los sockets del usuario
+  ---
+  duration_ms: 62.8978
+  ...
+# ✓ Alta de admin inicial OK -> {
+#   id: 1,
+#   username: 'admin',
+#   nombre: 'Admin',
+#   rol: 'admin',
+#   cliente_id: undefined,
+#   token_version: 1,
+#   creado_en: 2026-10-27T03:35:21.092Z
+# }
+# ✓ Alta de usuario común OK -> {
+#   id: 2,
+#   username: 'operario1',
+#   nombre: 'Operario Uno',
+#   rol: 'comun',
+#   cliente_id: undefined,
+#   token_version: 1,
+#   creado_en: 2026-10-27T03:35:21.172Z
+# }
+# ✓ Rechaza username duplicado OK -> El nombre de usuario ya existe
+# ✓ Rechaza auto-eliminación OK -> No podés eliminar tu propia cuenta
+# ✓ Rechaza eliminar al único admin OK -> No se puede eliminar: es el único administrador activo
+# ✓ Rechaza degradar al único admin OK -> No se puede quitar el rol de administrador: es el único admin activo
+# ✓ Permite degradar cuando hay otro admin OK -> {
+#   id: 1,
+#   username: 'admin',
+#   nombre: 'Admin',
+#   rol: 'comun',
+#   cliente_id: undefined,
+#   token_version: 2,
+#   creado_en: 2026-10-27T03:35:21.092Z
+# }
+# ✓ Permite eliminar usuario común OK
+# ✓ (usuarios restantes en la tabla mock): [ { id: 2, username: 'operario1', rol: 'admin' } ]
+# TODOS LOS TESTS PASARON ✅
+# Subtest: src\\test\\usuarios.service.test.js
+ok 6 - src\\test\\usuarios.service.test.js
+  ---
+  duration_ms: 263.8611
+  ...
+1..29
+# tests 29
+# suites 0
+# pass 29
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 11072.4575

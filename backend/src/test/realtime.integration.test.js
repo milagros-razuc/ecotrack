@@ -222,7 +222,7 @@ test('US1: dos usuarios del mismo cliente reciben la misma alerta', async () => 
   }
 });
 
-test('US1: una alerta de dispositivo sin cliente se guarda pero no se emite', async () => {
+test('US1: una alerta de dispositivo sin cliente no se guarda ni se emite', async () => {
   await seedTemperatureThreshold(fixture.seed.devices.unassigned);
   const clientASocket = connectWithToken(fixture.signToken(fixture.seed.users.a));
   const clientBSocket = connectWithToken(fixture.signToken(fixture.seed.users.b));
@@ -244,7 +244,7 @@ test('US1: una alerta de dispositivo sin cliente se guarda pero no se emite', as
       [fixture.seed.devices.unassigned]
     );
 
-    assert.strictEqual(Number(after.rows[0].count), Number(before.rows[0].count) + 1);
+    assert.strictEqual(Number(after.rows[0].count), Number(before.rows[0].count));
     assert.strictEqual(clientAAlerts.events.length, 0);
     assert.strictEqual(clientBAlerts.events.length, 0);
   } finally {

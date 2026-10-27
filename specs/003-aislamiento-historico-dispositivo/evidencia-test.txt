@@ -1,0 +1,15 @@
+﻿Particiones de "lecturas" verificadas (mes actual + siguiente).
+Base de datos lista
+Backend EcoTrack corriendo en puerto 0
+Lectura guardada de REALTIME-A-1793071998732_cfa82a3df706a: { temperatura: 24, humedad: 47, luminosidad: 65 }
+Alerta: REALTIME-A-1793071998732_cfa82a3df706a temperatura=24 fuera de rango [0.00, 20.00]
+Lectura guardada de REALTIME-A-1793071998732_cfa82a3df706a: { temperatura: 18, humedad: 52, luminosidad: 70 }
+✔ US3: la transferencia conserva el historico de A y aisla los datos de B (181.6197ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 692.3826

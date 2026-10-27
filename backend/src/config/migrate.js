@@ -50,7 +50,7 @@ async function inicializarDB() {
       comentario TEXT
     )
   `);
-  
+
   await pool.query(`
   DO $$
   BEGIN
@@ -159,6 +159,54 @@ async function inicializarDB() {
 
   await pool.query('CREATE INDEX IF NOT EXISTS idx_dispositivos_cliente ON dispositivos(cliente_id)');
   await pool.query('CREATE INDEX IF NOT EXISTS idx_usuarios_cliente ON usuarios(cliente_id)');
+  // ────────────────────────────────────────────────────────────────────────
+
+  // ── Aislamiento histórico: cliente_id en lecturas y alertas (RNF18) ─────
+  // cliente_id registra el dueño del dispositivo al momento de la inserción.
+  // El backfill corre UNA sola vez (solo si la columna aún no existía): si
+  // corriera en cada arranque, reasignaría datos de períodos sin dueño al
+  // siguiente cliente que reclame el dispositivo.
+  // Debe ir después de asignar cliente_id a los dispositivos (arriba).
+  {
+    const { rows: yaExiste } = await pool.query(`
+      SELECT 1 FROM information_schema.columns
+      WHERE table_schema = current_schema()
+        AND table_name = 'lecturas' AND column_name = 'cliente_id'
+    `);
+
+    if (yaExiste.length === 0) {
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        await client.query('ALTER TABLE lecturas ADD COLUMN cliente_id INTEGER REFERENCES clientes(id)');
+        await client.query('ALTER TABLE alertas  ADD COLUMN cliente_id INTEGER REFERENCES clientes(id)');
+        await client.query(`
+          UPDATE lecturas l SET cliente_id = d.cliente_id
+          FROM dispositivos d WHERE d.codigo = l.dispositivo_codigo
+        `);
+        await client.query(`
+          UPDATE alertas a SET cliente_id = d.cliente_id
+          FROM dispositivos d WHERE d.codigo = a.dispositivo_codigo
+        `);
+        await client.query('COMMIT');
+        console.log('Backfill de cliente_id en lecturas y alertas completado.');
+      } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+      } finally {
+        client.release();
+      }
+    }
+
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_lecturas_cliente_disp_ts
+        ON lecturas (cliente_id, dispositivo_codigo, timestamp DESC)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_alertas_cliente_disp_estado
+        ON alertas (cliente_id, dispositivo_codigo, estado)
+    `);
+  }
   // ────────────────────────────────────────────────────────────────────────
 
   // ── Log de auditoría ─────────────────────────────────────────────

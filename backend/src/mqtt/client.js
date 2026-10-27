@@ -7,7 +7,7 @@ const { lecturaMqttSchema } = require('../schemas');
 const { clientRoom } = require('../realtime/socketRegistry');
 
 async function evaluarUmbral(io, dispositivoCodigo, variable, valor, clienteId) {
-  if (valor === undefined || valor === null) return;
+  if (valor === undefined || valor === null || clienteId === null || clienteId === undefined) return;
   const umbral = await umbralesService.obtener(dispositivoCodigo, variable);
   if (!umbral) return;
   if (umbral.notificaciones_activas === false) return;
@@ -92,12 +92,16 @@ async function procesarMensaje(io, topic, message) {
         return;
       }
 
-      await dispositivosService.registrarConexion(dispositivoCodigo);
       let clienteId = null;
       try {
         clienteId = await dispositivosService.obtenerClienteId(dispositivoCodigo);
       } catch (err) {
         console.error(`No se pudo resolver el cliente de ${dispositivoCodigo}:`, err.message);
+      }
+      await dispositivosService.registrarConexion(dispositivoCodigo);
+      if (clienteId === null || clienteId === undefined) {
+        console.log(`Mensaje MQTT descartado: ${dispositivoCodigo} no tiene dueño`);
+        return;
       }
       await lecturasService.guardar({
         dispositivoCodigo,
@@ -108,13 +112,11 @@ async function procesarMensaje(io, topic, message) {
 
       console.log(`Lectura guardada de ${dispositivoCodigo}:`, data);
 
-      if (clienteId !== null && clienteId !== undefined) {
-        io.to(clientRoom(clienteId)).emit('lectura', {
-          dispositivoCodigo,
-          ...data,
-          timestamp: new Date().toISOString()
-        });
-      }
+      io.to(clientRoom(clienteId)).emit('lectura', {
+        dispositivoCodigo,
+        ...data,
+        timestamp: new Date().toISOString()
+      });
 
       await Promise.all([
         evaluarUmbral(io, dispositivoCodigo, 'temperatura', data.temperatura, clienteId),
