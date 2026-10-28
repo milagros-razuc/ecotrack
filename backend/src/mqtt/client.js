@@ -1,3 +1,4 @@
+const fs = require('fs');
 const mqtt = require('mqtt');
 const dispositivosService = require('../services/dispositivos.service');
 const lecturasService = require('../services/lecturas.service');
@@ -38,9 +39,15 @@ async function evaluarUmbral(io, dispositivoCodigo, variable, valor, clienteId) 
 }
 
 function iniciarMQTT(io) {
-  const mqttClient = mqtt.connect(`mqtt://${process.env.MQTT_HOST}:${process.env.MQTT_PORT}`, {
+  if (!process.env.MQTT_CA_PATH) {
+    throw new Error('MQTT_CA_PATH es obligatorio para validar el certificado del broker MQTT');
+  }
+
+  const mqttClient = mqtt.connect(`mqtts://${process.env.MQTT_HOST}:${process.env.MQTT_PORT}`, {
     username: process.env.MQTT_USER,
     password: process.env.MQTT_PASS,
+    ca: fs.readFileSync(process.env.MQTT_CA_PATH),
+    rejectUnauthorized: true,
   });
 
   mqttClient.on('connect', () => {

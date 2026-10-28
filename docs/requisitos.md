@@ -105,7 +105,7 @@ clientes es absoluto.
 | RI21 | Dispositivo a backend por publicación/suscripción; cada dispositivo publica en un tópico asociado a su código. El cliente se resuelve en el backend. |
 | RI22 | Datos en JSON. |
 | RI23 | Backend a dashboard por HTTP, complementado con comunicación bidireccional para tiempo real. |
-| RI24 | La conexión backend-bróker se autentica con credenciales configuradas por dispositivo. |
+| RI24 | La conexión backend-bróker usa MQTTS en el puerto 8883, valida el certificado contra el CA configurado y se autentica con las credenciales existentes. |
 
 ---
 
@@ -236,10 +236,13 @@ para `/api/public/*`.
 lectura o generar una alerta, y deben llegar solo a usuarios autenticados del cliente
 dueño del dispositivo.
 
-**Contrato MQTT:** tópico `ecotrack/<deviceId>/lecturas`; payload JSON
+**Contrato MQTT:** el canal operativo usa MQTTS sobre TLS en el puerto `8883`; tópico
+`ecotrack/<deviceId>/lecturas`; payload JSON
 `{ "temperatura": number, "humedad": number, "luminosidad": number }`. Rangos validados:
 temperatura de -40 a 80 °C, humedad de 0 a 100 %, luminosidad de 0 a 100 %. El tópico y
-el payload no cambian sin versionarse, porque hay firmware desplegado.
+el payload no cambian sin versionarse, porque hay firmware desplegado. El listener sin
+cifrado en `1883` permanece cerrado. Backend y clientes que ya soporten TLS deben validar
+el certificado del broker contra el CA configurado y el nombre incluido en el SAN.
 
 **Rate limiting (4.6.7 de la tesis):** login con máximo 5 intentos cada 15 minutos por
 IP; API pública con máximo 100 solicitudes cada 5 minutos por clave (o por IP si no hay
