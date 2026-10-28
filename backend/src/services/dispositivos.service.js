@@ -134,8 +134,35 @@ async function listarConEstado(clienteId) {
   return result.rows;
 }
 
-// Da de alta o "reclama" un dispositivo para el cliente del admin logueado.
+// Reclama un dispositivo previamente aprovisionado para el cliente autenticado.
 
+async function reclamar({ codigo, nombre, ubicacion, token, clienteId }) {
+  const tokenHash = hashTokenReclamo(token);
+  const result = await pool.query(
+    `INSERT INTO dispositivos (codigo, nombre, ubicacion, activo, cliente_id, token_reclamo_hash, reclamado_en)
+     SELECT $1::varchar, $2::varchar, $3::varchar, true, $4::int, NULL, NOW()
+     WHERE EXISTS (SELECT 1 FROM dispositivos WHERE codigo = $1::varchar)
+     ON CONFLICT (codigo) DO UPDATE
+       SET nombre = EXCLUDED.nombre,
+           ubicacion = EXCLUDED.ubicacion,
+           activo = true,
+           cliente_id = EXCLUDED.cliente_id,
+           token_reclamo_hash = NULL,
+           reclamado_en = EXCLUDED.reclamado_en
+       WHERE dispositivos.cliente_id IS NULL
+         AND dispositivos.token_reclamo_hash = $5::varchar
+     RETURNING codigo, reclamado_en AS "reclamadoEn"`,
+    [codigo, nombre || null, ubicacion || null, clienteId, tokenHash]
+  );
+
+  if (result.rowCount === 0) {
+    return null;
+  }
+  return { ok: true, ...result.rows[0] };
+}
+
+// Compatibilidad para fixtures internas que preparan datos históricos sin
+// pasar por el endpoint protegido de reclamo.
 async function crearOActualizar({ codigo, nombre, ubicacion, clienteId }) {
   const result = await pool.query(
     `INSERT INTO dispositivos (codigo, nombre, ubicacion, activo, cliente_id)
@@ -190,6 +217,7 @@ module.exports = {
   registrarConexion,
   listar,
   listarConEstado,
+  reclamar,
   crearOActualizar,
   eliminar,
   estaActivo,

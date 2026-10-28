@@ -739,7 +739,7 @@
 
 
               <div
-                class="grid grid-cols-1 sm:grid-cols-3 gap-3"
+                class="grid grid-cols-1 sm:grid-cols-4 gap-3"
               >
 
                 <div class="flex flex-col gap-1.5">
@@ -791,6 +791,26 @@
                     id="alta-ubicacion"
                     class="px-3 py-2.5 border border-outline-variant rounded-lg text-body-sm outline-none focus:border-primary bg-surface"
                     placeholder="Depósito"
+                  />
+
+                </div>
+
+
+                <div class="flex flex-col gap-1.5">
+
+                  <label
+                    for="alta-token"
+                    class="text-label-bold text-on-surface-variant uppercase"
+                  >
+                    Token de reclamo
+                  </label>
+
+                  <input
+                    id="alta-token"
+                    type="password"
+                    class="px-3 py-2.5 border border-outline-variant rounded-lg text-body-sm outline-none focus:border-primary bg-surface"
+                    placeholder="Token entregado por el operador"
+                    autocomplete="off"
                   />
 
                 </div>
@@ -1972,6 +1992,10 @@
       document.getElementById(
         'alta-ubicacion'
       ).value = '';
+
+      document.getElementById(
+        'alta-token'
+      ).value = '';
     }
 
 
@@ -2003,6 +2027,14 @@
         document
           .getElementById(
             'alta-ubicacion'
+          )
+          .value
+          .trim();
+
+      const tokenReclamo =
+        document
+          .getElementById(
+            'alta-token'
           )
           .value
           .trim();
@@ -2049,6 +2081,7 @@
 
               body: JSON.stringify({
                 codigo,
+                token: tokenReclamo,
                 nombre:
                   nombreDispositivo ||
                   undefined,
@@ -2074,8 +2107,9 @@
 
 
           altaError.textContent =
-            data.error ||
-            'Error al crear el dispositivo';
+            response.status === 409
+              ? mensajeReclamoRechazado()
+              : data.error || 'Error al crear el dispositivo';
 
 
           altaError.classList.remove(

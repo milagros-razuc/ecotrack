@@ -25,29 +25,37 @@ router.get('/estado', async (req, res, next) => {
   }
 });
 
-// Alta o "reclamo" de un dispositivo para el cliente del admin logueado.
-router.post('/', verificarRol('admin'), validar(dispositivoSchema), async (req, res, next) => {
+const ERROR_RECLAMO = 'No se pudo reclamar el dispositivo';
+
+function rechazarTokenAusente(req, res, next) {
+  if (typeof req.body?.token !== 'string' || req.body.token.trim() === '') {
+    return res.status(409).json({ error: ERROR_RECLAMO });
+  }
+  next();
+}
+
+// Reclamo de un dispositivo aprovisionado para el cliente del admin logueado.
+router.post('/', verificarRol('admin'), rechazarTokenAusente, validar(dispositivoSchema), async (req, res, next) => {
   try {
-    const { codigo, nombre, ubicacion } = req.body;
-    const resultado = await dispositivosService.crearOActualizar({
-      codigo, nombre, ubicacion, clienteId: req.clienteId,
+    const { codigo, nombre, ubicacion, token } = req.body;
+    const resultado = await dispositivosService.reclamar({
+      codigo, nombre, ubicacion, token, clienteId: req.clienteId,
     });
-    if (resultado.error) {
-      return res.status(409).json({ error: resultado.error });
+    if (!resultado) {
+      return res.status(409).json({ error: ERROR_RECLAMO });
     }
 
-    // RF14: no frena la respuesta ni afecta el resultado si falla.
     auditoriaService.registrar({
       clienteId: req.clienteId,
       usuarioId: req.usuario.sub,
       usuarioUsername: req.usuario.username,
-      accion: 'alta_o_reclamo_dispositivo',
+      accion: 'reclamar_dispositivo',
       entidad: 'dispositivo',
       entidadId: codigo,
       detalle: `Nombre: ${nombre || '—'} · Ubicación: ${ubicacion || '—'}`,
     });
 
-    res.json({ ok: true });
+    res.json({ ok: true, codigo: resultado.codigo, reclamadoEn: resultado.reclamadoEn });
   } catch (err) {
     next(err);
   }

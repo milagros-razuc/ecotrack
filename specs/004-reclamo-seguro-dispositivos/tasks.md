@@ -74,18 +74,18 @@ description: "Task list for secure device claiming and provisioning"
 
 ### Tests for User Story 2
 
-- [ ] T021 [P] [US2] Add API contract tests for valid claim response `200`, `reclamadoEn`, admin-only authorization, and HTTP `409` rejection shape in `backend/src/test/reclamo-dispositivo.integration.test.js`
-- [ ] T022 [P] [US2] Add tests proving code-only, invalid, missing, reused, unknown-code, and already-owned claims all return HTTP `409` with the same generic error in `backend/src/test/reclamo-dispositivo.integration.test.js`
-- [ ] T023 [P] [US2] Add concurrent claim tests using the same code and token to prove exactly one success, one `409`, one owner, one `reclamado_en`, and no duplicate mutation in `backend/src/test/reclamo-dispositivo.integration.test.js`
-- [ ] T024 [P] [US2] Add a frontend behavior test or browser-level fixture for the token field, JSON `token` submission, and generic rejected-claim message covering `frontend/index.html` and `frontend/shared/app.js`
+- [X] T021 [P] [US2] Add API contract tests for valid claim response `200`, `reclamadoEn`, admin-only authorization, and HTTP `409` rejection shape in `backend/src/test/reclamo-dispositivo.integration.test.js`
+- [X] T022 [P] [US2] Add tests proving code-only, invalid, missing, reused, unknown-code, and already-owned claims all return HTTP `409` with the same generic error in `backend/src/test/reclamo-dispositivo.integration.test.js`
+- [X] T023 [P] [US2] Add concurrent claim tests using the same code and token to prove exactly one success, one `409`, one owner, one `reclamado_en`, and no duplicate mutation in `backend/src/test/reclamo-dispositivo.integration.test.js`
+- [X] T024 [P] [US2] Add a frontend behavior test or browser-level fixture for the token field, JSON `token` submission, and generic rejected-claim message covering `frontend/index.html` and `frontend/shared/app.js`
 
 ### Implementation for User Story 2
 
-- [ ] T025 [US2] Replace code-only upsert behavior with an atomic `INSERT ... ON CONFLICT (codigo) DO UPDATE ... WHERE cliente_id IS NULL AND token_reclamo_hash = $tokenHash` in `backend/src/services/dispositivos.service.js`, setting owner, active state, name, location, and `reclamado_en` while consuming the hash
-- [ ] T026 [US2] Update `backend/src/routes/dispositivos.js` to accept the validated `token` field on `POST /api/dispositivos`, derive the owner from `req.clienteId`, return `200` with `codigo` and `reclamadoEn`, and return the same generic `409` for unknown code, owned device, missing/invalid token, or reused token
-- [ ] T027 [US2] Ensure `backend/src/routes/dispositivos.js` does not expose token hashes, owner history, or token-specific rejection reasons and records successful claim audit entries
-- [ ] T028 [US2] Add the `token de reclamo` input to the existing device form in `frontend/index.html` without redesigning the page
-- [ ] T029 [US2] Include `token` in the existing `POST /api/dispositivos` JSON and display a generic claim-rejected message for HTTP `409` in `frontend/index.html` and `frontend/shared/app.js` without distinguishing rejection causes
+- [X] T025 [US2] Replace code-only upsert behavior with an atomic `INSERT ... ON CONFLICT (codigo) DO UPDATE ... WHERE cliente_id IS NULL AND token_reclamo_hash = $tokenHash` in `backend/src/services/dispositivos.service.js`, setting owner, active state, name, location, and `reclamado_en` while consuming the hash
+- [X] T026 [US2] Update `backend/src/routes/dispositivos.js` to accept the validated `token` field on `POST /api/dispositivos`, derive the owner from `req.clienteId`, return `200` with `codigo` and `reclamadoEn`, and return the same generic `409` for unknown code, owned device, missing/invalid token, or reused token
+- [X] T027 [US2] Ensure `backend/src/routes/dispositivos.js` does not expose token hashes, owner history, or token-specific rejection reasons and records successful claim audit entries
+- [X] T028 [US2] Add the `token de reclamo` input to the existing device form in `frontend/index.html` without redesigning the page
+- [X] T029 [US2] Include `token` in the existing `POST /api/dispositivos` JSON and display a generic claim-rejected message for HTTP `409` in `frontend/index.html` and `frontend/shared/app.js` without distinguishing rejection causes
 - [ ] T030 [US2] Preserve existing device list and dashboard behavior after the claim response changes in `frontend/index.html` and `frontend/shared/app.js`
 
 **Checkpoint**: US2 is independently testable through the API and existing frontend form, with uniform non-disclosing rejection behavior.

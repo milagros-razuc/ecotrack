@@ -174,6 +174,10 @@ function mostrarMensajeModal(elId, texto, esError) {
   el.classList.add(esError ? 'text-error' : 'text-primary');
 }
 
+function mensajeReclamoRechazado() {
+  return 'No se pudo reclamar el dispositivo';
+}
+
 // ─── Modal "Mi perfil" ───────────────────────────────────────────
 async function abrirPerfil() {
   document.getElementById('profile-menu')?.classList.remove('open');
