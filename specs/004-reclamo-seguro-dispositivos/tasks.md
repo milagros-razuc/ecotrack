@@ -122,7 +122,7 @@ description: "Task list for secure device claiming and provisioning"
 
 **Purpose**: Validate the complete feature and document operational behavior.
 
-- [ ] T041 [P] Update `README.md` or relevant operations documentation with provisioning, `--rotate`, one-time token handling, HTTP `409` rejection semantics, and HTTP `204` baja semantics
+- [X] T041 [P] Update `README.md` or relevant operations documentation with provisioning, `--rotate`, one-time token handling, HTTP `409` rejection semantics, and HTTP `204` baja semantics
 - [X] T042 [P] Add assertions that audit records for provisioning, rotation, claim, and baja never contain plaintext tokens or token hashes in `backend/src/test/reclamo-dispositivo.integration.test.js`
 - [ ] T043 Run the complete backend test command from `backend/package.json` against an isolated `_test` database and resolve all regressions
 - [ ] T044 Run the scenarios in `specs/004-reclamo-seguro-dispositivos/quickstart.md`, including restart and frontend claim rejection behavior

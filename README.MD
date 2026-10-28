@@ -172,7 +172,7 @@ El login usa JWT (`jsonwebtoken`) con contraseñas hasheadas por `bcrypt`. Cada 
 | GET | `/api/dispositivos` | Lista los dispositivos activos | Autenticado |
 | GET | `/api/dispositivos/estado` | Lista con estado online/offline/nunca conectado | Autenticado |
 | POST | `/api/dispositivos` | Alta o modificación de un dispositivo | Admin |
-| DELETE | `/api/dispositivos/:codigo` | Baja lógica (deja de listarse y de recibir MQTT) | Admin |
+| DELETE | `/api/dispositivos/:codigo` | Baja: libera el dispositivo (sin dueño, inactivo, token revocado) y responde 204 | Admin |
 | GET | `/api/lecturas` | Últimas lecturas (`dispositivo`, `limite`) | Autenticado |
 | GET | `/api/lecturas/ultima` | Última lectura por cada dispositivo | Autenticado |
 | GET | `/api/lecturas/agregado` | Series agregadas para el histórico (`dispositivo`, `periodo=dia\|semana\|mes`) | Autenticado |
@@ -189,18 +189,31 @@ El login usa JWT (`jsonwebtoken`) con contraseñas hasheadas por `bcrypt`. Cada 
 
 ### Aprovisionamiento y reclamo seguro
 
-El operador puede preparar un dispositivo nuevo desde `backend/`. El token se
-imprime una sola vez y no se guarda en la base:
+Un dispositivo nuevo solo puede ser reclamado con un token de un solo uso que
+genera el operador desde `backend/`:
 
 ```powershell
 node scripts/provision-device.js --codigo DISPOSITIVO-001
 node scripts/provision-device.js --rotate DISPOSITIVO-001
 ```
 
+- El token se imprime **una sola vez**. En la base solo se guarda su hash
+  SHA-256 (64 caracteres), por lo que no se puede recuperar.
+- `--rotate` genera un token nuevo e invalida el anterior. Solo funciona si el
+  dispositivo **no tiene dueño**.
+- Los dispositivos que ya tenían dueño antes de esta función (por ejemplo
+  `ESP32-001`) no reciben token.
+
 Un administrador reclama el dispositivo desde `POST /api/dispositivos` enviando
-`codigo`, `token` y, opcionalmente, `nombre` y `ubicacion`. Los rechazos por
-código inexistente, dispositivo ya reclamado, token inválido o token usado
-responden `409` con un error genérico.
+`codigo`, `token` y, opcionalmente, `nombre` y `ubicacion`. El reclamo es
+atómico. Todos los rechazos (código inexistente, dispositivo con dueño, token
+inválido, ausente o ya usado) responden `409` con el mismo error genérico:
+`No se pudo reclamar el dispositivo`.
+
+La baja (`DELETE /api/dispositivos/:codigo`) responde `204` sin cuerpo. Deja el
+dispositivo sin dueño, inactivo, sin nombre, ubicación ni umbrales, y sin token
+válido. El histórico de lecturas y alertas se conserva para el cliente anterior.
+Para reutilizarlo, el operador debe generar un token nuevo con `--rotate`.
 
 ### Ejemplo de request al login
 
@@ -253,7 +266,7 @@ clientes
 
 > El modelo multi-cliente está cerrado: `clientes` y `cliente_id` filtran cada query de `dispositivos`, `lecturas`, `umbrales`, `alertas` (vía JOIN, ya que `alertas` no tiene `cliente_id` propio) y `usuarios`. El JWT lleva `clienteId`, y el middleware `extraerCliente` rechaza con 401 cualquier token viejo sin ese campo, en vez de dejarlo pasar sin aislamiento. Único punto abierto: el tópico MQTT sigue siendo `ecotrack/<codigo>/lecturas` sin `cliente_id`, por lo que el código de dispositivo se mantiene único a nivel global (no por cliente) — ver la nota de diseño en `dispositivos.service.js`.
 
-> `dispositivos.activo` implementa la baja lógica: un dispositivo dado de baja no se borra (para no perder su histórico de lecturas/alertas ni romper la FK), simplemente deja de listarse y sus mensajes MQTT se descartan sin guardarse.
+> `dispositivos.activo` implementa la baja lógica: un dispositivo dado de baja no se borra (para no perder su histórico de lecturas/alertas ni romper la FK). Queda sin dueño, inactivo y sin token válido, deja de listarse y sus mensajes MQTT se descartan sin guardarse hasta que un operador lo vuelva a aprovisionar con `--rotate` y un administrador lo reclame.
 
 ---
 
