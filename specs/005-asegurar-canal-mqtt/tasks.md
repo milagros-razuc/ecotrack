@@ -53,7 +53,7 @@ recibe ni persiste el mensaje. La prueba no exige un error del publicador MQTT 3
 ### Implementation for User Story 1
 
 - [ ] T012 [US1] Verificar en `mosquitto/config/acl.conf` que `backend` conserva lectura de `ecotrack/+/lecturas` y cada usuario de dispositivo conserva escritura únicamente en `ecotrack/<deviceId>/lecturas`, sin ampliar permisos
-- [ ] T013 [US1] Añadir en `backend/src/test/README-mqtt-acl.md` los prerrequisitos de los dos usuarios MQTT de prueba, el entorno TLS en `8883` y el criterio de ausencia observable en backend
+- [X] T013 [US1] Añadir en `backend/src/test/README-mqtt-acl.md` los prerrequisitos de los dos usuarios MQTT de prueba, el entorno TLS en `8883` y el criterio de ausencia observable en backend
 - [ ] T014 [US1] Ejecutar y ajustar `backend/src/test/mqtt-acl.integration.test.js` hasta demostrar publicación propia recibida y publicación cruzada ausente, manteniendo la suite backend existente en verde
 
 **Checkpoint**: User Story 1 es demostrable independientemente y constituye el MVP.
