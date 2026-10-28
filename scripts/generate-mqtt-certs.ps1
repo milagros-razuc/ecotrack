@@ -1,14 +1,16 @@
 param(
     [Parameter(Mandatory = $true)]
     [string]$HostIp,
-    [string]$OutputRoot = (Join-Path $PSScriptRoot '..')
+    [string]$OutputRoot
 )
 
 $ErrorActionPreference = 'Stop'
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+if (-not $OutputRoot) { $OutputRoot = Join-Path $scriptDir '..' }
 $repoRoot = (Resolve-Path $OutputRoot).Path
 $mosquittoCerts = Join-Path $repoRoot 'mosquitto\config\certs'
 $esp32Certs = Join-Path $repoRoot 'codigo-esp32-mosquitto\certs'
-$sanConfig = Join-Path $PSScriptRoot 'mqtt-broker-san.cnf'
+$sanConfig = Join-Path $scriptDir 'mqtt-broker-san.cnf'
 
 New-Item -ItemType Directory -Force -Path $mosquittoCerts, $esp32Certs | Out-Null
 
@@ -18,9 +20,11 @@ $brokerKey = Join-Path $mosquittoCerts 'broker.key'
 $brokerCsr = Join-Path $mosquittoCerts 'broker.csr'
 $brokerCert = Join-Path $mosquittoCerts 'broker.crt'
 
-openssl req -x509 -newkey rsa:4096 -sha256 -days 3650 -nodes `
-    -keyout $caKey -out $caCert `
-    -subj '/C=AR/O=EcoTrack/OU=Development/CN=EcoTrack MQTT CA'
+if (-not ((Test-Path $caKey) -and (Test-Path $caCert))) {
+    openssl req -x509 -newkey rsa:4096 -sha256 -days 3650 -nodes `
+        -keyout $caKey -out $caCert `
+        -subj '/C=AR/O=EcoTrack/OU=Development/CN=EcoTrack MQTT CA'
+}
 
 openssl req -new -newkey rsa:2048 -nodes `
     -keyout $brokerKey -out $brokerCsr `

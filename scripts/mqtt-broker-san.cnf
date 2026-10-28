@@ -1,0 +1,11 @@
+[server_cert]
+basicConstraints = critical,CA:false
+keyUsage = critical,digitalSignature,keyEncipherment
+extendedKeyUsage = serverAuth
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1 = mosquitto
+DNS.2 = localhost
+DNS.3 = IP_REPLACE_ME
+IP.1 = IP_REPLACE_ME
