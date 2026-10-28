@@ -271,8 +271,9 @@ async function inicializarDB() {
   // ────────────────────────────────────────────────────────────────────────
 
   // ── Particiones mensuales de "lecturas" ─────────────────────────────────
-  // Se asegura la partición del mes actual y del siguiente en cada arranque,
-  // para que nunca falte una al llegar una lectura por MQTT. Idempotente:
+  // Se aseguran los meses anterior, actual y siguiente en cada arranque,
+  // para que una lectura diferida que cruza de mes también tenga destino.
+  // Idempotente:
   // CREATE TABLE IF NOT EXISTS no falla si la partición ya existe.
   async function asegurarParticionMensual(fecha) {
     const anio = fecha.getUTCFullYear();
@@ -288,10 +289,12 @@ async function inicializarDB() {
   }
 
   const ahora = new Date();
+  const mesAnterior = new Date(Date.UTC(ahora.getUTCFullYear(), ahora.getUTCMonth() - 1, 1));
   const proximoMes = new Date(Date.UTC(ahora.getUTCFullYear(), ahora.getUTCMonth() + 1, 1));
+  await asegurarParticionMensual(mesAnterior);
   await asegurarParticionMensual(ahora);
   await asegurarParticionMensual(proximoMes);
-  console.log('Particiones de "lecturas" verificadas (mes actual + siguiente).');
+  console.log('Particiones de "lecturas" verificadas (mes anterior, actual y siguiente).');
   // ────────────────────────────────────────────────────────────────────────
 
   await pool.query(`

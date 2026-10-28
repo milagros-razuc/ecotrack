@@ -68,8 +68,8 @@ function iniciarMQTT(io) {
   return mqttClient;
 }
 
-async function procesarMensaje(io, topic, message) {
-    try {
+async function procesarMensaje(io, topic, message, recibidaEn = new Date()) {
+  try {
       const dispositivoCodigo = topic.split('/')[1];
 
       let dataCruda;
@@ -93,31 +93,55 @@ async function procesarMensaje(io, topic, message) {
 
       // Si el dispositivo fue dado de baja (activo = false), se descarta
       // el mensaje antes de tocar lecturas/alertas. 
-      const activo = await dispositivosService.estaActivo(dispositivoCodigo);
-      if (activo === false) {
+      const contexto = await dispositivosService.obtenerContextoLectura(dispositivoCodigo);
+      if (contexto?.activo === false) {
         console.log(`Mensaje MQTT descartado: ${dispositivoCodigo} está dado de baja`);
         return;
       }
 
-      let clienteId = null;
-      try {
-        clienteId = await dispositivosService.obtenerClienteId(dispositivoCodigo);
-      } catch (err) {
-        console.error(`No se pudo resolver el cliente de ${dispositivoCodigo}:`, err.message);
+      const receivedAt = recibidaEn instanceof Date ? recibidaEn : new Date(recibidaEn);
+      if (Number.isNaN(receivedAt.getTime())) {
+        console.error(`Mensaje MQTT descartado de ${dispositivoCodigo}: hora de recepción inválida`);
+        return;
       }
-      await dispositivosService.registrarConexion(dispositivoCodigo);
+
+      const captureAt = data.ts === undefined
+        ? receivedAt
+        : new Date(data.ts * 1000);
+      const lowerBound = receivedAt.getTime() - (24 * 60 * 60 * 1000);
+      const upperBound = receivedAt.getTime() + (60 * 1000);
+      if (data.ts !== undefined
+        && (captureAt.getTime() < lowerBound || captureAt.getTime() > upperBound)) {
+        console.error(`Mensaje MQTT descartado de ${dispositivoCodigo}: ts fuera de rango`);
+        return;
+      }
+
+      const clienteId = contexto?.cliente_id ?? null;
       if (clienteId === null || clienteId === undefined) {
+        await dispositivosService.registrarConexion(dispositivoCodigo, receivedAt);
         console.log(`Mensaje MQTT descartado: ${dispositivoCodigo} no tiene dueño`);
         return;
       }
+
+      if (contexto.reclamado_en && captureAt < new Date(contexto.reclamado_en)) {
+        console.log(`Mensaje MQTT descartado: ${dispositivoCodigo} anterior a reclamado_en`);
+        return;
+      }
+
+      await dispositivosService.registrarConexion(dispositivoCodigo, receivedAt);
+      const atrasoMs = receivedAt.getTime() - captureAt.getTime();
+      const diferida = atrasoMs > 5 * 60 * 1000;
       await lecturasService.guardar({
         dispositivoCodigo,
         temperatura: data.temperatura,
         humedad: data.humedad,
         luminosidad: data.luminosidad,
+        timestamp: captureAt,
       });
 
       console.log(`Lectura guardada de ${dispositivoCodigo}:`, data);
+
+      if (diferida) return;
 
       io.to(clientRoom(clienteId)).emit('lectura', {
         dispositivoCodigo,
@@ -130,9 +154,9 @@ async function procesarMensaje(io, topic, message) {
         evaluarUmbral(io, dispositivoCodigo, 'humedad', data.humedad, clienteId),
         evaluarUmbral(io, dispositivoCodigo, 'luminosidad', data.luminosidad, clienteId),
       ]);
-    } catch (err) {
-      console.error('Error procesando mensaje MQTT:', err.message);
-    }
+  } catch (err) {
+    console.error('Error procesando mensaje MQTT:', err.message);
+  }
 }
 
 module.exports = iniciarMQTT;

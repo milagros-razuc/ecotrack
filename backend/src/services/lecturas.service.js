@@ -4,13 +4,20 @@ const pool = require('../config/db');
 // cliente_id se toma del dueño del dispositivo en este instante (RNF18), de
 // modo que el dato histórico no cambia de dueño si el dispositivo se
 // transfiere. Si el dispositivo no tiene dueño, la lectura se descarta.
-async function guardar({ dispositivoCodigo, temperatura, humedad, luminosidad }) {
+async function guardar({
+  dispositivoCodigo,
+  temperatura,
+  humedad,
+  luminosidad,
+  timestamp = new Date(),
+}) {
   await pool.query(
-    `INSERT INTO lecturas (dispositivo_codigo, temperatura, humedad, luminosidad, cliente_id)
-     SELECT d.codigo, $2::numeric, $3::numeric, $4::integer, d.cliente_id
+    `INSERT INTO lecturas
+      (dispositivo_codigo, temperatura, humedad, luminosidad, timestamp, cliente_id)
+     SELECT d.codigo, $2::numeric, $3::numeric, $4::integer, $5::timestamptz, d.cliente_id
      FROM dispositivos d
      WHERE d.codigo = $1 AND d.cliente_id IS NOT NULL`,
-    [dispositivoCodigo, temperatura, humedad, luminosidad]
+    [dispositivoCodigo, temperatura, humedad, luminosidad, timestamp]
   );
 }
 

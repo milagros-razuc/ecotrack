@@ -45,6 +45,7 @@ const lecturaMqttSchema = z.object({
   temperatura: z.number().min(-40).max(80),
   humedad: z.number().min(0).max(100),
   luminosidad: z.number().min(0).max(100),
+  ts: z.number().int().nonnegative().optional(),
 });
 
 // Para POST /api/usuarios (alta de usuario, CU09 — RF16)

@@ -84,13 +84,13 @@ async function rotarToken({ codigo, auditoria } = {}) {
 // asociado (cliente_id queda NULL): permanece "sin asignar" hasta que un
 // admin lo reclama para su cliente vía POST /api/dispositivos con el mismo
 // código (ver crearOActualizar).
-async function registrarConexion(codigo) {
+async function registrarConexion(codigo, recibidaEn = new Date()) {
   await pool.query(
     `INSERT INTO dispositivos (codigo, nombre, ubicacion, ultima_conexion)
-     VALUES ($1, $2, $3, NOW())
+     VALUES ($1, $2, $3, $4)
      ON CONFLICT (codigo)
-     DO UPDATE SET ultima_conexion = NOW()`,
-    [codigo, `Dispositivo ${codigo}`, 'Sin asignar']
+     DO UPDATE SET ultima_conexion = EXCLUDED.ultima_conexion`,
+    [codigo, `Dispositivo ${codigo}`, 'Sin asignar', recibidaEn]
   );
 }
 
@@ -108,6 +108,16 @@ async function obtenerClienteId(codigo) {
     [codigo]
   );
   return result.rows[0]?.cliente_id ?? null;
+}
+
+async function obtenerContextoLectura(codigo) {
+  const result = await pool.query(
+    `SELECT activo, cliente_id, reclamado_en
+     FROM dispositivos
+     WHERE codigo = $1`,
+    [codigo]
+  );
+  return result.rows[0] || null;
 }
 
 async function listar(clienteId) {
@@ -223,4 +233,5 @@ module.exports = {
   eliminar,
   estaActivo,
   obtenerClienteId,
+  obtenerContextoLectura,
 };
