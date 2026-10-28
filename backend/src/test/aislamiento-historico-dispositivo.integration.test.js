@@ -57,13 +57,16 @@ test('US3: la transferencia conserva el historico de A y aisla los datos de B', 
   assert.strictEqual(releasedDevice[0].activo, false);
   assert.strictEqual(releasedThresholds.length, 0);
 
-  const claimed = await dispositivosService.crearOActualizar({
+  const rotated = await dispositivosService.rotarToken({ codigo: deviceCode });
+  assert.ok(rotated.token);
+  const claimed = await dispositivosService.reclamar({
     codigo: deviceCode,
     nombre: 'Dispositivo B',
     ubicacion: 'Test B',
+    token: rotated.token,
     clienteId: b.id,
   });
-  assert.deepStrictEqual(claimed, { ok: true });
+  assert.strictEqual(claimed.ok, true);
 
   await fixture.procesarMensaje(
     `ecotrack/${deviceCode}/lecturas`,

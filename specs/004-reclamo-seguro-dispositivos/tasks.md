@@ -100,19 +100,19 @@ description: "Task list for secure device claiming and provisioning"
 
 ### Tests for User Story 3
 
-- [ ] T031 [P] [US3] Test `DELETE /api/dispositivos/:codigo` returns exactly `204` with an empty body and clears owner, active state, name, location, thresholds, and `token_reclamo_hash` in `backend/src/test/reclamo-dispositivo.integration.test.js`
-- [ ] T032 [P] [US3] Test that an old token cannot reclaim after baja and that claim remains `409` until operator `--rotate` in `backend/src/test/reclamo-dispositivo.integration.test.js`
-- [ ] T033 [P] [US3] Test MQTT messages for an unowned device are discarded without readings, alerts, realtime events, or public API results in `backend/src/test/reclamo-dispositivo.integration.test.js`
-- [ ] T034 [P] [US3] Test backend restart/migration with a released device preserves null owner, inactive state, null token hash, cleared thresholds, and historical client ownership in `backend/src/test/reclamo-dispositivo.integration.test.js`
-- [ ] T035 [P] [US3] Extend historical transfer coverage to verify client A retains readings/alerts and client B sees only post-claim data after operator rotation in `backend/src/test/aislamiento-historico-dispositivo.integration.test.js`
+- [X] T031 [P] [US3] Test `DELETE /api/dispositivos/:codigo` returns exactly `204` with an empty body and clears owner, active state, name, location, thresholds, and `token_reclamo_hash` in `backend/src/test/reclamo-dispositivo.integration.test.js`
+- [X] T032 [P] [US3] Test that an old token cannot reclaim after baja and that claim remains `409` until operator `--rotate` in `backend/src/test/reclamo-dispositivo.integration.test.js`
+- [X] T033 [P] [US3] Test MQTT messages for an unowned device are discarded without readings, alerts, realtime events, or public API results in `backend/src/test/reclamo-dispositivo.integration.test.js`
+- [X] T034 [P] [US3] Test backend restart/migration with a released device preserves null owner, inactive state, null token hash, cleared thresholds, and historical client ownership in `backend/src/test/reclamo-dispositivo.integration.test.js`
+- [X] T035 [P] [US3] Extend historical transfer coverage to verify client A retains readings/alerts and client B sees only post-claim data after operator rotation in `backend/src/test/aislamiento-historico-dispositivo.integration.test.js`
 
 ### Implementation for User Story 3
 
-- [ ] T036 [US3] Update the transactional baja in `backend/src/services/dispositivos.service.js` to set `cliente_id = NULL`, `activo = false`, `nombre = NULL`, `ubicacion = NULL`, and `token_reclamo_hash = NULL`, then delete all device thresholds without modifying historical readings or alerts
-- [ ] T037 [US3] Keep `DELETE /api/dispositivos/:codigo` as a `204 No Content` response with no body and audit the successful baja in `backend/src/routes/dispositivos.js`
-- [ ] T038 [US3] Verify MQTT ownership checks in `backend/src/mqtt/client.js`, `backend/src/services/lecturas.service.js`, and `backend/src/services/alertas.service.js` discard unowned messages before persistence, alerts, or realtime emission
-- [ ] T039 [US3] Preserve client-scoped historical queries and public API behavior for readings and alerts in `backend/src/services/lecturas.service.js`, `backend/src/services/alertas.service.js`, and `backend/src/routes/public.routes.js`
-- [ ] T040 [US3] Add migration restart assertions and seed guards in `backend/src/config/migrate.js` so released devices are not reassigned and thresholds are not reinserted
+- [X] T036 [US3] Update the transactional baja in `backend/src/services/dispositivos.service.js` to set `cliente_id = NULL`, `activo = false`, `nombre = NULL`, `ubicacion = NULL`, and `token_reclamo_hash = NULL`, then delete all device thresholds without modifying historical readings or alerts
+- [X] T037 [US3] Keep `DELETE /api/dispositivos/:codigo` as a `204 No Content` response with no body and audit the successful baja in `backend/src/routes/dispositivos.js`
+- [X] T038 [US3] Verify MQTT ownership checks in `backend/src/mqtt/client.js`, `backend/src/services/lecturas.service.js`, and `backend/src/services/alertas.service.js` discard unowned messages before persistence, alerts, or realtime emission
+- [X] T039 [US3] Preserve client-scoped historical queries and public API behavior for readings and alerts in `backend/src/services/lecturas.service.js`, `backend/src/services/alertas.service.js`, and `backend/src/routes/public.routes.js`
+- [X] T040 [US3] Add migration restart assertions and seed guards in `backend/src/config/migrate.js` so released devices are not reassigned and thresholds are not reinserted
 
 **Checkpoint**: US3 proves safe release, operator-controlled re-enablement, MQTT discard, restart safety, and RNF18 historical isolation.
 

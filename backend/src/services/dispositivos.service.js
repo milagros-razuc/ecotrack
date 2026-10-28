@@ -188,7 +188,8 @@ async function eliminar(codigo, clienteId) {
     await client.query('BEGIN');
     const result = await client.query(
       `UPDATE dispositivos
-       SET cliente_id = NULL, activo = false, nombre = NULL, ubicacion = NULL
+       SET cliente_id = NULL, activo = false, nombre = NULL, ubicacion = NULL,
+           token_reclamo_hash = NULL
        WHERE codigo = $1 AND cliente_id = $2
        RETURNING codigo`,
       [codigo, clienteId]

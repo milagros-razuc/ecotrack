@@ -406,6 +406,253 @@ test('rechaza rotar un dispositivo con dueño sin cambiar su estado', async (con
     });
   });
 
+  test('T031: la baja devuelve 204 vacío y limpia todo el estado operativo', async (context) => {
+    if (!process.env.TEST_DATABASE_URL) {
+      context.skip('Configure TEST_DATABASE_URL para ejecutar las pruebas de reclamo');
+      return;
+    }
+
+    await withMigratedDatabase(async ({ database, pool }) => {
+      const suffix = Date.now();
+      const { rows: clients } = await pool.query(
+        'INSERT INTO clientes (nombre) VALUES ($1) RETURNING id',
+        [`US3-delete-${suffix}`]
+      );
+      const { rows: users } = await pool.query(
+        `INSERT INTO usuarios (username, password_hash, nombre, rol, cliente_id, token_version)
+         VALUES ($1, 'fixture', 'US3 Admin', 'admin', $2, 1) RETURNING *`,
+        [`us3-delete-admin-${suffix}`, clients[0].id]
+      );
+      const codigo = `US3-DELETE-${suffix}`;
+      await pool.query(
+        `INSERT INTO dispositivos (codigo, nombre, ubicacion, activo, cliente_id, token_reclamo_hash)
+         VALUES ($1, 'Nodo', 'Laboratorio', true, $2, 'old-hash')`,
+        [codigo, clients[0].id]
+      );
+      await pool.query(
+        `INSERT INTO umbrales
+          (dispositivo_codigo, variable, umbral_min, umbral_max)
+         VALUES ($1, 'temperatura', 0, 20)`,
+        [codigo]
+      );
+      const server = await startApi(database);
+      try {
+        const response = await request(
+          server.address().port,
+          'DELETE',
+          `/api/dispositivos/${codigo}`,
+          undefined,
+          authFor(users[0])
+        );
+        assert.deepStrictEqual(response, { status: 204, body: null });
+        const { rows } = await pool.query(
+          `SELECT cliente_id, activo, nombre, ubicacion, token_reclamo_hash
+           FROM dispositivos WHERE codigo = $1`,
+          [codigo]
+        );
+        assert.deepStrictEqual(rows[0], {
+          cliente_id: null,
+          activo: false,
+          nombre: null,
+          ubicacion: null,
+          token_reclamo_hash: null,
+        });
+        await assertNoThresholds(pool, codigo);
+      } finally {
+        await new Promise((resolve) => server.close(resolve));
+        await require('../config/db').end();
+      }
+    });
+  });
+
+  test('T032: la baja invalida el token anterior hasta una rotación operativa', async (context) => {
+    if (!process.env.TEST_DATABASE_URL) {
+      context.skip('Configure TEST_DATABASE_URL para ejecutar las pruebas de reclamo');
+      return;
+    }
+
+    await withMigratedDatabase(async ({ database, pool }) => {
+      const suffix = Date.now();
+      const { rows: clients } = await pool.query(
+        'INSERT INTO clientes (nombre) VALUES ($1) RETURNING id',
+        [`US3-token-${suffix}`]
+      );
+      const { rows: users } = await pool.query(
+        `INSERT INTO usuarios (username, password_hash, nombre, rol, cliente_id, token_version)
+         VALUES ($1, 'fixture', 'US3 Admin', 'admin', $2, 1) RETURNING *`,
+        [`us3-token-admin-${suffix}`, clients[0].id]
+      );
+      const codigo = `US3-TOKEN-${suffix}`;
+      const oldToken = `old-token-${suffix}`;
+      await pool.query(
+        `INSERT INTO dispositivos (codigo, activo, cliente_id, token_reclamo_hash)
+         VALUES ($1, true, $2, $3)`,
+        [codigo, clients[0].id, hashTokenReclamo(oldToken)]
+      );
+      const server = await startApi(database);
+      try {
+        const deleted = await request(
+          server.address().port,
+          'DELETE',
+          `/api/dispositivos/${codigo}`,
+          undefined,
+          authFor(users[0])
+        );
+        assert.strictEqual(deleted.status, 204);
+        const rejected = await request(
+          server.address().port,
+          'POST',
+          '/api/dispositivos',
+          { codigo, token: oldToken },
+          authFor(users[0])
+        );
+        assert.deepStrictEqual(rejected, {
+          status: 409,
+          body: { error: 'No se pudo reclamar el dispositivo' },
+        });
+        const rotated = runProvision(database, ['--rotate', codigo]);
+        assert.strictEqual(rotated.status, 0, rotated.stderr);
+        const newToken = rotated.stdout.trim().split('Token de reclamo: ')[1];
+        const claimed = await request(
+          server.address().port,
+          'POST',
+          '/api/dispositivos',
+          { codigo, token: newToken },
+          authFor(users[0])
+        );
+        assert.strictEqual(claimed.status, 200);
+      } finally {
+        await new Promise((resolve) => server.close(resolve));
+        await require('../config/db').end();
+      }
+    });
+  });
+
+  test('T033/T038: MQTT sin dueño no crea lecturas, alertas ni eventos', async (context) => {
+    if (!process.env.TEST_DATABASE_URL) {
+      context.skip('Configure TEST_DATABASE_URL para ejecutar las pruebas de reclamo');
+      return;
+    }
+
+    await withMigratedDatabase(async ({ database, pool }) => {
+      process.env.DB_HOST = database.host;
+      process.env.DB_PORT = database.port;
+      process.env.DB_USER = database.user;
+      process.env.DB_PASS = database.password;
+      process.env.DB_NAME = database.database;
+      delete require.cache[require.resolve('../config/db')];
+      delete require.cache[require.resolve('../services/dispositivos.service')];
+      delete require.cache[require.resolve('../services/lecturas.service')];
+      delete require.cache[require.resolve('../services/alertas.service')];
+      delete require.cache[require.resolve('../mqtt/client')];
+      const { procesarMensaje } = require('../mqtt/client');
+      const lecturasService = require('../services/lecturas.service');
+      const alertasService = require('../services/alertas.service');
+      const codigo = `US3-MQTT-${Date.now()}`;
+      await pool.query(
+        'INSERT INTO dispositivos (codigo, activo, cliente_id) VALUES ($1, true, NULL)',
+        [codigo]
+      );
+      await pool.query(
+        `INSERT INTO umbrales
+          (dispositivo_codigo, variable, umbral_min, umbral_max)
+         VALUES ($1, 'temperatura', 0, 20)`,
+        [codigo]
+      );
+      const emitted = [];
+      const io = { to: () => ({ emit: (...event) => emitted.push(event) }) };
+      await procesarMensaje(
+        io,
+        `ecotrack/${codigo}/lecturas`,
+        JSON.stringify({ temperatura: 30, humedad: 50, luminosidad: 40 })
+      );
+      assert.strictEqual((await pool.query(
+        'SELECT 1 FROM lecturas WHERE dispositivo_codigo = $1',
+        [codigo]
+      )).rowCount, 0);
+      assert.strictEqual((await pool.query(
+        'SELECT 1 FROM alertas WHERE dispositivo_codigo = $1',
+        [codigo]
+      )).rowCount, 0);
+      assert.deepStrictEqual(emitted, []);
+      assert.deepStrictEqual(
+        await lecturasService.listar({ dispositivo: codigo, clienteId: null }),
+        []
+      );
+      assert.strictEqual(
+        (await alertasService.listar({ dispositivo: codigo, clienteId: null })).total,
+        0
+      );
+      assert.deepStrictEqual(
+        (await pool.query(
+          'SELECT 1 FROM dispositivos WHERE codigo = $1 AND cliente_id IS NULL',
+          [codigo]
+        )).rows.length,
+        1
+      );
+      await require('../config/db').end();
+    });
+  });
+
+  test('T034: migraciones repetidas preservan una baja y su histórico', async (context) => {
+    if (!process.env.TEST_DATABASE_URL) {
+      context.skip('Configure TEST_DATABASE_URL para ejecutar las pruebas de reclamo');
+      return;
+    }
+
+    await withMigratedDatabase(async ({ database, pool }) => {
+      const suffix = Date.now();
+      const { rows: clients } = await pool.query(
+        'INSERT INTO clientes (nombre) VALUES ($1) RETURNING id',
+        [`US3-migration-${suffix}`]
+      );
+      const codigo = `US3-MIGRATION-${suffix}`;
+      await pool.query(
+        `INSERT INTO dispositivos
+          (codigo, nombre, ubicacion, activo, cliente_id, token_reclamo_hash)
+         VALUES ($1, NULL, NULL, false, NULL, NULL)`,
+        [codigo]
+      );
+      await pool.query(
+        `INSERT INTO lecturas
+          (dispositivo_codigo, temperatura, humedad, luminosidad, cliente_id)
+         VALUES ($1, 24, 40, 50, $2)`,
+        [codigo, clients[0].id]
+      );
+      await pool.query(
+        `INSERT INTO alertas
+          (dispositivo_codigo, variable, valor, umbral_min, umbral_max, cliente_id)
+         VALUES ($1, 'temperatura', 24, 0, 20, $2)`,
+        [codigo, clients[0].id]
+      );
+      const first = migrate(database);
+      const second = migrate(database);
+      assert.strictEqual(first.status, 0, first.stderr);
+      assert.strictEqual(second.status, 0, second.stderr);
+      const { rows } = await pool.query(
+        `SELECT cliente_id, activo, nombre, ubicacion, token_reclamo_hash
+         FROM dispositivos WHERE codigo = $1`,
+        [codigo]
+      );
+      assert.deepStrictEqual(rows[0], {
+        cliente_id: null,
+        activo: false,
+        nombre: null,
+        ubicacion: null,
+        token_reclamo_hash: null,
+      });
+      assert.strictEqual((await pool.query(
+        'SELECT COUNT(*) FROM lecturas WHERE dispositivo_codigo = $1 AND cliente_id = $2',
+        [codigo, clients[0].id]
+      )).rows[0].count, '1');
+      assert.strictEqual((await pool.query(
+        'SELECT COUNT(*) FROM alertas WHERE dispositivo_codigo = $1 AND cliente_id = $2',
+        [codigo, clients[0].id]
+      )).rows[0].count, '1');
+      await assertNoThresholds(pool, codigo);
+    });
+  });
+
   test('el formulario frontend envía token y usa un rechazo genérico', () => {
     const index = fs.readFileSync(
       require('path').resolve(__dirname, '../../../frontend/index.html'),

@@ -68,7 +68,7 @@ router.delete('/:codigo', verificarRol('admin'), async (req, res, next) => {
       return res.status(404).json({ error: 'Dispositivo no encontrado' });
     }
 
-    auditoriaService.registrar({
+    await auditoriaService.registrar({
       clienteId: req.clienteId,
       usuarioId: req.usuario.sub,
       usuarioUsername: req.usuario.username,
