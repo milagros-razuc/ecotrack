@@ -1,4 +1,4 @@
----
+﻿---
 
 description: "Task list for securing the MQTT channel"
 ---
@@ -107,9 +107,9 @@ exclusivo, la validación del CA y la sincronización NTP.
 **Purpose**: Ejecutar solo las verificaciones requeridas por esta feature; no es una fase de
 polish ni incluye refactors generales.
 
-- [ ] T027 Ejecutar `npm test` desde `backend/` y confirmar que las pruebas existentes, ACL y TLS pasan juntas
-- [ ] T028 Ejecutar los escenarios de [quickstart.md](./quickstart.md), incluyendo CA válida/incorrecta, SAN, puerto exclusivo `8883` y ACL cruzada
-- [ ] T029 Revisar `git --no-pager diff --check` y confirmar que no se versionan archivos `*.key`, contraseñas MQTT ni material privado generado
+- [X] T027 Ejecutar `npm test` desde `backend/` y confirmar que las pruebas existentes, ACL y TLS pasan juntas
+- [X] T028 Ejecutar los escenarios de [quickstart.md](./quickstart.md), incluyendo CA válida/incorrecta, SAN, puerto exclusivo `8883` y ACL cruzada
+- [X] T029 Revisar `git --no-pager diff --check` y confirmar que no se versionan archivos `*.key`, contraseñas MQTT ni material privado generado
 
 ## Dependencies & Execution Order
 
