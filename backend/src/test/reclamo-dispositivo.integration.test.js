@@ -653,6 +653,79 @@ test('rechaza rotar un dispositivo con dueño sin cambiar su estado', async (con
     });
   });
 
+  test('T042: la auditoría nunca contiene tokens ni sus hashes', async (context) => {
+    if (!process.env.TEST_DATABASE_URL) {
+      context.skip('Configure TEST_DATABASE_URL para ejecutar las pruebas de reclamo');
+      return;
+    }
+
+    await withMigratedDatabase(async ({ database, pool }) => {
+      const suffix = Date.now();
+      const { rows: clients } = await pool.query(
+        'INSERT INTO clientes (nombre) VALUES ($1) RETURNING id',
+        [`US4-audit-${suffix}`]
+      );
+      const { rows: users } = await pool.query(
+        `INSERT INTO usuarios (username, password_hash, nombre, rol, cliente_id, token_version)
+         VALUES ($1, 'fixture', 'US4 Admin', 'admin', $2, 1) RETURNING *`,
+        [`us4-audit-admin-${suffix}`, clients[0].id]
+      );
+      const codigo = `US4-AUDIT-${suffix}`;
+      const provisioned = runProvision(database, [codigo]);
+      assert.strictEqual(provisioned.status, 0, provisioned.stderr);
+      const provisionedToken = provisioned.stdout.trim().split('Token de reclamo: ')[1];
+      assert.ok(provisionedToken);
+
+      const rotated = runProvision(database, ['--rotate', codigo]);
+      assert.strictEqual(rotated.status, 0, rotated.stderr);
+      const rotatedToken = rotated.stdout.trim().split('Token de reclamo: ')[1];
+      assert.ok(rotatedToken);
+      assert.notStrictEqual(rotatedToken, provisionedToken);
+
+      const server = await startApi(database);
+      try {
+        const claimed = await request(
+          server.address().port,
+          'POST',
+          '/api/dispositivos',
+          { codigo, token: rotatedToken, nombre: 'Nodo auditado', ubicacion: 'Laboratorio' },
+          authFor(users[0])
+        );
+        assert.strictEqual(claimed.status, 200);
+
+        const deleted = await request(
+          server.address().port,
+          'DELETE',
+          `/api/dispositivos/${codigo}`,
+          undefined,
+          authFor(users[0])
+        );
+        assert.strictEqual(deleted.status, 204);
+      } finally {
+        await new Promise((resolve) => server.close(resolve));
+        await require('../config/db').end();
+      }
+
+      const { rows: auditRows } = await pool.query(
+        'SELECT * FROM auditoria WHERE entidad = $1 AND entidad_id = $2',
+        ['dispositivo', codigo]
+      );
+      assert.deepStrictEqual(
+        auditRows.map((row) => row.accion).sort(),
+        ['baja_dispositivo', 'reclamar_dispositivo'].sort()
+      );
+      const tokenHash = hashTokenReclamo(rotatedToken);
+      for (const row of auditRows) {
+        for (const value of Object.values(row)) {
+          const text = value === null || value === undefined ? '' : String(value);
+          assert.ok(!text.includes(provisionedToken), `Token en auditoría: ${text}`);
+          assert.ok(!text.includes(rotatedToken), `Token rotado en auditoría: ${text}`);
+          assert.ok(!text.includes(tokenHash), `Hash en auditoría: ${text}`);
+        }
+      }
+    });
+  });
+
   test('el formulario frontend envía token y usa un rechazo genérico', () => {
     const index = fs.readFileSync(
       require('path').resolve(__dirname, '../../../frontend/index.html'),

@@ -45,7 +45,7 @@ router.post('/', verificarRol('admin'), rechazarTokenAusente, validar(dispositiv
       return res.status(409).json({ error: ERROR_RECLAMO });
     }
 
-    auditoriaService.registrar({
+    await auditoriaService.registrar({
       clienteId: req.clienteId,
       usuarioId: req.usuario.sub,
       usuarioUsername: req.usuario.username,
