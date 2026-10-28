@@ -1,4 +1,4 @@
-version: '3.8'
+
 
 services:
   postgres:
@@ -23,8 +23,9 @@ services:
     build: ./mosquitto
     container_name: ecotrack_mqtt
     ports:
-      - "1883:1883"
+      - "8883:8883"
     volumes:
+      - ./mosquitto/config/certs/broker.key:/mosquitto/config/certs/broker.key:ro
       - mosquitto_data:/mosquitto/data
     restart: unless-stopped
 
@@ -36,6 +37,10 @@ services:
     environment:
       DB_HOST: postgres
       MQTT_HOST: mosquitto
+      MQTT_PORT: 8883
+      MQTT_CA_PATH: /run/secrets/ecotrack-ca.crt
+    volumes:
+      - ./mosquitto/config/certs/ecotrack-ca.crt:/run/secrets/ecotrack-ca.crt:ro
     ports:
       - "3000:3000"
     depends_on:
