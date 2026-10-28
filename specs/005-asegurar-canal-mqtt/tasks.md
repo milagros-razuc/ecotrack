@@ -74,9 +74,9 @@ certificado vencido o hostname fuera de SAN la conexión se rechaza y no se proc
 ### Implementation for User Story 2
 
 - [X] T017 [US2] Cambiar `backend/src/mqtt/client.js` a `mqtts://`, cargar el CA desde `process.env.MQTT_CA_PATH` con lectura explícita del archivo, mantener validación de hostname y exigir `rejectUnauthorized: true`
-- [ ] T018 [US2] Cambiar `codigo-esp32-mosquitto/codigo-esp32-mosquitto.ino` a `WiFiClientSecure`, configurar el CA con `setCACert`, usar el puerto `8883` y eliminar cualquier ruta `setInsecure` o conexión MQTT sin TLS
-- [ ] T019 [US2] Añadir sincronización NTP después de conexión WiFi y antes del primer handshake MQTT en `codigo-esp32-mosquitto/codigo-esp32-mosquitto.ino`; impedir la conexión si el reloj no alcanza una época válida
-- [ ] T020 [US2] Añadir el CA público al firmware mediante `codigo-esp32-mosquitto/certs/ecotrack-ca.crt` y documentar su inclusión en `codigo-esp32-mosquitto/esp32Secret.h.example` sin versionar claves privadas
+- [X] T018 [US2] Cambiar `codigo-esp32-mosquitto/codigo-esp32-mosquitto.ino` a `WiFiClientSecure`, configurar el CA con `setCACert`, usar el puerto `8883` y eliminar cualquier ruta `setInsecure` o conexión MQTT sin TLS
+- [X] T019 [US2] Añadir sincronización NTP después de conexión WiFi y antes del primer handshake MQTT en `codigo-esp32-mosquitto/codigo-esp32-mosquitto.ino`; impedir la conexión si el reloj no alcanza una época válida
+- [X] T020 [US2] Añadir el CA público al firmware mediante `codigo-esp32-mosquitto/certs/ecotrack-ca.crt` y documentar su inclusión en `codigo-esp32-mosquitto/esp32Secret.h.example` sin versionar claves privadas
 - [X] T021 [US2] Ejecutar los casos de confianza TLS de `backend/src/test/mqtt-tls.integration.test.js` y la validación del sketch/configuración, confirmando rechazo explícito sin degradación insegura
 
 **Checkpoint**: Backend y ESP32 solo usan `8883`, validan CA/SAN y mantienen las credenciales
