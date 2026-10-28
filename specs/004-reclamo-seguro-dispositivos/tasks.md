@@ -86,7 +86,7 @@ description: "Task list for secure device claiming and provisioning"
 - [X] T027 [US2] Ensure `backend/src/routes/dispositivos.js` does not expose token hashes, owner history, or token-specific rejection reasons and records successful claim audit entries
 - [X] T028 [US2] Add the `token de reclamo` input to the existing device form in `frontend/index.html` without redesigning the page
 - [X] T029 [US2] Include `token` in the existing `POST /api/dispositivos` JSON and display a generic claim-rejected message for HTTP `409` in `frontend/index.html` and `frontend/shared/app.js` without distinguishing rejection causes
-- [ ] T030 [US2] Preserve existing device list and dashboard behavior after the claim response changes in `frontend/index.html` and `frontend/shared/app.js`
+- [X] T030 [US2] Preserve existing device list and dashboard behavior after the claim response changes in `frontend/index.html` and `frontend/shared/app.js`
 
 **Checkpoint**: US2 is independently testable through the API and existing frontend form, with uniform non-disclosing rejection behavior.
 
