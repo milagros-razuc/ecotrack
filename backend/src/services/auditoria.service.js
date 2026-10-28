@@ -17,6 +17,17 @@ async function registrar({ clienteId, usuarioId, usuarioUsername, accion, entida
   }
 }
 
+async function registrarOperacionDispositivo({ clienteId, accion, codigo }) {
+  if (clienteId == null) return;
+  await registrar({
+    clienteId,
+    accion,
+    entidad: 'dispositivo',
+    entidadId: codigo,
+    detalle: `Operación de dispositivo ${codigo}`,
+  });
+}
+
 async function listar({ clienteId, entidad, accion, pagina, limite, fechaDesde, fechaHasta } = {}) {
   const limiteSeguro = Math.min(Math.max(parseInt(limite, 10) || 20, 1), 200);
   const paginaSegura = Math.max(parseInt(pagina, 10) || 1, 1);
@@ -64,4 +75,4 @@ async function listar({ clienteId, entidad, accion, pagina, limite, fechaDesde, 
   };
 }
 
-module.exports = { registrar, listar };
+module.exports = { registrar, registrarOperacionDispositivo, listar };

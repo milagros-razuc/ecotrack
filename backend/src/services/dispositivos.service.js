@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const pool = require('../config/db');
+const auditoriaService = require('./auditoria.service');
 
 function generarTokenReclamo() {
   return crypto.randomBytes(32).toString('hex');
@@ -7,6 +8,75 @@ function generarTokenReclamo() {
 
 function hashTokenReclamo(token) {
   return crypto.createHash('sha256').update(token, 'utf8').digest('hex');
+}
+
+async function provisionar({ codigo, auditoria } = {}) {
+  const token = generarTokenReclamo();
+  const tokenHash = hashTokenReclamo(token);
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await client.query(
+      `INSERT INTO dispositivos
+        (codigo, nombre, ubicacion, activo, cliente_id, token_reclamo_hash, reclamado_en)
+       VALUES ($1, NULL, NULL, false, NULL, $2, NULL)
+       ON CONFLICT (codigo) DO NOTHING
+       RETURNING codigo`,
+      [codigo, tokenHash]
+    );
+    if (result.rowCount === 0) {
+      await client.query('ROLLBACK');
+      return { error: 'El código de dispositivo ya existe' };
+    }
+    await client.query('COMMIT');
+    if (auditoria) {
+      await auditoriaService.registrarOperacionDispositivo({
+        ...auditoria,
+        accion: 'aprovisionar_dispositivo',
+        codigo,
+      });
+    }
+    return { codigo, token };
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+async function rotarToken({ codigo, auditoria } = {}) {
+  const token = generarTokenReclamo();
+  const tokenHash = hashTokenReclamo(token);
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await client.query(
+      `UPDATE dispositivos
+       SET token_reclamo_hash = $2, reclamado_en = NULL
+       WHERE codigo = $1 AND cliente_id IS NULL
+       RETURNING codigo`,
+      [codigo, tokenHash]
+    );
+    if (result.rowCount === 0) {
+      await client.query('ROLLBACK');
+      return { error: 'El dispositivo no existe o tiene dueño' };
+    }
+    await client.query('COMMIT');
+    if (auditoria) {
+      await auditoriaService.registrarOperacionDispositivo({
+        ...auditoria,
+        accion: 'rotar_token_dispositivo',
+        codigo,
+      });
+    }
+    return { codigo, token };
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
 }
 
 // Da de alta el dispositivo si no existe, y actualiza su última conexión.
@@ -115,6 +185,8 @@ async function eliminar(codigo, clienteId) {
 module.exports = {
   generarTokenReclamo,
   hashTokenReclamo,
+  provisionar,
+  rotarToken,
   registrarConexion,
   listar,
   listarConEstado,

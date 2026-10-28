@@ -49,18 +49,18 @@ description: "Task list for secure device claiming and provisioning"
 
 ### Tests for User Story 1
 
-- [ ] T012 [P] [US1] Test provisioning a new code, one-time token output, unowned inactive state, null name/location, no thresholds, and stored hash only in `backend/src/test/reclamo-dispositivo.integration.test.js`
-- [ ] T013 [P] [US1] Test that provisioning an existing code rejects without changing any device columns or token hash in `backend/src/test/reclamo-dispositivo.integration.test.js`
-- [ ] T014 [P] [US1] Test `--rotate` for an unowned device, including old-token rejection and new-token acceptance, in `backend/src/test/reclamo-dispositivo.integration.test.js`
-- [ ] T015 [P] [US1] Test `--rotate` on an owned device rejects without changing owner, configuration, or current token in `backend/src/test/reclamo-dispositivo.integration.test.js`
+- [X] T012 [P] [US1] Test provisioning a new code, one-time token output, unowned inactive state, null name/location, no thresholds, and stored hash only in `backend/src/test/reclamo-dispositivo.integration.test.js`
+- [X] T013 [P] [US1] Test that provisioning an existing code rejects without changing any device columns or token hash in `backend/src/test/reclamo-dispositivo.integration.test.js`
+- [X] T014 [P] [US1] Test `--rotate` for an unowned device, including old-token rejection and new-token acceptance, in `backend/src/test/reclamo-dispositivo.integration.test.js`
+- [X] T015 [P] [US1] Test `--rotate` on an owned device rejects without changing owner, configuration, or current token in `backend/src/test/reclamo-dispositivo.integration.test.js`
 
 ### Implementation for User Story 1
 
-- [ ] T016 [US1] Implement idempotent create-only provisioning and single-use stdout token printing in `backend/scripts/provision-device.js`; reject an existing `codigo VARCHAR(50) UNIQUE` without updates
-- [ ] T017 [US1] Implement `--rotate <codigo>` in `backend/scripts/provision-device.js` to require `cliente_id IS NULL`, replace exactly one `token_reclamo_hash`, clear any stale hash before replacement, and reject owned or missing devices without changes
-- [ ] T018 [US1] Implement service methods for provisioning and rotation in `backend/src/services/dispositivos.service.js` using PostgreSQL transactions and no plaintext token persistence
-- [ ] T019 [US1] Add provisioning/rotation audit calls without token or hash details through `backend/src/services/auditoria.service.js`
-- [ ] T020 [US1] Verify the script uses the repository database configuration and closes the PostgreSQL pool on success and failure in `backend/scripts/provision-device.js`
+- [X] T016 [US1] Implement idempotent create-only provisioning and single-use stdout token printing in `backend/scripts/provision-device.js`; reject an existing `codigo VARCHAR(50) UNIQUE` without updates
+- [X] T017 [US1] Implement `--rotate <codigo>` in `backend/scripts/provision-device.js` to require `cliente_id IS NULL`, replace exactly one `token_reclamo_hash`, clear any stale hash before replacement, and reject owned or missing devices without changes
+- [X] T018 [US1] Implement service methods for provisioning and rotation in `backend/src/services/dispositivos.service.js` using PostgreSQL transactions and no plaintext token persistence
+- [X] T019 [US1] Add provisioning/rotation audit calls without token or hash details through `backend/src/services/auditoria.service.js`
+- [X] T020 [US1] Verify the script uses the repository database configuration and closes the PostgreSQL pool on success and failure in `backend/scripts/provision-device.js`
 
 **Checkpoint**: US1 is independently executable and proves that only the operator can create or rotate a usable claim token.
 
