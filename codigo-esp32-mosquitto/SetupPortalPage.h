@@ -67,6 +67,8 @@ static const char kSetupPortalPage[] PROGMEM = R"ECOTRACK(
       const response=await fetch('/status',{cache:'no-store'}), value=await response.text();
       if(value==='WIFI_CONNECTING') status.textContent='Conectando a WiFi…';
       else if(value==='MQTT_CONNECTING') status.textContent='WiFi conectado. Verificando el servidor EcoTrack…';
+      else if(value==='NTP_SYNCING') status.textContent='WiFi conectado. Sincronizando la hora para validar TLS…';
+      else if(value==='NTP_FAIL') {status.textContent='No se pudo sincronizar la hora por NTP; no se abrió una conexión MQTT segura. Reintentando…';button.disabled=false;}
       else if(value.startsWith('READY:')) {status.textContent='Configuración completa. EcoTrack ya se conectó; podés volver a tu red WiFi. Esta red temporal se apagará en unos segundos.';button.disabled=true;}
       else if(value==='WIFI_FAIL') {status.textContent='No se pudo conectar a WiFi. Revisá el nombre y la contraseña de la red.';button.disabled=false;}
       else if(value.startsWith('MQTT_FAIL:')) {status.textContent='WiFi conectó, pero el servidor EcoTrack no respondió (código '+value.slice(10)+'). Revisá las opciones avanzadas o consultá al instalador.';document.getElementById('advanced').open=true;button.disabled=false;}
@@ -81,6 +83,22 @@ static const char kSetupPortalPage[] PROGMEM = R"ECOTRACK(
       if(!response.ok){button.disabled=false;document.getElementById('advanced').open=true}
     }catch(_){status.textContent='Se perdió la conexión con el ESP32.';button.disabled=false;}
   });
+    (function(){
+    document.querySelectorAll('input[type=password]').forEach(function(campo){
+      const b=document.createElement('button');
+      b.type='button';b.className='secondary';b.textContent='Mostrar';
+      b.addEventListener('click',function(){
+        const oculto=campo.type==='password';
+        campo.type=oculto?'text':'password';
+        b.textContent=oculto?'Ocultar':'Mostrar';
+      });
+      campo.insertAdjacentElement('afterend',b);
+    });
+    ['ssid','wifiPass','mqttHost','deviceId','mqttUser','mqttPass'].forEach(function(n){
+      const c=document.getElementById(n);
+      if(c){c.setAttribute('autocapitalize','none');c.setAttribute('autocorrect','off');c.setAttribute('spellcheck','false');}
+    });
+  })();
   setInterval(refresh,1000);
   scan();
 </script></body></html>

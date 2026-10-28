@@ -1,9 +1,12 @@
 #include <DHT.h>
 #include <PubSubClient.h>
 #include <WiFi.h>
+#include <WiFiClientSecure.h>
+#include <time.h>
 
 #include "DeviceConfig.h"
 #include "SetupPortal.h"
+#include "ecotrack_ca.h"
 #include "esp32Secret.h"
 
 #define DHTPIN 4
@@ -22,14 +25,16 @@ constexpr unsigned long kReadyDisplayMs = 8000;
 constexpr unsigned long kBootHoldMs = 3000;
 constexpr unsigned long kOfflinePortalMs = 60000;
 constexpr unsigned long kInitialMqttTimeoutMs = 20000;
-constexpr uint16_t kMqttPort = 1883;
+constexpr unsigned long kNtpTimeoutMs = 10000;
+constexpr time_t kValidEpoch = 1700000000;
+constexpr uint16_t kMqttPort = 8883;
 
 enum class Mode { provisioning, connectingWifi, verifyingMqtt, readyDisplay, running };
 
 DeviceConfig config;
 Mode mode = Mode::provisioning;
 DHT dht(DHTPIN, DHTTYPE);
-WiFiClient wifiClient;
+WiFiClientSecure wifiClient;
 PubSubClient mqtt(wifiClient);
 String apName;
 bool configNeedsSave = true;
@@ -42,8 +47,48 @@ unsigned long lastWifiRetryAt = 0;
 unsigned long lastMqttRetryAt = 0;
 unsigned long lastCaptureAt = 0;
 unsigned long wifiLostAt = 0;
+unsigned long ntpStartedAt = 0;
+unsigned long lastNtpRetryAt = 0;
+bool ntpReady = false;
 
 void beginWifi();
+
+void beginNtpSync() {
+  configTime(0, 0, "pool.ntp.org");
+  ntpReady = false;
+  ntpStartedAt = millis();
+  setupPortalStatus("NTP_SYNCING");
+  Serial.println("Sincronizando hora por NTP...");
+}
+
+bool pollNtpSync() {
+  if (time(nullptr) > kValidEpoch) {
+    if (!ntpReady) Serial.println("Hora NTP sincronizada");
+    ntpReady = true;
+    lastNtpRetryAt = 0;
+    return true;
+  }
+  if (millis() - ntpStartedAt < kNtpTimeoutMs) return false;
+  ntpReady = false;
+  setupPortalStatus("NTP_FAIL");
+  if (lastNtpRetryAt == 0) {
+    lastNtpRetryAt = millis();
+    Serial.println("NTP_FAIL: no se obtuvo una hora valida");
+  } else if (millis() - lastNtpRetryAt >= kMqttRetryMs) {
+    lastNtpRetryAt = millis();
+    Serial.println("Reintentando sincronizacion NTP...");
+    beginNtpSync();
+  }
+  return false;
+}
+
+void printMqttFailure(const char* prefix) {
+  char tlsError[128] = {};
+  const int tlsErrorCode = wifiClient.lastError(tlsError, sizeof(tlsError));
+  Serial.printf("%s (mqtt.state=%d, client.lastError=%d", prefix, mqtt.state(), tlsErrorCode);
+  if (tlsError[0] != '\0') Serial.printf(": %s", tlsError);
+  Serial.println(")");
+}
 
 void enterProvisioning() {
   if (mqtt.connected()) mqtt.disconnect();
@@ -75,7 +120,7 @@ void pollConnectingWifi() {
     lastMqttRetryAt = 0;
     mqttVerifyStartedAt = millis();
     mode = Mode::verifyingMqtt;
-    setupPortalStatus("MQTT_CONNECTING");
+    beginNtpSync();
     Serial.println("WiFi conectado. Probando MQTT...");
   } else if (millis() - wifiStartedAt >= kWifiTimeoutMs) {
     WiFi.disconnect();
@@ -91,6 +136,7 @@ void pollVerifyingMqtt() {
     setupPortalStatus("WIFI_FAIL");
     return;
   }
+  if (!pollNtpSync()) return;
   if (lastMqttRetryAt != 0 && millis() - lastMqttRetryAt < kMqttRetryMs) return;
   lastMqttRetryAt = millis();
   if (!mqtt.connect(config.deviceId.c_str(), config.mqttUser.c_str(), config.mqttPassword.c_str())) {
@@ -99,7 +145,7 @@ void pollVerifyingMqtt() {
       enterProvisioning();
     }
     setupPortalStatus("MQTT_FAIL:" + String(mqttState));
-    Serial.printf("No se pudo conectar a MQTT (codigo %d)\n", mqttState);
+    printMqttFailure("No se pudo conectar a MQTT");
     return;
   }
   if (configNeedsSave && !saveConfig(config)) {
@@ -137,6 +183,7 @@ void pollReadyDisplay() {
 
 void reconnectWifi() {
   if (WiFi.status() == WL_CONNECTED) {
+    if (wifiLostAt != 0) beginNtpSync();
     wifiLostAt = 0;
     return;
   }
@@ -156,12 +203,13 @@ void reconnectWifi() {
 
 void reconnectMqtt() {
   if (mqtt.connected()) return;
+  if (!pollNtpSync()) return;
   if (lastMqttRetryAt != 0 && millis() - lastMqttRetryAt < kMqttRetryMs) return;
   lastMqttRetryAt = millis();
   if (mqtt.connect(config.deviceId.c_str(), config.mqttUser.c_str(), config.mqttPassword.c_str())) {
     Serial.println("MQTT reconectado");
   } else {
-    Serial.printf("MQTT fallo (codigo %d); reintentando\n", mqtt.state());
+    printMqttFailure("MQTT fallo; reintentando");
   }
 }
 
@@ -204,6 +252,7 @@ void setup() {
   pinMode(BOOT_PIN, INPUT_PULLUP);
   pinMode(DHTPIN, INPUT_PULLUP);
   dht.begin();
+  wifiClient.setCACert(kEcotrackCa);
   mqtt.setSocketTimeout(3);
   config = defaultConfig();
   const bool saved = loadSavedConfig(config);
