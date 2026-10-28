@@ -12,9 +12,10 @@ Desarrollado como proyecto de tesis — Ingeniería en Sistemas, UdeMM.
 ```
 ESP32 (DHT11 + LDR)
        │
-       │ MQTT (topic: ecotrack/<deviceId>/lecturas)
+       │ MQTTS/TLS 1.2 (8883)
+       │ topic: ecotrack/<deviceId>/lecturas
        ▼
- Mosquitto (broker)
+ Mosquitto (broker TLS)
        │
        │ suscripción
        ▼
@@ -74,19 +75,47 @@ TEST_USER_PASS=tu_password_operario
 TEST_USER_NOMBRE=Usuario de Prueba
 ```
 
-### 3. Generar contraseñas de Mosquitto
+### 3. Generar certificados y contraseñas de Mosquitto
 
-Antes de levantar Docker hay que crear el archivo de contraseñas del broker MQTT:
+El canal operativo usa MQTTS en el puerto `8883`; el listener MQTT sin cifrado en `1883`
+está cerrado. Generá una CA y un certificado del broker con SAN para el nombre del
+servicio `mosquitto` y la IP con la que se conecta el ESP32:
+
+```powershell
+.\scripts\generate-mqtt-certs.ps1 -HostIp <ip-del-host>
+```
+
+El certificado del broker (`broker.crt`), las claves privadas y el archivo `passwd` no
+forman parte del repositorio. La CA pública se distribuye para validar el broker, pero la
+CA y sus claves privadas deben conservarse también en un respaldo seguro fuera del
+repositorio.
+
+Antes de levantar Docker hay que crear manualmente el archivo de contraseñas del broker
+con `mosquitto_passwd`:
 
 ```bash
 # Usuario del backend (lectura)
-docker run --rm -v ${PWD}/mosquitto/config:/mosquitto/config eclipse-mosquitto:2 mosquitto_passwd -b -c /mosquitto/config/passwd backend TU_CONTRASEÑA_BACKEND
+docker run --rm -v ${PWD}/mosquitto/config:/mosquitto/config eclipse-mosquitto:2 mosquitto_passwd -c /mosquitto/config/passwd backend
 
 # Usuario del ESP32 (escritura)
-docker run --rm -v ${PWD}/mosquitto/config:/mosquitto/config eclipse-mosquitto:2 mosquitto_passwd -b /mosquitto/config/passwd esp32-001 TU_CONTRASEÑA_ESP32
+docker run --rm -v ${PWD}/mosquitto/config:/mosquitto/config eclipse-mosquitto:2 mosquitto_passwd /mosquitto/config/passwd esp32-001
 ```
 
-> Las contraseñas que uses acá tienen que coincidir con `MQTT_PASS` en `backend/.env` y con `SECRET_MQTT_PASS` en el sketch del ESP32.
+Las contraseñas ingresadas deben coincidir con las variables locales del backend y del
+sketch. El alta de cada dispositivo requiere agregar su usuario y tópico propio en
+`mosquitto/config/acl.conf`, agregar su usuario al `passwd` con `mosquitto_passwd` y
+reiniciar el broker. No se debe modificar el usuario ni la entrada de `esp32-001` para
+probar otros dispositivos.
+
+Para la prueba de ACL se usa un archivo separado del entorno de producción:
+
+```bash
+docker run --rm -v ${PWD}/mosquitto/config:/mosquitto/config eclipse-mosquitto:2 mosquitto_passwd -c /mosquitto/config/passwd.test test-a
+docker run --rm -v ${PWD}/mosquitto/config:/mosquitto/config eclipse-mosquitto:2 mosquitto_passwd /mosquitto/config/passwd.test test-b
+```
+
+Los usuarios y ACL de prueba (`test-a` y `test-b`) no se agregan a `passwd` ni a
+`acl.conf` de producción.
 
 ### 4. Levantar los servicios
 
@@ -144,6 +173,11 @@ En el archivo `esp32Secret.h`:
 ```
 
 > Estas credenciales viajan hardcodeadas en `esp32Secret.h`, que está fuera del control de versiones (ver RNF06). Reprogramar el WiFi de un nodo hoy requiere reflashear el sketch — el aprovisionamiento por Bluetooth (RF15) todavía no está implementado.
+
+> **Estado TLS del firmware**: el ESP32 todavía no conecta por TLS. La implementación de
+> `WiFiClientSecure`, NTP y la validación del CA está pendiente en T018-T020. Hasta
+> completar esa fase, el firmware no debe considerarse compatible con el listener MQTTS
+> operativo en `8883`.
 
 El intervalo entre lecturas (RF02) es configurable vía `INTERVALO_CAPTURA_MS`, definible en `esp32Secret.h` o como build flag (`-DINTERVALO_CAPTURA_MS=5000`). Por defecto queda en 10 segundos si no se sobreescribe.
 
@@ -330,7 +364,13 @@ ecotrack/
 │   └── config/
 │       ├── mosquitto.conf
 │       ├── acl.conf
-│       └── passwd          ← NO se versiona, generarlo manualmente
+│       ├── certs/
+│       │   ├── ecotrack-ca.crt
+│       │   ├── broker.crt          ← generado localmente, no se versiona
+│       │   └── *.key               ← claves privadas, no se versionan
+│       ├── passwd                   ← NO se versiona, generarlo manualmente
+│       ├── passwd.test              ← solo entorno de test
+│       └── mosquitto.test.conf      ← solo entorno de test
 └── frontend/
     ├── index.html
     ├── login.html
@@ -353,7 +393,6 @@ ecotrack/
 - [x] Modelo multi-cliente (RF18/RNF05): tabla `clientes`, `cliente_id` en `usuarios` y `dispositivos`, con aislamiento de datos completo — DB, middleware `extraerCliente`, filtro por `cliente_id` en los 5 services y las 5 rutas. El frontend no necesitó cambios: el filtro viaja en el token de forma transparente
 - [ ] Aprovisionamiento del ESP32 por Bluetooth (RF15), hoy las credenciales WiFi van hardcodeadas en `esp32Secret.h`
 - [ ] API pública documentada para sistemas externos (RF19), con autenticación por API key
-- [ ] TLS para MQTT (puerto 8883)
 - [ ] Rate limiting en la API
 - [ ] Recuperación de contraseña por email
 - [ ] Sensores mejorados: DHT22 + BH1750

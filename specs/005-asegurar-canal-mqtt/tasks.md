@@ -93,11 +93,11 @@ sin validación ni TLS pendiente.
 
 ### Implementation for User Story 3
 
-- [ ] T022 [P] [US3] Actualizar el diagrama de arquitectura en `README.MD` para mostrar `MQTTS/TLS:8883`, validación de CA/SAN y el flujo seguro entre ESP32, broker y backend
-- [ ] T023 [P] [US3] Actualizar las instrucciones de instalación, variables, volúmenes, SAN, comandos OpenSSL, NTP, CA del firmware y prueba ACL en `README.MD`
-- [ ] T024 [P] [US3] Eliminar la entrada `TLS para MQTT (puerto 8883)` de la sección de pendientes y actualizar el árbol de archivos TLS en `README.MD`
-- [ ] T025 [US3] Documentar en `README.MD` que `*.key`, `passwd` y credenciales locales no se versionan y que los clientes deben validar el CA
-- [ ] T026 [US3] Actualizar `docs/requisitos.md` únicamente si el diagrama/contrato operativo requiere reflejar TLS en `RI21`, `RI24` o los criterios de aceptación, sin alterar el modelo de ACL/credenciales
+- [X] T022 [P] [US3] Actualizar el diagrama de arquitectura en `README.MD` para mostrar `MQTTS/TLS:8883`, validación de CA/SAN y el flujo seguro entre ESP32, broker y backend
+- [X] T023 [P] [US3] Actualizar las instrucciones de instalación, variables, volúmenes, SAN, comandos OpenSSL, NTP, CA del firmware y prueba ACL en `README.MD`
+- [X] T024 [P] [US3] Eliminar la entrada `TLS para MQTT (puerto 8883)` de la sección de pendientes y actualizar el árbol de archivos TLS en `README.MD`
+- [X] T025 [US3] Documentar en `README.MD` que `*.key`, `passwd` y credenciales locales no se versionan y que los clientes deben validar el CA
+- [X] T026 [US3] Actualizar `docs/requisitos.md` únicamente si el diagrama/contrato operativo requiere reflejar TLS en `RI21`, `RI24` o los criterios de aceptación, sin alterar el modelo de ACL/credenciales
 
 **Checkpoint**: La instalación documentada y el diagrama reflejan exactamente el canal TLS
 exclusivo, la validación del CA y la sincronización NTP.
