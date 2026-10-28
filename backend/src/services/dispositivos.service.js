@@ -1,4 +1,13 @@
+const crypto = require('crypto');
 const pool = require('../config/db');
+
+function generarTokenReclamo() {
+  return crypto.randomBytes(32).toString('hex');
+}
+
+function hashTokenReclamo(token) {
+  return crypto.createHash('sha256').update(token, 'utf8').digest('hex');
+}
 
 // Da de alta el dispositivo si no existe, y actualiza su última conexión.
 // Se llama en cada mensaje MQTT recibido. El dispositivo llega SIN cliente
@@ -104,6 +113,8 @@ async function eliminar(codigo, clienteId) {
 }
 
 module.exports = {
+  generarTokenReclamo,
+  hashTokenReclamo,
   registrarConexion,
   listar,
   listarConEstado,

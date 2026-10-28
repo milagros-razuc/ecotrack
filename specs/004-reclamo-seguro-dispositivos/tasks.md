@@ -1,4 +1,4 @@
----
+﻿---
 description: "Task list for secure device claiming and provisioning"
 ---
 
@@ -16,9 +16,9 @@ description: "Task list for secure device claiming and provisioning"
 
 **Purpose**: Prepare the implementation and test surfaces without changing runtime behavior.
 
-- [ ] T001 [P] Create the provisioning script entry point and CLI help skeleton in `backend/scripts/provision-device.js`
-- [ ] T002 [P] Add the new integration test file structure and PostgreSQL test-fixture helpers in `backend/src/test/reclamo-dispositivo.integration.test.js` and `backend/src/test/realtime.test-support.js`
-- [ ] T003 [P] Record the new operational commands and rejection behavior in `README.md` or the relevant backend operations documentation
+- [X] T001 [P] Create the provisioning script entry point and CLI help skeleton in `backend/scripts/provision-device.js`
+- [X] T002 [P] Add the new integration test file structure and PostgreSQL test-fixture helpers in `backend/src/test/reclamo-dispositivo.integration.test.js` and `backend/src/test/realtime.test-support.js`
+- [X] T003 [P] Record the new operational commands and rejection behavior in `README.md` or the relevant backend operations documentation
 
 ---
 
@@ -26,22 +26,22 @@ description: "Task list for secure device claiming and provisioning"
 
 **Purpose**: Establish the database, token, validation, and shared authorization primitives required by every user story.
 
-**⚠️ CRITICAL**: No user story implementation can begin until this phase is complete.
+**âš ï¸ CRITICAL**: No user story implementation can begin until this phase is complete.
 
-- [ ] T004 Add nullable `token_reclamo_hash VARCHAR(64)` and `reclamado_en TIMESTAMPTZ` columns to `dispositivos` in `backend/src/config/migrate.js` without generating tokens for any existing device, including devices that already have a dueño
-- [ ] T005 Make the `cliente_id` backfill in `backend/src/config/migrate.js` run only when `dispositivos.cliente_id` is created for the first time, so later startup cannot reassign released devices; keep the existing user backfill behavior within the same first-creation guard
-- [ ] T006 Convert `alertas.valor`, `alertas.umbral_min`, and `alertas.umbral_max` to `DECIMAL(6,2)` with an explicit PostgreSQL `USING` conversion in `backend/src/config/migrate.js`
-- [ ] T007 Make the seed in `backend/src/config/migrate.js` insert thresholds only when `ESP32-001` exists with a non-null `cliente_id`, and never restore thresholds for an unowned device
-- [ ] T008 [P] Add token generation and SHA-256 hashing helpers using `crypto.randomBytes` in `backend/src/services/dispositivos.service.js`; keep plaintext tokens transient and never log or persist them
-- [ ] T009 [P] Extend `backend/src/schemas.js` with the validated `token` request field while preserving required `codigo`, optional `nombre`, and optional `ubicacion` constraints
-- [ ] T010 [P] Add shared test assertions in `backend/src/test/realtime.test-support.js` for token hashes, owner state, `reclamado_en`, empty configuration, and absence of thresholds
-- [ ] T011 Run the existing backend test suite against `TEST_DATABASE_URL` and resolve migration/type regressions before starting story work
+- [X] T004 Add nullable `token_reclamo_hash VARCHAR(64)` and `reclamado_en TIMESTAMPTZ` columns to `dispositivos` in `backend/src/config/migrate.js` without generating tokens for any existing device, including devices that already have a dueÃ±o
+- [X] T005 Make the `cliente_id` backfill in `backend/src/config/migrate.js` run only when `dispositivos.cliente_id` is created for the first time, so later startup cannot reassign released devices; keep the existing user backfill behavior within the same first-creation guard
+- [X] T006 Convert `alertas.valor`, `alertas.umbral_min`, and `alertas.umbral_max` to `DECIMAL(6,2)` with an explicit PostgreSQL `USING` conversion in `backend/src/config/migrate.js`
+- [X] T007 Make the seed in `backend/src/config/migrate.js` insert thresholds only when `ESP32-001` exists with a non-null `cliente_id`, and never restore thresholds for an unowned device
+- [X] T008 [P] Add token generation and SHA-256 hashing helpers using `crypto.randomBytes` in `backend/src/services/dispositivos.service.js`; keep plaintext tokens transient and never log or persist them
+- [X] T009 [P] Extend `backend/src/schemas.js` with the validated `token` request field while preserving required `codigo`, optional `nombre`, and optional `ubicacion` constraints
+- [X] T010 [P] Add shared test assertions in `backend/src/test/realtime.test-support.js` for token hashes, owner state, `reclamado_en`, empty configuration, and absence of thresholds
+- [X] T011 Run the existing backend test suite against `TEST_DATABASE_URL` and resolve migration/type regressions before starting story work
 
 **Checkpoint**: The schema is repeatable, existing owned devices are untouched, and shared token/validation primitives are available.
 
 ---
 
-## Phase 3: User Story 1 - Aprovisionar y rotar un dispositivo sin dueño (Priority: P1) 🎯 MVP
+## Phase 3: User Story 1 - Aprovisionar y rotar un dispositivo sin dueÃ±o (Priority: P1) ðŸŽ¯ MVP
 
 **Goal**: An operator can create a new unowned device, print exactly one token, reject duplicate codes without changes, and rotate a token only for an unowned device.
 
@@ -66,7 +66,7 @@ description: "Task list for secure device claiming and provisioning"
 
 ---
 
-## Phase 4: User Story 2 - Reclamar un dispositivo con token válido (Priority: P1)
+## Phase 4: User Story 2 - Reclamar un dispositivo con token vÃ¡lido (Priority: P1)
 
 **Goal**: An authenticated admin claims an unowned device atomically with the token and the frontend sends the token while showing a generic error for every rejected claim.
 

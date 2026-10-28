@@ -82,6 +82,12 @@ async function inicializarDB() {
     CREATE INDEX IF NOT EXISTS idx_alertas_dispositivo_estado
       ON alertas (dispositivo_codigo, estado)
   `);
+  await pool.query(`
+    ALTER TABLE alertas
+      ALTER COLUMN valor TYPE DECIMAL(6,2) USING valor::numeric,
+      ALTER COLUMN umbral_min TYPE DECIMAL(6,2) USING umbral_min::numeric,
+      ALTER COLUMN umbral_max TYPE DECIMAL(6,2) USING umbral_max::numeric
+  `);
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS usuarios (
@@ -117,8 +123,20 @@ async function inicializarDB() {
     )
   `);
 
+  const { rows: clienteIdDispositivo } = await pool.query(`
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = current_schema()
+      AND table_name = 'dispositivos' AND column_name = 'cliente_id'
+  `);
+  const clienteIdDispositivoExistia = clienteIdDispositivo.length > 0;
   await pool.query(`
     ALTER TABLE dispositivos ADD COLUMN IF NOT EXISTS cliente_id INTEGER REFERENCES clientes(id)
+  `);
+  await pool.query(`
+    ALTER TABLE dispositivos ADD COLUMN IF NOT EXISTS token_reclamo_hash VARCHAR(64)
+  `);
+  await pool.query(`
+    ALTER TABLE dispositivos ADD COLUMN IF NOT EXISTS reclamado_en TIMESTAMPTZ
   `);
   await pool.query(`
     ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS cliente_id INTEGER REFERENCES clientes(id)
@@ -152,8 +170,10 @@ async function inicializarDB() {
     clienteDefaultId = clientesExistentes[0].id;
   }
 
-  await pool.query('UPDATE dispositivos SET cliente_id = $1 WHERE cliente_id IS NULL', [clienteDefaultId]);
-  await pool.query('UPDATE usuarios SET cliente_id = $1 WHERE cliente_id IS NULL', [clienteDefaultId]);
+  if (!clienteIdDispositivoExistia) {
+    await pool.query('UPDATE dispositivos SET cliente_id = $1 WHERE cliente_id IS NULL', [clienteDefaultId]);
+    await pool.query('UPDATE usuarios SET cliente_id = $1 WHERE cliente_id IS NULL', [clienteDefaultId]);
+  }
 
   await pool.query('ALTER TABLE usuarios ALTER COLUMN cliente_id SET NOT NULL');
 
@@ -281,10 +301,18 @@ async function inicializarDB() {
   `, [clienteDefaultId]);
 
   await pool.query(`
-    INSERT INTO umbrales (dispositivo_codigo, variable, umbral_min, umbral_max) VALUES
-      ('ESP32-001', 'temperatura', 15, 35),
-      ('ESP32-001', 'humedad', 30, 70),
-      ('ESP32-001', 'luminosidad', 5, 95)
+    INSERT INTO umbrales (dispositivo_codigo, variable, umbral_min, umbral_max)
+    SELECT 'ESP32-001', seed.variable, seed.umbral_min, seed.umbral_max
+    FROM (
+      VALUES
+        ('temperatura', 15::DECIMAL(6,2), 35::DECIMAL(6,2)),
+        ('humedad', 30::DECIMAL(6,2), 70::DECIMAL(6,2)),
+        ('luminosidad', 5::DECIMAL(6,2), 95::DECIMAL(6,2))
+    ) AS seed(variable, umbral_min, umbral_max)
+    WHERE EXISTS (
+      SELECT 1 FROM dispositivos
+      WHERE codigo = 'ESP32-001' AND cliente_id IS NOT NULL
+    )
     ON CONFLICT (dispositivo_codigo, variable) DO NOTHING
   `);
 

@@ -187,6 +187,21 @@ El login usa JWT (`jsonwebtoken`) con contraseñas hasheadas por `bcrypt`. Cada 
 | DELETE | `/api/usuarios/:id` | Elimina un usuario | Admin |
 | GET | `/health` | Healthcheck del backend | Público |
 
+### Aprovisionamiento y reclamo seguro
+
+El operador puede preparar un dispositivo nuevo desde `backend/`. El token se
+imprime una sola vez y no se guarda en la base:
+
+```powershell
+node scripts/provision-device.js --codigo DISPOSITIVO-001
+node scripts/provision-device.js --rotate DISPOSITIVO-001
+```
+
+Un administrador reclama el dispositivo desde `POST /api/dispositivos` enviando
+`codigo`, `token` y, opcionalmente, `nombre` y `ubicacion`. Los rechazos por
+código inexistente, dispositivo ya reclamado, token inválido o token usado
+responden `409` con un error genérico.
+
 ### Ejemplo de request al login
 
 ```bash

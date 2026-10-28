@@ -12,6 +12,7 @@ const changePasswordSchema = z.object({
 
 const dispositivoSchema = z.object({
   codigo: z.string().min(1),
+  token: z.string().min(1),
   nombre: z.string().optional(),
   ubicacion: z.string().optional(),
 });

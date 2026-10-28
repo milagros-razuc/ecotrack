@@ -1,3 +1,4 @@
+const assert = require('assert');
 const jwt = require('jsonwebtoken');
 const { Pool } = require('pg');
 
@@ -19,14 +20,60 @@ function testDatabaseConfig() {
   const developmentUrl = process.env.DATABASE_URL;
   const developmentDatabase = process.env.DB_NAME;
   const testDatabase = decodeURIComponent(testUrl.pathname.slice(1));
-  if (!testDatabase.endsWith('_test')) {
-    throw new Error('TEST_DATABASE_URL debe apuntar a una base cuyo nombre termine en _test');
+  if (!testDatabase.startsWith('hardening_') && !testDatabase.endsWith('_test')) {
+    throw new Error('TEST_DATABASE_URL debe apuntar a una base hardening_* o *_test');
   }
   if (connectionString === developmentUrl || testDatabase === developmentDatabase) {
     throw new Error('TEST_DATABASE_URL debe apuntar a una base distinta de la base de desarrollo');
   }
 
   return { connectionString, testUrl, testDatabase };
+}
+
+function quoteIdentifier(identifier) {
+  return `"${identifier.replace(/"/g, '""')}"`;
+}
+
+async function withTemporaryDatabase(callback) {
+  const source = testDatabaseConfig();
+  const database = `hardening_${Date.now()}_${Math.random().toString(16).slice(2, 8)}`;
+  const adminPool = new Pool({
+    host: source.testUrl.hostname,
+    port: source.testUrl.port || '5432',
+    user: decodeURIComponent(source.testUrl.username),
+    password: decodeURIComponent(source.testUrl.password),
+    database: source.testDatabase,
+  });
+
+  await adminPool.query(`CREATE DATABASE ${quoteIdentifier(database)}`);
+  await adminPool.end();
+
+  try {
+    return await callback({
+      database,
+      host: source.testUrl.hostname,
+      port: source.testUrl.port || '5432',
+      user: decodeURIComponent(source.testUrl.username),
+      password: decodeURIComponent(source.testUrl.password),
+    });
+  } finally {
+    const cleanupPool = new Pool({
+      host: source.testUrl.hostname,
+      port: source.testUrl.port || '5432',
+      user: decodeURIComponent(source.testUrl.username),
+      password: decodeURIComponent(source.testUrl.password),
+      database: source.testDatabase,
+    });
+    try {
+      await cleanupPool.query(
+        'SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = $1 AND pid <> pg_backend_pid()',
+        [database]
+      );
+      await cleanupPool.query(`DROP DATABASE IF EXISTS ${quoteIdentifier(database)}`);
+    } finally {
+      await cleanupPool.end();
+    }
+  }
 }
 
 async function seedDatabase(pool) {
@@ -131,4 +178,36 @@ async function createRealtimeFixture() {
   };
 }
 
-module.exports = { createRealtimeFixture, signToken, TEST_JWT_SECRET };
+function assertUnclaimedDevice(device, expectedHash = null) {
+  assert.strictEqual(device.cliente_id, null);
+  assert.strictEqual(device.activo, false);
+  assert.strictEqual(device.reclamado_en, null);
+  assert.strictEqual(device.nombre, null);
+  assert.strictEqual(device.ubicacion, null);
+  assert.strictEqual(device.token_reclamo_hash, expectedHash);
+}
+
+function assertClaimedDevice(device, expectedClientId) {
+  assert.strictEqual(device.cliente_id, expectedClientId);
+  assert.strictEqual(device.activo, true);
+  assert.ok(device.reclamado_en);
+  assert.ok(device.token_reclamo_hash === null);
+}
+
+async function assertNoThresholds(pool, deviceCode) {
+  const { rows } = await pool.query(
+    'SELECT 1 FROM umbrales WHERE dispositivo_codigo = $1 LIMIT 1',
+    [deviceCode]
+  );
+  assert.strictEqual(rows.length, 0);
+}
+
+module.exports = {
+  createRealtimeFixture,
+  signToken,
+  TEST_JWT_SECRET,
+  withTemporaryDatabase,
+  assertUnclaimedDevice,
+  assertClaimedDevice,
+  assertNoThresholds,
+};
