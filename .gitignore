@@ -10,7 +10,6 @@ codigo-esp32-mosquitto/build
 mosquitto/config/certs/broker.crt
 mosquitto/config/certs/broker.key
 mosquitto/config/passwd.test
-mosquitto/config/acl.test.conf
 codigo-esp32-mosquitto/certs/*.key
 respaldo_*.sql
 convertir_lecturas_*.sql

@@ -47,8 +47,8 @@ recibe ni persiste el mensaje. La prueba no exige un error del publicador MQTT 3
 
 ### Tests for User Story 1
 
-- [ ] T010 [US1] Crear la prueba de integración ACL en `backend/src/test/mqtt-acl.integration.test.js` usando dos usuarios MQTT de prueba, tópicos propios distintos y payloads únicos para distinguir publicación válida de publicación cruzada
-- [ ] T011 [US1] Añadir a `backend/src/test/mqtt-acl.integration.test.js` la espera/observación de ausencia del mensaje cruzado en la ingesta del backend, sin afirmar un error de `publish()`, y limpiar clientes/conexiones al finalizar
+- [X] T010 [US1] Crear la prueba de integración ACL en `backend/src/test/mqtt-acl.integration.test.js` usando dos usuarios MQTT de prueba, tópicos propios distintos y payloads únicos para distinguir publicación válida de publicación cruzada
+- [X] T011 [US1] Añadir a `backend/src/test/mqtt-acl.integration.test.js` la espera/observación de ausencia del mensaje cruzado en la ingesta del backend, sin afirmar un error de `publish()`, y limpiar clientes/conexiones al finalizar
 
 ### Implementation for User Story 1
 
