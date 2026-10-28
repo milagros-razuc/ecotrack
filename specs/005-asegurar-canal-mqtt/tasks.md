@@ -52,9 +52,9 @@ recibe ni persiste el mensaje. La prueba no exige un error del publicador MQTT 3
 
 ### Implementation for User Story 1
 
-- [ ] T012 [US1] Verificar en `mosquitto/config/acl.conf` que `backend` conserva lectura de `ecotrack/+/lecturas` y cada usuario de dispositivo conserva escritura únicamente en `ecotrack/<deviceId>/lecturas`, sin ampliar permisos
+- [X] T012 [US1] Verificar en `mosquitto/config/acl.conf` que `backend` conserva lectura de `ecotrack/+/lecturas` y cada usuario de dispositivo conserva escritura únicamente en `ecotrack/<deviceId>/lecturas`, sin ampliar permisos
 - [X] T013 [US1] Añadir en `backend/src/test/README-mqtt-acl.md` los prerrequisitos de los dos usuarios MQTT de prueba, el entorno TLS en `8883` y el criterio de ausencia observable en backend
-- [ ] T014 [US1] Ejecutar y ajustar `backend/src/test/mqtt-acl.integration.test.js` hasta demostrar publicación propia recibida y publicación cruzada ausente, manteniendo la suite backend existente en verde
+- [X] T014 [US1] Ejecutar y ajustar `backend/src/test/mqtt-acl.integration.test.js` hasta demostrar publicación propia recibida y publicación cruzada ausente, manteniendo la suite backend existente en verde
 
 **Checkpoint**: User Story 1 es demostrable independientemente y constituye el MVP.
 
@@ -68,16 +68,16 @@ certificado vencido o hostname fuera de SAN la conexión se rechaza y no se proc
 
 ### Tests for User Story 2
 
-- [ ] T015 [P] [US2] Añadir casos de conexión TLS del backend en `backend/src/test/mqtt-tls.integration.test.js` para CA válida, CA incorrecta/ausente y hostname que no coincide con SAN
-- [ ] T016 [P] [US2] Añadir una comprobación de configuración en `backend/src/test/mqtt-tls.integration.test.js` que falle si el broker expone `1883` o si el cliente intenta usar `mqtt://`/desactivar `rejectUnauthorized`
+- [X] T015 [P] [US2] Añadir casos de conexión TLS del backend en `backend/src/test/mqtt-tls.integration.test.js` para CA válida, CA incorrecta/ausente y hostname que no coincide con SAN
+- [X] T016 [P] [US2] Añadir una comprobación de configuración en `backend/src/test/mqtt-tls.integration.test.js` que falle si el broker expone `1883` o si el cliente intenta usar `mqtt://`/desactivar `rejectUnauthorized`
 
 ### Implementation for User Story 2
 
-- [ ] T017 [US2] Cambiar `backend/src/mqtt/client.js` a `mqtts://`, cargar el CA desde `process.env.MQTT_CA_PATH` con lectura explícita del archivo, mantener validación de hostname y exigir `rejectUnauthorized: true`
+- [X] T017 [US2] Cambiar `backend/src/mqtt/client.js` a `mqtts://`, cargar el CA desde `process.env.MQTT_CA_PATH` con lectura explícita del archivo, mantener validación de hostname y exigir `rejectUnauthorized: true`
 - [ ] T018 [US2] Cambiar `codigo-esp32-mosquitto/codigo-esp32-mosquitto.ino` a `WiFiClientSecure`, configurar el CA con `setCACert`, usar el puerto `8883` y eliminar cualquier ruta `setInsecure` o conexión MQTT sin TLS
 - [ ] T019 [US2] Añadir sincronización NTP después de conexión WiFi y antes del primer handshake MQTT en `codigo-esp32-mosquitto/codigo-esp32-mosquitto.ino`; impedir la conexión si el reloj no alcanza una época válida
 - [ ] T020 [US2] Añadir el CA público al firmware mediante `codigo-esp32-mosquitto/certs/ecotrack-ca.crt` y documentar su inclusión en `codigo-esp32-mosquitto/esp32Secret.h.example` sin versionar claves privadas
-- [ ] T021 [US2] Ejecutar los casos de confianza TLS de `backend/src/test/mqtt-tls.integration.test.js` y la validación del sketch/configuración, confirmando rechazo explícito sin degradación insegura
+- [X] T021 [US2] Ejecutar los casos de confianza TLS de `backend/src/test/mqtt-tls.integration.test.js` y la validación del sketch/configuración, confirmando rechazo explícito sin degradación insegura
 
 **Checkpoint**: Backend y ESP32 solo usan `8883`, validan CA/SAN y mantienen las credenciales
 MQTT actuales.
