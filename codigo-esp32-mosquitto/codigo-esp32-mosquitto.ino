@@ -333,6 +333,7 @@ void loop() {
     case Mode::running:
       reconnectWifi();
       if (mode == Mode::running) {
+        if (!ntpReady) pollNtpSync();
         if (WiFi.status() == WL_CONNECTED) reconnectMqtt();
         if (mqtt.connected()) {
           mqtt.loop();
