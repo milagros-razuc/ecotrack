@@ -73,10 +73,10 @@ conservando `ts` cuando NTP está disponible.
 `specs/006-continuidad-lecturas/quickstart.md`; no requiere modificar el backend fuera de las
 reglas ya cubiertas en la fase anterior.
 
-- [ ] T023 [US1] Añadir en `codigo-esp32-mosquitto/codigo-esp32-mosquitto.ino` la estructura de entrada y buffer circular en RAM con capacidad fija de 360 lecturas (`ts`, `temperatura`, `humedad`, `luminosidad`), descartando la más antigua al llenarse y perdiéndolo al reiniciar.
-- [ ] T024 [US1] Actualizar `codigo-esp32-mosquitto/codigo-esp32-mosquitto.ino` para capturar continuamente aunque MQTT no esté conectado, publicar `ts = time(nullptr)` solo cuando `ntpReady` sea verdadero y omitir `ts` cuando NTP no esté sincronizado sin guardar esa lectura en el buffer diferido.
-- [ ] T025 [US1] Implementar en `codigo-esp32-mosquitto/codigo-esp32-mosquitto.ino` el vaciado FIFO al reconectar, retirando cada entrada solo tras `mqtt.publish` exitoso, llamando `mqtt.loop()` entre mensajes, usando una pausa breve y retomando luego la publicación normal.
-- [ ] T026 [US1] Ajustar en `codigo-esp32-mosquitto/codigo-esp32-mosquitto.ino` el tamaño máximo de `PubSubClient` para el payload con `ts`, sin cambiar tópico, TLS, ACL, credenciales ni `esp32Secret.h`.
+- [X] T023 [US1] Añadir en `codigo-esp32-mosquitto/codigo-esp32-mosquitto.ino` la estructura de entrada y buffer circular en RAM con capacidad fija de 360 lecturas (`ts`, `temperatura`, `humedad`, `luminosidad`), descartando la más antigua al llenarse y perdiéndolo al reiniciar.
+- [X] T024 [US1] Actualizar `codigo-esp32-mosquitto/codigo-esp32-mosquitto.ino` para capturar continuamente aunque MQTT no esté conectado, publicar `ts = time(nullptr)` solo cuando `ntpReady` sea verdadero y omitir `ts` cuando NTP no esté sincronizado sin guardar esa lectura en el buffer diferido.
+- [X] T025 [US1] Implementar en `codigo-esp32-mosquitto/codigo-esp32-mosquitto.ino` el vaciado FIFO al reconectar, retirando cada entrada solo tras `mqtt.publish` exitoso, llamando `mqtt.loop()` entre mensajes, usando una pausa breve y retomando luego la publicación normal.
+- [X] T026 [US1] Ajustar en `codigo-esp32-mosquitto/codigo-esp32-mosquitto.ino` el tamaño máximo de `PubSubClient` para el payload con `ts`, sin cambiar tópico, TLS, ACL, credenciales ni `esp32Secret.h`.
 
 ## Phase 5: Documentation
 

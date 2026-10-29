@@ -5,6 +5,7 @@
 #include <time.h>
 
 #include "DeviceConfig.h"
+#include "ReadingBuffer.h"
 #include "SetupPortal.h"
 #include "ecotrack_ca.h"
 #include "esp32Secret.h"
@@ -23,11 +24,12 @@ constexpr unsigned long kMqttRetryMs = 3000;
 constexpr unsigned long kWifiRetryMs = 5000;
 constexpr unsigned long kReadyDisplayMs = 8000;
 constexpr unsigned long kBootHoldMs = 3000;
-constexpr unsigned long kOfflinePortalMs = 60000;
 constexpr unsigned long kInitialMqttTimeoutMs = 20000;
 constexpr unsigned long kNtpTimeoutMs = 10000;
 constexpr time_t kValidEpoch = 1700000000;
 constexpr uint16_t kMqttPort = 8883;
+constexpr size_t kReadingBufferCapacity = 360;
+constexpr size_t kForwardBatchSize = 1;
 
 enum class Mode { provisioning, connectingWifi, verifyingMqtt, readyDisplay, running };
 
@@ -50,6 +52,7 @@ unsigned long wifiLostAt = 0;
 unsigned long ntpStartedAt = 0;
 unsigned long lastNtpRetryAt = 0;
 bool ntpReady = false;
+ReadingBuffer<kReadingBufferCapacity> readingBuffer;
 
 void beginWifi();
 
@@ -136,7 +139,7 @@ void pollVerifyingMqtt() {
     setupPortalStatus("WIFI_FAIL");
     return;
   }
-  if (!pollNtpSync()) return;
+  pollNtpSync();
   if (lastMqttRetryAt != 0 && millis() - lastMqttRetryAt < kMqttRetryMs) return;
   lastMqttRetryAt = millis();
   if (!mqtt.connect(config.deviceId.c_str(), config.mqttUser.c_str(), config.mqttPassword.c_str())) {
@@ -189,11 +192,6 @@ void reconnectWifi() {
   }
   if (mqtt.connected()) mqtt.disconnect();
   if (wifiLostAt == 0) wifiLostAt = millis();
-  if (millis() - wifiLostAt >= kOfflinePortalMs) {
-    enterProvisioning();
-    setupPortalStatus("WIFI_FAIL");
-    return;
-  }
   if (lastWifiRetryAt == 0 || millis() - lastWifiRetryAt >= kWifiRetryMs) {
     lastWifiRetryAt = millis();
     WiFi.reconnect();
@@ -203,7 +201,7 @@ void reconnectWifi() {
 
 void reconnectMqtt() {
   if (mqtt.connected()) return;
-  if (!pollNtpSync()) return;
+  pollNtpSync();
   if (lastMqttRetryAt != 0 && millis() - lastMqttRetryAt < kMqttRetryMs) return;
   lastMqttRetryAt = millis();
   if (mqtt.connect(config.deviceId.c_str(), config.mqttUser.c_str(), config.mqttPassword.c_str())) {
@@ -213,7 +211,52 @@ void reconnectMqtt() {
   }
 }
 
-void publishReading() {
+bool captureTimeIsValid() {
+  return ntpReady && time(nullptr) > kValidEpoch;
+}
+
+String readingTopic() {
+  return "ecotrack/" + config.deviceId + "/lecturas";
+}
+
+String readingPayload(float temperatura,
+                      float humedad,
+                      int luz,
+                      uint32_t ts,
+                      bool includeTimestamp) {
+  String payload = "{\"temperatura\":" + String(temperatura, 1);
+  payload += ",\"humedad\":" + String(humedad, 1);
+  payload += ",\"luminosidad\":" + String(luz);
+  if (includeTimestamp) payload += ",\"ts\":" + String(ts);
+  payload += "}";
+  return payload;
+}
+
+bool publishBufferedReading(const ReadingBufferEntry& entry) {
+  const String payload = readingPayload(
+      entry.temperatura, entry.humedad, entry.luminosidad, entry.ts, true);
+  const String topic = readingTopic();
+  if (!mqtt.publish(topic.c_str(), payload.c_str())) {
+    Serial.println("No se pudo reenviar la lectura diferida");
+    return false;
+  }
+  Serial.println("Reenviado en " + topic + ": " + payload);
+  return true;
+}
+
+void flushBufferedReadings() {
+  if (!mqtt.connected() || readingBuffer.empty()) return;
+  const size_t published =
+      flushReadingBuffer(readingBuffer, kForwardBatchSize, publishBufferedReading);
+  if (published > 0) {
+    mqtt.loop();
+    delay(20);
+  } else {
+    mqtt.loop();
+  }
+}
+
+void captureReading() {
   if (lastCaptureAt != 0 && millis() - lastCaptureAt < INTERVALO_CAPTURA_MS) return;
   lastCaptureAt = millis();
   const float temperatura = dht.readTemperature();
@@ -223,15 +266,26 @@ void publishReading() {
     Serial.println("Error leyendo DHT11");
     return;
   }
-  String payload = "{\"temperatura\":" + String(temperatura, 1);
-  payload += ",\"humedad\":" + String(humedad, 1);
-  payload += ",\"luminosidad\":" + String(luz) + "}";
-  const String topic = "ecotrack/" + config.deviceId + "/lecturas";
-  if (mqtt.publish(topic.c_str(), payload.c_str())) {
-    Serial.println("Publicado en " + topic + ": " + payload);
-  } else {
-    Serial.println("No se pudo publicar la lectura");
+  if (!captureTimeIsValid()) {
+    if (!mqtt.connected()) return;
+    const String payload =
+        readingPayload(temperatura, humedad, luz, 0, false);
+    const String topic = readingTopic();
+    if (mqtt.publish(topic.c_str(), payload.c_str())) {
+      Serial.println("Publicado en " + topic + ": " + payload);
+    } else {
+      Serial.println("No se pudo publicar la lectura");
+    }
+    return;
   }
+
+  const ReadingBufferEntry entry = {
+      static_cast<uint32_t>(time(nullptr)), temperatura, humedad, luz};
+  if (mqtt.connected() && readingBuffer.empty() &&
+      publishBufferedReading(entry)) {
+    return;
+  }
+  readingBuffer.push(entry);
 }
 
 void pollBootButton() {
@@ -253,6 +307,7 @@ void setup() {
   pinMode(DHTPIN, INPUT_PULLUP);
   dht.begin();
   wifiClient.setCACert(kEcotrackCa);
+  mqtt.setBufferSize(512);
   mqtt.setSocketTimeout(3);
   config = defaultConfig();
   const bool saved = loadSavedConfig(config);
@@ -277,11 +332,15 @@ void loop() {
     case Mode::readyDisplay: pollReadyDisplay(); break;
     case Mode::running:
       reconnectWifi();
-      if (mode == Mode::running && WiFi.status() == WL_CONNECTED) {
-        reconnectMqtt();
+      if (mode == Mode::running) {
+        if (WiFi.status() == WL_CONNECTED) reconnectMqtt();
         if (mqtt.connected()) {
           mqtt.loop();
-          publishReading();
+          flushBufferedReadings();
+        }
+        captureReading();
+        if (mqtt.connected()) {
+          mqtt.loop();
         }
       }
       break;
