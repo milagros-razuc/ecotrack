@@ -26,6 +26,7 @@ constexpr unsigned long kReadyDisplayMs = 8000;
 constexpr unsigned long kBootHoldMs = 3000;
 constexpr unsigned long kInitialMqttTimeoutMs = 20000;
 constexpr unsigned long kNtpTimeoutMs = 10000;
+constexpr unsigned long kHeapLogIntervalMs = 30000;
 constexpr time_t kValidEpoch = 1700000000;
 constexpr uint16_t kMqttPort = 8883;
 constexpr size_t kReadingBufferCapacity = 360;
@@ -51,10 +52,16 @@ unsigned long lastCaptureAt = 0;
 unsigned long wifiLostAt = 0;
 unsigned long ntpStartedAt = 0;
 unsigned long lastNtpRetryAt = 0;
+unsigned long lastHeapLogAt = 0;
 bool ntpReady = false;
 ReadingBuffer<kReadingBufferCapacity> readingBuffer;
 
 void beginWifi();
+
+void logHeap(const char* etiqueta) {
+  Serial.printf("HEAP %s libre=%u min=%u\n", etiqueta, ESP.getFreeHeap(),
+                ESP.getMinFreeHeap());
+}
 
 void beginNtpSync() {
   configTime(0, 0, "pool.ntp.org");
@@ -139,18 +146,31 @@ void pollVerifyingMqtt() {
     setupPortalStatus("WIFI_FAIL");
     return;
   }
-  pollNtpSync();
-  if (lastMqttRetryAt != 0 && millis() - lastMqttRetryAt < kMqttRetryMs) return;
-  lastMqttRetryAt = millis();
-  if (!mqtt.connect(config.deviceId.c_str(), config.mqttUser.c_str(), config.mqttPassword.c_str())) {
-    const int mqttState = mqtt.state();
-    if (!setupPortalActive() && millis() - mqttVerifyStartedAt >= kInitialMqttTimeoutMs) {
+
+  if (!pollNtpSync()) {
+    if (!setupPortalActive() &&
+        millis() - mqttVerifyStartedAt >= kInitialMqttTimeoutMs) {
       enterProvisioning();
     }
+    return;
+  }
+
+  if (lastMqttRetryAt != 0 &&
+      millis() - lastMqttRetryAt < kMqttRetryMs) {
+    return;
+  }
+
+  lastMqttRetryAt = millis();
+
+  if (!mqtt.connect(config.deviceId.c_str(),
+                    config.mqttUser.c_str(),
+                    config.mqttPassword.c_str())) {
+    const int mqttState = mqtt.state();
     setupPortalStatus("MQTT_FAIL:" + String(mqttState));
     printMqttFailure("No se pudo conectar a MQTT");
     return;
   }
+
   if (configNeedsSave && !saveConfig(config)) {
     mqtt.disconnect();
     enterProvisioning();
@@ -158,11 +178,13 @@ void pollVerifyingMqtt() {
     Serial.println("No se pudo guardar el perfil");
     return;
   }
+
   configNeedsSave = false;
   readySince = millis();
   mode = Mode::readyDisplay;
   setupPortalStatus("READY:" + WiFi.localIP().toString());
-  Serial.println("WiFi y MQTT confirmados. IP: " + WiFi.localIP().toString());
+  Serial.println("WiFi y MQTT confirmados. IP: " +
+                 WiFi.localIP().toString());
 }
 
 void pollReadyDisplay() {
@@ -201,10 +223,12 @@ void reconnectWifi() {
 
 void reconnectMqtt() {
   if (mqtt.connected()) return;
-  pollNtpSync();
+  if (!pollNtpSync()) return;
   if (lastMqttRetryAt != 0 && millis() - lastMqttRetryAt < kMqttRetryMs) return;
   lastMqttRetryAt = millis();
+  logHeap("antes_tls");
   if (mqtt.connect(config.deviceId.c_str(), config.mqttUser.c_str(), config.mqttPassword.c_str())) {
+    logHeap("conectado_tls");
     Serial.println("MQTT reconectado");
   } else {
     printMqttFailure("MQTT fallo; reintentando");
@@ -323,6 +347,10 @@ void setup() {
 }
 
 void loop() {
+  if (millis() - lastHeapLogAt >= kHeapLogIntervalMs) {
+    lastHeapLogAt = millis();
+    logHeap("periodico");
+  }
   pollSetupPortal();
   pollBootButton();
   switch (mode) {

@@ -52,12 +52,15 @@ clientes es absoluto.
 | RF12 | Gestionar dispositivos (alta, baja y modificación) asociados a un cliente. |
 | RF13 | Panel de control con estado de dispositivos, alertas activas y resumen, del cliente del usuario. |
 | RF14 | Registrar logs de actividad para auditoría y trazabilidad. |
-| RF15 | Configuración inicial del WiFi de cada ESP32 mediante una conexión temporal desde una app o página móvil, sin reprogramar el firmware por unidad. (La tesis lo define con Bluetooth.) |
+| RF15 | Configuración inicial del WiFi de cada ESP32 mediante un portal cautivo SoftAP temporal, accesible desde una app o página móvil, sin reprogramar el firmware por unidad. |
 | RF16 | El admin crea, modifica y elimina cuentas dentro de su cliente, asignando rol. |
 | RF17 | Las funciones administrativas se restringen a usuarios admin. |
 | RF18 | Cada dispositivo se asocia a un cliente; cada usuario ve y opera solo sobre lo de su cliente. |
 | RF19 | API pública documentada para sistemas externos autorizados (lecturas, alertas, estado de dispositivos). |
 | RF20 | Cada usuario ve y edita su perfil, incluido el cambio de contraseña. |
+| RF21 | Aprovisionar y reclamar dispositivos mediante un token único de un solo uso; la baja los libera sin borrar su histórico. |
+| RF22 | Continuar capturando lecturas sin conexión al broker, conservando hasta 360 lecturas en un buffer volátil y publicándolas al recuperar la conexión. |
+| RF23 | Aceptar un timestamp de captura opcional en las lecturas, conservarlo para el histórico y procesar las lecturas diferidas según su atraso. |
 
 ---
 
@@ -69,7 +72,7 @@ clientes es absoluto.
 |---|---|
 | RI01 | Dashboard web con login, panel, histórico, auditoría, configuración, usuarios y perfil. |
 | RI02 | Valores actuales en tarjetas con indicadores y barras de progreso, actualizados sin recargar. |
-| RI03 | Histórico con series temporales, período de agregación y filtro por dispositivo. |
+| RI03 | Histórico con series temporales, período de agregación, filtro por dispositivo y ordenamiento por fecha de captura. |
 | RI04 | Configuración de umbrales por variable y dispositivo, y activación de notificaciones. |
 | RI05 | Alertas con indicador por estado (pendiente o atendida) y notificación emergente al generarse. |
 | RI06 | Login con usuario y contraseña; la interfaz se adapta al rol. |
@@ -84,7 +87,7 @@ clientes es absoluto.
 | RI10 | Sensor de temperatura y humedad por protocolo digital de un solo cable. |
 | RI11 | Luminosidad con fotorresistencia (LDR) en entrada analógica. |
 | RI12 | Alimentación por USB (5 V). |
-| RI13 | Soporte BLE para la configuración inicial de WiFi, independiente de la radio WiFi. |
+| RI13 | Portal SoftAP temporal para la configuración inicial de WiFi, con desactivación al conectar o al vencer el tiempo límite. |
 
 ### Software
 
@@ -92,7 +95,7 @@ clientes es absoluto.
 |---|---|
 | RI14 | API REST en capas para recepción de datos, dashboard y sistemas externos autorizados. |
 | RI15 | Base de datos relacional para clientes, dispositivos, lecturas, umbrales, alertas y usuarios. |
-| RI16 | Firmware con librerías específicas para sensores y comunicación inalámbrica (WiFi, Bluetooth) y mensajería. |
+| RI16 | Firmware con librerías específicas para sensores y comunicación inalámbrica (WiFi, SoftAP) y mensajería. |
 | RI17 | Autenticación por tokens, contraseñas con hash seguro y validación por esquemas; la autorización contempla rol y cliente. |
 | RI18 | Dashboard con tecnologías estándar del lado cliente, consumiendo la API REST. |
 | RI19 | El backend emite eventos en tiempo real hacia los clientes conectados, sin consulta periódica. |
@@ -102,10 +105,11 @@ clientes es absoluto.
 
 | ID | Requisito |
 |---|---|
-| RI21 | Dispositivo a backend por publicación/suscripción; cada dispositivo publica en un tópico asociado a su código. El cliente se resuelve en el backend. |
+| RI21 | Dispositivo a backend por publicación/suscripción segura; cada dispositivo publica en un tópico asociado a su código y el cliente se resuelve en el backend. |
 | RI22 | Datos en JSON. |
 | RI23 | Backend a dashboard por HTTP, complementado con comunicación bidireccional para tiempo real. |
-| RI24 | La conexión backend-bróker usa MQTTS en el puerto 8883, valida el certificado contra el CA configurado y se autentica con las credenciales existentes. |
+| RI24 | La conexión dispositivo-bróker y backend-bróker usa MQTTS en el puerto 8883, valida el certificado contra el CA configurado y se autentica con credenciales específicas. |
+| RI25 | El firmware mantiene un buffer volátil de hasta 360 lecturas y las reenvía en orden de captura al recuperar la conexión. |
 
 ---
 
@@ -113,18 +117,18 @@ clientes es absoluto.
 
 | ID | Requisito |
 |---|---|
-| RE01 | Procesar, almacenar, evaluar umbrales y emitir el evento de cada lectura en un tiempo no perceptible. |
-| RE02 | El dashboard refleja lo más reciente con actualización periódica más eventos en tiempo real, sin sobrecarga. |
-| RE03 | Soportar múltiples dispositivos de múltiples clientes simultáneamente. |
-| RE04 | Consultas de historial agregado en tiempo razonable, apoyadas en agregación de la base. |
-| RE05 | El consumo del ESP32 se mantiene dentro de los límites del hardware. |
-| RE06 | Tiempos consistentes sin importar la cantidad de clientes (índices, particionado). |
+| RE01 | Procesar, almacenar, evaluar umbrales y emitir el evento de cada lectura en un máximo de 1 s en el 95 % de los casos. |
+| RE02 | El dashboard refleja lo más reciente en un máximo de 2 s mediante actualización periódica y eventos en tiempo real, sin sobrecarga. |
+| RE03 | Soportar al menos 100 dispositivos y 10 clientes activos simultáneamente. |
+| RE04 | Resolver consultas de historial agregado de hasta 1 año en un máximo de 3 s en el 95 % de los casos. |
+| RE05 | Mantener el consumo del ESP32 por debajo de 500 mA durante la operación normal. |
+| RE06 | Mantener una latencia máxima de 3 s en el 95 % de las solicitudes bajo una carga de al menos 100 clientes concurrentes. |
 | RD01 | WiFi según IEEE 802.11. |
 | RD02 | Dispositivo-backend según MQTT (OASIS). |
 | RD03 | Backend REST con JSON. |
 | RD04 | Autenticación con estándar abierto de tokens y hash adaptativo de contraseñas. |
 | RD05 | Referencia ISO/IEC 25010. |
-| RD06 | Configuración inicial de conectividad basada en BLE. |
+| RD06 | Configuración inicial de conectividad mediante un portal cautivo SoftAP temporal. |
 | RD07 | Firmware liviano (RAM y flash limitadas). |
 | RD08 | Precisión de sensores acotada por el modelo (DHT11: ±2 °C, ±5 %). |
 | RD09 | Alcance de WiFi y Bluetooth limitado por cobertura y distancia. |
@@ -137,7 +141,7 @@ clientes es absoluto.
 | ID | Requisito |
 |---|---|
 | RNF01 | Acceso con credenciales verificadas por hash seguro; sesiones por tokens con expiración definida. |
-| RNF02 | Comunicación dispositivo-bróker y bróker-backend autenticada con credenciales por dispositivo. |
+| RNF02 | Comunicación dispositivo-bróker y bróker-backend autenticada con credenciales específicas por dispositivo o servicio y protegida mediante TLS. |
 | RNF03 | Validar con esquemas los datos de entrada de todas las peticiones. |
 | RNF04 | Historial completo de eventos de alerta, con consulta y gestión desde auditoría. |
 | RNF05 | Aislamiento lógico entre clientes: ninguna consulta expone información de otro cliente. |
@@ -148,9 +152,16 @@ clientes es absoluto.
 | RNF10 | Dashboard compatible con navegadores modernos. |
 | RNF11 | Dashboard adaptable a distintos tamaños de pantalla. |
 | RNF12 | Backend desplegable en distintos entornos de hosting. |
-| RNF13 | Fiabilidad ante caída del backend o del bróker. |
-| RNF14 | Usabilidad sin capacitación especializada. |
+| RNF13 | Ante una caída del broker de hasta 1 h, el dispositivo conserva hasta 360 lecturas y las reenvía al restablecerse la conexión, sin perder más del 1 % de las lecturas del período. |
+| RNF14 | Al menos el 90 % de los usuarios puede completar las tareas principales sin capacitación especializada y en menos de 5 minutos por tarea. |
 | RNF15 | Escalabilidad: nuevos clientes y dispositivos sin rediseñar la estructura. |
+| RNF16 | Los tokens de reclamo son únicos, aleatorios, de un solo uso y nunca se almacenan en texto plano. |
+| RNF17 | El reclamo, la baja y la rotación de dispositivos se ejecutan atómicamente y se auditan; los rechazos no modifican el estado. |
+| RNF18 | Lecturas y alertas conservan el `cliente_id` del propietario vigente al generarse y nunca se exponen al propietario posterior. |
+| RNF19 | Un dispositivo sin propietario no persiste lecturas ni genera alertas, eventos en tiempo real o actividad válida. |
+| RNF20 | Las lecturas diferidas conservan su timestamp de captura y se consultan en la partición temporal correspondiente. |
+| RNF21 | El sistema rechaza timestamps más de 1 minuto en el futuro o más de 24 horas en el pasado. |
+| RNF22 | Las lecturas con más de 5 minutos de atraso se almacenan, pero no generan alertas ni eventos en tiempo real. |
 
 ---
 
@@ -183,6 +194,8 @@ clientes es absoluto.
 - Toda consulta, modificación, suscripción en tiempo real y operación administrativa se
   restringe al `cliente_id` del usuario autenticado. El `cliente_id` sale del token o de
   la API key, nunca de la entrada del usuario.
+- Las lecturas y alertas conservan el `cliente_id` del propietario que tenía el
+  dispositivo cuando se generaron; esa pertenencia histórica no cambia al transferirlo.
 
 **Usuarios**
 
@@ -192,9 +205,27 @@ clientes es absoluto.
 
 **Emparejamiento (configuración inicial del WiFi)**
 
-- El modo de configuración se desactiva solo tras un tiempo límite (ej. 5 minutos) o al
-  conectar por WiFi.
-- Un dispositivo con credenciales guardadas no vuelve a anunciarse salvo reseteo forzado.
+- El portal SoftAP se desactiva tras 5 minutos o al conectar por WiFi y MQTT.
+- Un dispositivo con credenciales guardadas solo vuelve al portal ante una falla de
+  arranque o al mantener presionado el botón BOOT durante 3 segundos.
+
+**Lecturas diferidas**
+
+- Una lectura con `ts` se almacena con ese valor. Se rechaza si `ts` es más de 1 minuto
+  futuro o anterior a 24 horas respecto de la recepción.
+- Una lectura con `ts` anterior a `reclamado_en` se descarta sin persistirla ni producir
+  alertas o eventos en tiempo real.
+- Una lectura con más de 5 minutos de atraso se almacena, pero no genera alertas ni se
+  emite por tiempo real. Las lecturas con atraso de hasta 5 minutos conservan el flujo
+  normal.
+
+**Baja y liberación de dispositivos**
+
+- La baja no borra el dispositivo: lo deja inactivo, sin propietario, nombre, ubicación ni
+  umbrales, y con `token_reclamo_hash = NULL`.
+- Las lecturas y alertas históricas se conservan asociadas al cliente que era propietario.
+- Mientras el dispositivo no tenga propietario, sus mensajes MQTT se descartan sin
+  persistirse y queda disponible para un nuevo reclamo luego de una rotación explícita.
 
 **Producción y configuración**
 
@@ -217,8 +248,8 @@ para `/api/public/*`.
 | GET, PATCH | `/api/auth/me` | Autenticado |
 | POST | `/api/auth/change-password` | Autenticado |
 | GET | `/api/dispositivos`, `/api/dispositivos/estado` | Autenticado |
-| POST | `/api/dispositivos` (alta o reclamo; 409 si pertenece a otro cliente) | Admin |
-| DELETE | `/api/dispositivos/:codigo` (baja lógica) | Admin |
+| POST | `/api/dispositivos` (reclamo con `codigo` y `token_reclamo`; 409 si falla) | Admin |
+| DELETE | `/api/dispositivos/:codigo` (baja lógica; responde 204 sin cuerpo) | Admin |
 | GET | `/api/lecturas`, `/api/lecturas/ultima`, `/api/lecturas/agregado` | Autenticado |
 | GET | `/api/umbrales` | Autenticado |
 | POST | `/api/umbrales` | Admin |
@@ -238,7 +269,8 @@ dueño del dispositivo.
 
 **Contrato MQTT:** el canal operativo usa MQTTS sobre TLS en el puerto `8883`; tópico
 `ecotrack/<deviceId>/lecturas`; payload JSON
-`{ "temperatura": number, "humedad": number, "luminosidad": number }`. Rangos validados:
+`{ "temperatura": number, "humedad": number, "luminosidad": number, "ts": number? }`.
+`ts` es opcional y representa la fecha de captura como segundos Unix UTC. Rangos validados:
 temperatura de -40 a 80 °C, humedad de 0 a 100 %, luminosidad de 0 a 100 %. El tópico y
 el payload no cambian sin versionarse, porque hay firmware desplegado. El listener sin
 cifrado en `1883` permanece cerrado. Backend y clientes que ya soporten TLS deben validar
@@ -256,15 +288,15 @@ clave).
 |---|---|
 | `clientes` | id, nombre (único), activo, creado_en |
 | `usuarios` | id, username (único), password_hash (bcrypt), nombre, rol (`admin` o `comun`), cliente_id (obligatorio), token_version |
-| `dispositivos` | id, codigo (único global), nombre, ubicacion, activo (baja lógica), cliente_id (nulo hasta que un admin lo reclama), ultima_conexion |
-| `lecturas` | id, dispositivo_codigo, temperatura, humedad, luminosidad, timestamp |
+| `dispositivos` | id, codigo (único global), nombre, ubicacion, activo (baja lógica), cliente_id (nulo hasta que un admin lo reclama), ultima_conexion, reclamado_en, token_reclamo_hash |
+| `lecturas` | id, dispositivo_codigo, cliente_id (propietario al insertar), temperatura, humedad, luminosidad, timestamp de captura |
 | `umbrales` | id, dispositivo_codigo, variable, umbral_min, umbral_max, notificaciones_activas; único por (dispositivo, variable) |
-| `alertas` | id, dispositivo_codigo, variable, valor, umbral_min, umbral_max, estado (`pendiente` o `atendida`), comentario (máx. 500), timestamp |
+| `alertas` | id, dispositivo_codigo, cliente_id (propietario al generar), variable, valor, umbral_min, umbral_max, estado (`pendiente` o `atendida`), comentario (máx. 500), timestamp |
 | `api_keys` | id, cliente_id, nombre, clave_hash (SHA-256), prefijo, activa, revocada_en, ultimo_uso, creado_por |
 | auditoría | cliente, usuario, username al momento del hecho, acción, entidad, entidad_id, detalle, timestamp |
 
-`lecturas`, `umbrales` y `alertas` no tienen `cliente_id` propio: se filtran por JOIN con
-`dispositivos`.
+`lecturas` y `alertas` tienen `cliente_id` propio, capturado al insertar o generar el
+registro. Se filtran por ese valor y no por el propietario actual del dispositivo.
 
 **Privacidad:** no se procesan datos personales de terceros; las contraseñas se guardan
 solo como hash; las credenciales de dispositivos y las API keys se guardan de forma
@@ -282,12 +314,12 @@ segura y fuera del control de versiones; se aplica minimización de datos.
 | CU04 | Consultar histórico de lecturas | Autenticado | RF07, RI03 |
 | CU05 | Ver y editar perfil propio | Autenticado | RF20, RI09 |
 | CU06 | Gestionar alertas | Autenticado | RF09, RF11, RI05, RI07 |
-| CU07 | Gestionar dispositivos IoT | Admin | RF12, RF18 |
+| CU07 | Aprovisionar, reclamar, modificar y liberar dispositivos IoT | Operador y Admin | RF12, RF18, RF21, RNF17, RNF18 |
 | CU08 | Configurar umbrales de alerta | Admin | RF08, RI04 |
 | CU09 | Gestionar usuarios | Admin | RF16, RI08 |
-| CU10 | Emparejar dispositivo (configuración inicial del WiFi) | Admin e ESP32 | RF15, RI13 |
-| CU11 | Publicar lectura ambiental | ESP32 | RF01, RF03, RI21 |
-| CU12 | Enrutar mensaje de lectura | Mosquitto | RI16, RI19 |
+| CU10 | Configurar conectividad mediante portal SoftAP | Admin y ESP32 | RF15, RI13, RD06 |
+| CU11 | Capturar y publicar lectura ambiental, incluso diferida | ESP32 | RF01, RF03, RF22, RF23, RI21, RI25 |
+| CU12 | Recibir y procesar mensaje de lectura | Backend | RF04, RF05, RF09, RF22, RF23, RI16, RI19 |
 | CU13 | Consultar datos vía API pública | Sistema externo | RF19, RI20 |
 
 ---

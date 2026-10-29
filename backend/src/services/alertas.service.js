@@ -59,7 +59,7 @@ async function listar({ dispositivo, estado, variable, pagina, limite, clienteId
   const dataResult = await pool.query(
     `SELECT a.*, d.nombre, d.ubicacion
      FROM alertas a
-     JOIN dispositivos d ON a.dispositivo_codigo = d.codigo
+     LEFT JOIN dispositivos d ON a.dispositivo_codigo = d.codigo
      ${where}
      ORDER BY a.timestamp DESC
      LIMIT $${dataParams.length - 1} OFFSET $${dataParams.length}`,

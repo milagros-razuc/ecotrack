@@ -1,5 +1,40 @@
 const { z } = require('zod');
 
+const fechaLecturaSchema = z.string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, 'debe tener formato YYYY-MM-DD')
+  .refine((value) => {
+    const [year, month, day] = value.split('-').map(Number);
+    const date = new Date(Date.UTC(year, month - 1, day));
+    return date.getUTCFullYear() === year
+      && date.getUTCMonth() === month - 1
+      && date.getUTCDate() === day;
+  }, 'debe ser una fecha válida');
+
+const rangoFechasLecturasSchema = z.object({
+  fechaDesde: fechaLecturaSchema.optional(),
+  fechaHasta: fechaLecturaSchema.optional(),
+}).passthrough().superRefine((data, context) => {
+  if (!data.fechaDesde || !data.fechaHasta) return;
+
+  const desde = Date.parse(`${data.fechaDesde}T00:00:00Z`);
+  const hasta = Date.parse(`${data.fechaHasta}T00:00:00Z`);
+  const dias = (hasta - desde) / (24 * 60 * 60 * 1000);
+
+  if (desde > hasta) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['fechaHasta'],
+      message: 'fechaDesde no puede ser posterior a fechaHasta',
+    });
+  } else if (dias > 366) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['fechaHasta'],
+      message: 'El rango de fechas no puede superar los 366 días',
+    });
+  }
+});
+
 const loginSchema = z.object({
   username: z.string().min(1),
   password: z.string().min(1),
@@ -86,4 +121,5 @@ module.exports = {
   lecturaMqttSchema,
   actualizarPerfilSchema,
   crearApiKeySchema,
+  rangoFechasLecturasSchema,
 };

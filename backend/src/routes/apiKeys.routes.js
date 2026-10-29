@@ -1,5 +1,6 @@
 const express = require('express');
 const apiKeysService = require('../services/apiKeys.service');
+const auditoriaService = require('../services/auditoria.service');
 const validar = require('../middleware/validar');
 const verificarRol = require('../middleware/rol');
 const { crearApiKeySchema } = require('../schemas');
@@ -29,6 +30,15 @@ router.post('/', validar(crearApiKeySchema), async (req, res, next) => {
       nombre,
       creadoPor: req.usuario.sub,
     });
+    await auditoriaService.registrar({
+      clienteId: req.clienteId,
+      usuarioId: req.usuario.sub,
+      usuarioUsername: req.usuario.username,
+      accion: 'crear_api_key',
+      entidad: 'api_key',
+      entidadId: String(resultado.apiKey.id),
+      detalle: `Clave ${resultado.apiKey.nombre} creada (prefijo ${resultado.apiKey.prefijo})`,
+    });
     // La clave en texto plano viaja SOLO en esta respuesta — es la única
     // vez que existe fuera de la cabeza del admin. No se puede volver a
     // pedir después, ni con GET /.
@@ -46,6 +56,15 @@ router.delete('/:id', async (req, res, next) => {
     if (!revocada) {
       return res.status(404).json({ error: 'Clave no encontrada' });
     }
+    await auditoriaService.registrar({
+      clienteId: req.clienteId,
+      usuarioId: req.usuario.sub,
+      usuarioUsername: req.usuario.username,
+      accion: 'revocar_api_key',
+      entidad: 'api_key',
+      entidadId: String(revocada.id),
+      detalle: `Clave ${revocada.nombre} revocada (prefijo ${revocada.prefijo})`,
+    });
     res.status(204).send();
   } catch (err) {
     next(err);

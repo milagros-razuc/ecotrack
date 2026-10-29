@@ -123,7 +123,9 @@ async function procesarMensaje(io, topic, message, recibidaEn = new Date()) {
         return;
       }
 
-      if (contexto.reclamado_en && captureAt < new Date(contexto.reclamado_en)) {
+      if (data.ts !== undefined
+        && contexto.reclamado_en
+        && captureAt < new Date(contexto.reclamado_en)) {
         console.log(`Mensaje MQTT descartado: ${dispositivoCodigo} anterior a reclamado_en`);
         return;
       }

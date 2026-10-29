@@ -21,25 +21,37 @@ async function guardar({
   );
 }
 
-async function listar({ dispositivo, limite, clienteId }) {
+function agregarFiltroFechas(condiciones, params, fechaDesde, fechaHasta, alias) {
+  if (fechaDesde) {
+    params.push(fechaDesde);
+    condiciones.push(`${alias}.timestamp >= $${params.length}::date`);
+  }
+  if (fechaHasta) {
+    params.push(fechaHasta);
+    condiciones.push(`${alias}.timestamp < ($${params.length}::date + INTERVAL '1 day')`);
+  }
+}
+
+async function listar({ dispositivo, limite, fechaDesde, fechaHasta, clienteId }) {
   const limiteSeguro = Math.min(Math.max(parseInt(limite, 10) || 100, 1), 1000);
 
-  let query = `
-    SELECT l.*, d.nombre, d.ubicacion
-    FROM lecturas l
-    JOIN dispositivos d ON l.dispositivo_codigo = d.codigo
-    WHERE l.cliente_id = $1
-  `;
+  const condiciones = ['l.cliente_id = $1'];
   const params = [clienteId];
 
   if (dispositivo) {
     params.push(dispositivo);
-    query += ` AND l.dispositivo_codigo = $${params.length}`;
+    condiciones.push(`l.dispositivo_codigo = $${params.length}`);
   }
+  agregarFiltroFechas(condiciones, params, fechaDesde, fechaHasta, 'l');
 
-  query += ` ORDER BY l.timestamp DESC LIMIT ${limiteSeguro}`;
+  const query = `
+    SELECT l.*, d.nombre, d.ubicacion
+    FROM lecturas l
+    LEFT JOIN dispositivos d ON l.dispositivo_codigo = d.codigo
+    WHERE ${condiciones.join(' AND ')}
+  `;
 
-  const result = await pool.query(query, params);
+  const result = await pool.query(`${query} ORDER BY l.timestamp DESC LIMIT ${limiteSeguro}`, params);
   return result.rows;
 }
 
@@ -48,7 +60,7 @@ async function ultimaPorDispositivo(clienteId) {
     `SELECT DISTINCT ON (l.dispositivo_codigo)
       l.*, d.nombre, d.ubicacion
     FROM lecturas l
-    JOIN dispositivos d ON l.dispositivo_codigo = d.codigo
+    LEFT JOIN dispositivos d ON l.dispositivo_codigo = d.codigo
     WHERE l.cliente_id = $1
     ORDER BY l.dispositivo_codigo, l.timestamp DESC`,
     [clienteId]
@@ -60,7 +72,7 @@ async function ultimaPorDispositivo(clienteId) {
 // (útil para ver el detalle de las últimas 24hs), "semana" y "mes" agrupan
 // por día. `periodo` ya viene validado desde la ruta (dia|semana|mes),
 // así que es seguro interpolarlo en el SQL de date_trunc.
-async function listarAgregado({ dispositivo, periodo, clienteId }) {
+async function listarAgregado({ dispositivo, periodo, fechaDesde, fechaHasta, clienteId }) {
   const unidadMap = { dia: 'hour', semana: 'day', mes: 'day' };
   const intervaloMap = { dia: '1 day', semana: '7 days', mes: '30 days' };
 
@@ -68,10 +80,15 @@ async function listarAgregado({ dispositivo, periodo, clienteId }) {
   const intervalo = intervaloMap[periodo] || '7 days';
 
   const params = [clienteId];
-  let where = `WHERE l.timestamp >= NOW() - INTERVAL '${intervalo}' AND l.cliente_id = $1`;
+  const condiciones = [`l.cliente_id = $1`];
+  if (!fechaDesde && !fechaHasta) {
+    condiciones.push(`l.timestamp >= NOW() - INTERVAL '${intervalo}'`);
+  } else {
+    agregarFiltroFechas(condiciones, params, fechaDesde, fechaHasta, 'l');
+  }
   if (dispositivo) {
     params.push(dispositivo);
-    where += ` AND l.dispositivo_codigo = $${params.length}`;
+    condiciones.push(`l.dispositivo_codigo = $${params.length}`);
   }
 
   const result = await pool.query(
@@ -86,7 +103,7 @@ async function listarAgregado({ dispositivo, periodo, clienteId }) {
        AVG(l.luminosidad)::numeric(8,2) AS luminosidad_avg,
        MAX(l.luminosidad) AS luminosidad_max
      FROM lecturas l
-     ${where}
+       WHERE ${condiciones.join(' AND ')}
      GROUP BY periodo
      ORDER BY periodo ASC`,
     params
