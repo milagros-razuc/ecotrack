@@ -91,7 +91,7 @@ ACL, TLS, tópicos ni configuración remota.
 
 - [ ] T030 Ejecutar la suite completa desde `backend/` con `TEST_DATABASE_URL` mediante `npm test`, sin tests omitidos, y resolver regresiones de la funcionalidad existente.
 - [ ] T031 Revisar `git status` y `.gitignore` para confirmar que no se versionan `codigo-esp32-mosquitto/esp32Secret.h`, claves privadas, certificados sensibles ni archivos de entorno; no modificar ni crear secretos.
-- [ ] T032 Ejecutar el procedimiento manual de `specs/006-continuidad-lecturas/quickstart.md` con una placa ESP32: cortar WiFi o detener el broker varios minutos, confirmar captura continua, reconectar, consultar PostgreSQL por orden/timestamp original y comprobar ausencia de alertas y eventos en vivo para diferidas.
+- [X] T032 Ejecutar el procedimiento manual de `specs/006-continuidad-lecturas/quickstart.md` con una placa ESP32: corte de broker de aproximadamente 8 minutos (28–29/10/2026), reenvío en orden, timestamp original y sin duplicados. La supresión de alertas y eventos en vivo para lecturas diferidas queda validada por la prueba automatizada; no se verificó con la placa. Se observó una cadencia de captura aproximada de 18 s durante el corte por reintentos TLS bloqueantes.
 
 ## Dependencies & Execution Order
 
