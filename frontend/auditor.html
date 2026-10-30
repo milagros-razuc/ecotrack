@@ -187,6 +187,7 @@
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <script src="shared/socket-auth.js"></script>
 <script src="shared/app.js"></script>
+<script src="shared/alerta-visual.js"></script>
 <script>
 let paginaActual = 1;
 const LIMITE = 10;
@@ -246,23 +247,25 @@ function badgeEstado(estado) {
 }
 
 async function cargarAlertas() {
-  const h = { Authorization: token };
-  const estado = document.getElementById('filtro-estado').value;
-  const dispositivo = document.getElementById('filtro-dispositivo').value;
-  const fechaDesde = document.getElementById('filtro-desde').value;
-  const fechaHasta = document.getElementById('filtro-hasta').value;
+  try {
+    const h = { Authorization: token };
+    const estado = document.getElementById('filtro-estado').value;
+    const dispositivo = document.getElementById('filtro-dispositivo').value;
+    const fechaDesde = document.getElementById('filtro-desde').value;
+    const fechaHasta = document.getElementById('filtro-hasta').value;
 
-  const params = new URLSearchParams({ pagina: paginaActual, limite: LIMITE });
-  if (estado) params.set('estado', estado);
-  if (dispositivo) params.set('dispositivo', dispositivo);
-  if (fechaDesde) params.set('fechaDesde', fechaDesde);
-  if (fechaHasta) params.set('fechaHasta', fechaHasta);
+    const params = new URLSearchParams({ pagina: paginaActual, limite: LIMITE });
+    if (estado) params.set('estado', estado);
+    if (dispositivo) params.set('dispositivo', dispositivo);
+    if (fechaDesde) params.set('fechaDesde', fechaDesde);
+    if (fechaHasta) params.set('fechaHasta', fechaHasta);
 
-  const res = await fetch(`${API}/api/alertas?${params}`, { headers: h });
-  if (res.status === 401) return manejarNoAutorizado();
-  const resultado = await res.json();
+    const res = await fetch(`${API}/api/alertas?${params}`, { headers: h });
+    if (res.status === 401) return manejarNoAutorizado();
+    if (!res.ok) throw new Error('No se pudieron cargar las alertas');
+    const resultado = await res.json();
 
-  document.getElementById('tabla-alertas').innerHTML = resultado.data.map(a => `
+    document.getElementById('tabla-alertas').innerHTML = resultado.data.map(a => `
     <tr class="bg-white border-b border-outline-variant hover:bg-primary-container/10 transition-colors">
       <td class="px-6 py-4 text-on-surface-variant whitespace-nowrap">${new Date(a.timestamp).toLocaleString('es-AR')}</td>
       <td class="px-6 py-4 font-bold text-on-surface">${a.dispositivo_codigo}</td>
@@ -278,13 +281,22 @@ async function cargarAlertas() {
           ${a.estado === 'atendida' ? 'Reabrir' : 'Gestionar'}
         </button>
       </td>
-    </tr>`).join('') || '<tr><td colspan="7" class="px-6 py-4 text-center text-on-surface-variant">Sin alertas registradas</td></tr>';
+      </tr>`).join('') || '<tr><td colspan="7" class="px-6 py-4 text-center text-on-surface-variant">Sin alertas registradas</td></tr>';
 
-  document.getElementById('info-paginacion').textContent =
-    `Mostrando ${resultado.data.length ? (resultado.pagina - 1) * resultado.limite + 1 : 0}-${(resultado.pagina - 1) * resultado.limite + resultado.data.length} de ${resultado.total} alertas`;
-  document.getElementById('btn-prev').disabled = resultado.pagina <= 1;
-  document.getElementById('btn-next').disabled = resultado.pagina >= resultado.totalPaginas;
+    document.getElementById('info-paginacion').textContent =
+      `Mostrando ${resultado.data.length ? (resultado.pagina - 1) * resultado.limite + 1 : 0}-${(resultado.pagina - 1) * resultado.limite + resultado.data.length} de ${resultado.total} alertas`;
+    document.getElementById('btn-prev').disabled = resultado.pagina <= 1;
+    document.getElementById('btn-next').disabled = resultado.pagina >= resultado.totalPaginas;
+  } catch (error) {
+    console.error('Error cargando alertas:', error);
+    document.getElementById('tabla-alertas').innerHTML =
+      '<tr><td colspan="7" class="px-6 py-4 text-center text-error">No se pudieron cargar las alertas.</td></tr>';
+  }
 }
+
+window.addEventListener('ecotrack:alerta', () => {
+  cargarAlertas();
+});
 
 // Modal "Gestionar"
 function abrirModalGestionar(id, estadoActual, comentarioActual) {

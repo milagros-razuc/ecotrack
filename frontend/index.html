@@ -999,6 +999,7 @@
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
   <script src="shared/socket-auth.js"></script>
   <script src="shared/app.js"></script>
+  <script src="shared/alerta-visual.js"></script>
 
 
   <!-- =========================================================
@@ -1014,6 +1015,7 @@
     let grafico = null;
     let ultimaLectura = null;
     let todosDispositivos = [];
+    let alertasDashboard = [];
 
 
     // ─────────────────────────────────────────────────────────
@@ -1074,13 +1076,33 @@
         return `hace ${diff}s`;
       }
 
-
       if (diff < 3600) {
         return `hace ${Math.floor(diff / 60)}min`;
       }
 
 
       return `hace ${Math.floor(diff / 3600)}h`;
+    }
+
+    function normalizarAlerta(alerta) {
+      return {
+        dispositivo: alerta.dispositivo_codigo || alerta.dispositivoCodigo || 'Dispositivo',
+        variable: alerta.variable || '',
+        valor: alerta.valor,
+        umbralMin: alerta.umbral_min ?? alerta.umbralMin,
+        umbralMax: alerta.umbral_max ?? alerta.umbralMax,
+        timestamp: alerta.timestamp ? new Date(alerta.timestamp).toISOString() : '',
+        estado: alerta.estado || 'pendiente',
+      };
+    }
+
+    function claveAlerta(alerta) {
+      return [
+        alerta.dispositivo,
+        alerta.variable,
+        alerta.valor,
+        alerta.timestamp,
+      ].join('|');
     }
 
 
@@ -1609,6 +1631,36 @@
         todosDispositivos =
           await resDispositivos.json();
 
+        const resAlertas =
+          await fetch(
+            `${API}/api/alertas?pagina=1&limite=20`,
+            { headers }
+          );
+
+        if (resAlertas.status === 401) {
+          return manejarNoAutorizado();
+        }
+
+        if (!resAlertas.ok) {
+          throw new Error(
+            'No se pudieron obtener las alertas'
+          );
+        }
+
+        const resultadoAlertas =
+          await resAlertas.json();
+
+        const alertasCargadas =
+          (resultadoAlertas.data || []).map(normalizarAlerta);
+        const clavesCargadas =
+          new Set(alertasCargadas.map(claveAlerta));
+        alertasDashboard = [
+          ...alertasCargadas,
+          ...alertasDashboard.filter(alerta =>
+            !clavesCargadas.has(claveAlerta(alerta))
+          ),
+        ];
+
 
         actualizarEstadoDispositivos();
 
@@ -1676,6 +1728,44 @@
     // Estado de dispositivos
     // ─────────────────────────────────────────────────────────
 
+    function renderNotificaciones(offline) {
+      const notificaciones = [
+        ...offline.map(dispositivo => `
+          <div class="border-l-4 border-error p-3 bg-error-container rounded-r-lg">
+            <p class="text-label-bold text-error uppercase mb-1">
+              Offline · ${new Date().toLocaleTimeString('es-AR')}
+            </p>
+            <p class="text-body-sm font-bold text-on-surface">
+              ${escaparHtml(dispositivo.codigo)}
+              —
+              ${escaparHtml(dispositivo.ubicacion || 'Sin ubicación')}
+            </p>
+          </div>
+        `),
+        ...alertasDashboard.map(alerta => `
+          <div class="border-l-4 border-error p-3 bg-error-container rounded-r-lg">
+            <p class="text-label-bold text-error uppercase mb-1">
+              Alerta · ${alerta.timestamp ? new Date(alerta.timestamp).toLocaleString('es-AR') : 'Ahora'}
+            </p>
+            <p class="text-body-sm font-bold text-on-surface">
+              ${escaparHtml(alerta.dispositivo)} — ${escaparHtml(alerta.variable)}
+            </p>
+            <p class="text-body-sm text-on-surface-variant">
+              Valor: ${escaparHtml(parseFloat(alerta.valor).toFixed(1))}
+              · Umbral: ${escaparHtml(`${alerta.umbralMin} – ${alerta.umbralMax}`)}
+            </p>
+          </div>
+        `),
+      ];
+
+      notifList.innerHTML = notificaciones.join('') || `
+        <p class="text-body-sm text-on-surface-variant text-center py-8">
+          Sin notificaciones activas
+        </p>
+      `;
+      notifBadge.classList.toggle('hidden', notificaciones.length === 0);
+    }
+
     function actualizarEstadoDispositivos() {
 
       const offline =
@@ -1706,45 +1796,14 @@
         );
 
 
-        notifList.innerHTML =
-          offline.map(dispositivo => `
-
-            <div
-              class="border-l-4 border-error p-3 bg-error-container rounded-r-lg"
-            >
-
-              <p class="text-label-bold text-error uppercase mb-1">
-                Offline · ${new Date().toLocaleTimeString('es-AR')}
-              </p>
-
-              <p class="text-body-sm font-bold text-on-surface">
-                ${escaparHtml(dispositivo.codigo)}
-                —
-                ${escaparHtml(dispositivo.ubicacion || 'Sin ubicación')}
-              </p>
-
-            </div>
-
-          `).join('');
-
       } else {
 
         alertBanner.classList.add(
           'hidden'
         );
-
-
-        notifBadge.classList.add(
-          'hidden'
-        );
-
-
-        notifList.innerHTML = `
-          <p class="text-body-sm text-on-surface-variant text-center py-8">
-            Sin notificaciones activas
-          </p>
-        `;
       }
+
+      renderNotificaciones(offline);
     }
 
 
@@ -2343,6 +2402,18 @@
       'ecotrack:lectura',
       () => {
         cargarDatos();
+      }
+    );
+
+    window.addEventListener(
+      'ecotrack:alerta',
+      (event) => {
+        const alerta = normalizarAlerta(event.detail);
+        if (alertasDashboard.some(actual => claveAlerta(actual) === claveAlerta(alerta))) {
+          return;
+        }
+        alertasDashboard.unshift(alerta);
+        actualizarEstadoDispositivos();
       }
     );
 

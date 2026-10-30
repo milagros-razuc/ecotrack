@@ -55,64 +55,8 @@ if (typeof io !== 'undefined') {
 
   // Alerta en tiempo real
   socket.on('alerta', (alerta) => {
-    mostrarAlertaPopup(alerta);
     window.dispatchEvent(new CustomEvent('ecotrack:alerta', { detail: alerta }));
   });
-}
-
-// ─── Pop-up de alerta en tiempo real (RF10, RI05) ──────────────────────
-// El contenedor #alerta-popup viaja con el sidebar (shared/sidebar.html),
-let colaAlertas = [];
-let popupAlertaVisible = false;
-
-function mostrarAlertaPopup(alerta) {
-  const dispositivo = alerta.dispositivo_codigo || alerta.dispositivoCodigo;
-  const yaEnCola = colaAlertas.some(a =>
-    (a.dispositivo_codigo || a.dispositivoCodigo) === dispositivo && a.variable === alerta.variable
-  );
-  // Evita que un dispositivo que repite la misma alerta 
-  if (yaEnCola) return;
-
-  colaAlertas.push(alerta);
-  if (!popupAlertaVisible) procesarColaAlertas();
-}
-
-function procesarColaAlertas() {
-  const siguiente = colaAlertas.shift();
-  if (!siguiente) { popupAlertaVisible = false; return; }
-  popupAlertaVisible = true;
-
-  const popup = document.getElementById('alerta-popup');
-  if (!popup) { popupAlertaVisible = false; return; }
-
-  const dispositivo = siguiente.dispositivo_codigo || siguiente.dispositivoCodigo || 'Dispositivo';
-  const variable = siguiente.variable || '';
-  const valor = parseFloat(siguiente.valor);
-  const umbralMin = parseFloat(siguiente.umbral_min ?? siguiente.umbralMin);
-  const umbralMax = parseFloat(siguiente.umbral_max ?? siguiente.umbralMax);
-
-  document.getElementById('alerta-popup-dispositivo').textContent = dispositivo;
-  document.getElementById('alerta-popup-detalle').textContent =
-    `${variable}: ${isNaN(valor) ? '—' : valor.toFixed(1)}` +
-    (isNaN(umbralMin) || isNaN(umbralMax) ? '' : ` (umbral ${umbralMin.toFixed(1)}–${umbralMax.toFixed(1)})`);
-
-  popup.classList.remove('hidden');
-  popup.classList.add('flex');
-  requestAnimationFrame(() => popup.classList.add('show'));
-
-  clearTimeout(popup._timeoutId);
-  popup._timeoutId = setTimeout(cerrarAlertaPopup, 6000);
-}
-
-function cerrarAlertaPopup() {
-  const popup = document.getElementById('alerta-popup');
-  if (!popup) return;
-  popup.classList.remove('show');
-  setTimeout(() => {
-    popup.classList.add('hidden');
-    popup.classList.remove('flex');
-    procesarColaAlertas();
-  }, 300);
 }
 
 // ─── Dark mode ─────────────────────────────────────────────────────────
