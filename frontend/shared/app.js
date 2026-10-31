@@ -1,21 +1,38 @@
 // ─── Config y sesión (comunes a todas las páginas) ───────────────────────
 const API = `http://${location.hostname}:3000`;
 
-const token = localStorage.getItem('ecotrack_token');
+function leerDatoLocalStorage(key) {
+  try {
+    return window.localStorage.getItem(key);
+  } catch (error) {
+    console.warn(`No se pudo leer ${key} del almacenamiento local:`, error);
+    return null;
+  }
+}
+
+function borrarDatoLocalStorage(key) {
+  try {
+    window.localStorage.removeItem(key);
+  } catch (error) {
+    console.warn(`No se pudo borrar ${key} del almacenamiento local:`, error);
+  }
+}
+
+const token = leerDatoLocalStorage('ecotrack_token');
 if (!token) { window.location.href = 'login.html'; }
 
-const nombre = localStorage.getItem('ecotrack_nombre') || 'Usuario';
-const username = localStorage.getItem('ecotrack_username') || '';
-const rol = localStorage.getItem('ecotrack_rol') || 'comun';
+const nombre = leerDatoLocalStorage('ecotrack_nombre') || 'Usuario';
+const username = leerDatoLocalStorage('ecotrack_username') || '';
+const rol = leerDatoLocalStorage('ecotrack_rol') || 'comun';
 const esAdmin = rol === 'admin';
 const iniciales = nombre.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 
 function cerrarSesion() {
   socket?.disconnect();
-  localStorage.removeItem('ecotrack_token');
-  localStorage.removeItem('ecotrack_nombre');
-  localStorage.removeItem('ecotrack_username');
-  localStorage.removeItem('ecotrack_rol');
+  borrarDatoLocalStorage('ecotrack_token');
+  borrarDatoLocalStorage('ecotrack_nombre');
+  borrarDatoLocalStorage('ecotrack_username');
+  borrarDatoLocalStorage('ecotrack_rol');
   window.location.href = 'login.html';
 }
 
@@ -57,18 +74,101 @@ if (typeof io !== 'undefined') {
   socket.on('alerta', (alerta) => {
     window.dispatchEvent(new CustomEvent('ecotrack:alerta', { detail: alerta }));
   });
+
+  socket.on('alerta-accion', (accion) => {
+    window.dispatchEvent(new CustomEvent('ecotrack:alerta-accion', { detail: accion }));
+  });
 }
 
-// ─── Dark mode ─────────────────────────────────────────────────────────
-const darkPref = localStorage.getItem('ecotrack_dark') === 'true';
-if (darkPref) document.documentElement.classList.add('dark');
+// ─── Theme ─────────────────────────────────────────────────────────────
+const THEME_STORAGE_KEY = 'ecotrack_dark';
+
+function leerPreferenciaTema() {
+  const stored = leerDatoLocalStorage(THEME_STORAGE_KEY);
+  return stored === 'light' || stored === 'dark' ? stored : null;
+}
+
+function guardarPreferenciaTema(theme) {
+  try {
+    window.localStorage.setItem(THEME_STORAGE_KEY, theme);
+  } catch (error) {
+    console.warn('No se pudo guardar la preferencia de tema:', error);
+  }
+}
+
+function borrarPreferenciaTema() {
+  borrarDatoLocalStorage(THEME_STORAGE_KEY);
+}
+
+function preferenciaSistemaOscura() {
+  try {
+    return typeof window.matchMedia === 'function'
+      && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  } catch (error) {
+    console.warn('No se pudo consultar la preferencia del sistema:', error);
+    return false;
+  }
+}
+
+function aplicarTema(theme) {
+  const isDark = theme === 'dark';
+  document.documentElement.classList.toggle('dark', isDark);
+  document.documentElement.classList.toggle('light', !isDark);
+  document.documentElement.dataset.theme = isDark ? 'dark' : 'light';
+  sincronizarControlesTema();
+  window.dispatchEvent(new CustomEvent('ecotrack:theme-change', {
+    detail: { theme: isDark ? 'dark' : 'light' },
+  }));
+}
+
+function temaActual() {
+  return document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+}
+
+function sincronizarControlesTema() {
+  const isDark = temaActual() === 'dark';
+  document.querySelectorAll('#btn-dark').forEach(btn => {
+    const icon = btn.querySelector('.material-symbols-outlined, span');
+    if (icon) icon.textContent = isDark ? 'light_mode' : 'dark_mode';
+    const action = isDark ? 'Activar tema claro' : 'Activar tema oscuro';
+    btn.title = action;
+    btn.setAttribute('aria-label', action);
+    btn.setAttribute('aria-pressed', String(isDark));
+  });
+}
+
+const savedTheme = leerPreferenciaTema();
+aplicarTema(savedTheme || (preferenciaSistemaOscura() ? 'dark' : 'light'));
 
 function toggleDark() {
-  const isDark = document.documentElement.classList.toggle('dark');
-  localStorage.setItem('ecotrack_dark', isDark);
-  const btn = document.getElementById('btn-dark');
-  if (btn) btn.querySelector('span').textContent = isDark ? 'light_mode' : 'dark_mode';
+  const nextTheme = temaActual() === 'dark' ? 'light' : 'dark';
+  guardarPreferenciaTema(nextTheme);
+  aplicarTema(nextTheme);
 }
+
+function obtenerColorTema(name, fallback) {
+  const value = getComputedStyle(document.documentElement)
+    .getPropertyValue(name)
+    .trim();
+  return value || fallback;
+}
+
+function coloresTema() {
+  return {
+    primary: obtenerColorTema('--color-primary', '#006d36'),
+    secondary: obtenerColorTema('--color-secondary', '#4b53bc'),
+    tertiary: obtenerColorTema('--color-tertiary', '#5d5f5f'),
+    text: obtenerColorTema('--color-text', '#1c1b1b'),
+    mutedText: obtenerColorTema('--color-muted-text', '#3e4a3f'),
+    border: obtenerColorTema('--color-border', '#bdcabc'),
+    surface: obtenerColorTema('--color-surface', '#ffffff'),
+    grid: obtenerColorTema('--color-chart-grid', 'rgba(0,0,0,.08)'),
+    primaryFill: obtenerColorTema('--color-primary-fill', 'rgba(0,109,54,.08)'),
+    tertiaryFill: obtenerColorTema('--color-tertiary-fill', 'rgba(93,95,95,.06)'),
+  };
+}
+
+document.addEventListener('DOMContentLoaded', sincronizarControlesTema);
 
 // ─── Dropdown de perfil ────────────────────────────────────────────────
 function toggleProfile() {
@@ -97,6 +197,14 @@ async function initShell() {
     }
   });
 
+  document.querySelectorAll('#mobile-navigation a[data-page]').forEach(a => {
+    if (a.dataset.page === page) {
+      a.classList.add('active');
+      a.querySelector('.material-symbols-outlined')?.setAttribute('style', "font-variation-settings:'FILL' 1;");
+    }
+    a.addEventListener('click', cerrarMobileMenu);
+  });
+
   // Datos del usuario en el sidebar
   document.getElementById('nombre-sidebar').textContent = nombre;
   document.getElementById('nombre-menu').textContent = nombre;
@@ -109,6 +217,39 @@ async function initShell() {
     document.querySelectorAll('[data-admin-only]').forEach(el => el.classList.add('hidden'));
   }
 }
+
+function toggleMobileMenu() {
+  const menu = document.getElementById('mobile-navigation');
+  const backdrop = document.getElementById('mobile-navigation-backdrop');
+  const button = document.querySelector('.mobile-menu-toggle');
+  if (!menu || !backdrop || !button) return;
+
+  const open = !menu.classList.contains('open');
+  menu.classList.toggle('open', open);
+  backdrop.classList.toggle('open', open);
+  document.body.classList.toggle('mobile-menu-open', open);
+  menu.setAttribute('aria-hidden', String(!open));
+  button.setAttribute('aria-expanded', String(open));
+  button.setAttribute('aria-label', open ? 'Cerrar menú de navegación' : 'Abrir menú de navegación');
+}
+
+function cerrarMobileMenu() {
+  const menu = document.getElementById('mobile-navigation');
+  const backdrop = document.getElementById('mobile-navigation-backdrop');
+  const button = document.querySelector('.mobile-menu-toggle');
+  if (!menu || !backdrop || !button) return;
+
+  menu.classList.remove('open');
+  backdrop.classList.remove('open');
+  document.body.classList.remove('mobile-menu-open');
+  menu.setAttribute('aria-hidden', 'true');
+  button.setAttribute('aria-expanded', 'false');
+  button.setAttribute('aria-label', 'Abrir menú de navegación');
+}
+
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape') cerrarMobileMenu();
+});
 
 function mostrarMensajeModal(elId, texto, esError) {
   const el = document.getElementById(elId);

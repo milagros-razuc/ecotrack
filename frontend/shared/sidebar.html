@@ -60,6 +60,52 @@
   </div>
 </aside>
 
+<!-- Navegación móvil -->
+<button
+  type="button"
+  class="mobile-menu-toggle"
+  onclick="toggleMobileMenu()"
+  aria-label="Abrir menú de navegación"
+  aria-controls="mobile-navigation"
+  aria-expanded="false">
+  <span class="material-symbols-outlined">menu</span>
+</button>
+<div id="mobile-navigation-backdrop" class="mobile-navigation-backdrop" onclick="cerrarMobileMenu()" aria-hidden="true"></div>
+<aside id="mobile-navigation" class="mobile-navigation" aria-label="Navegación principal" aria-hidden="true">
+  <div class="flex items-center justify-between px-4 py-4 border-b border-outline-variant">
+    <img src="ecotrack-logo.png" alt="EcoTrack Logo" class="w-36 h-auto"/>
+    <button type="button" class="p-2 text-on-surface-variant rounded-lg hover:bg-surface-container-highest" onclick="cerrarMobileMenu()" aria-label="Cerrar menú de navegación">
+      <span class="material-symbols-outlined">close</span>
+    </button>
+  </div>
+  <nav class="flex-1 py-3 space-y-1">
+    <a data-page="index" class="mobile-navigation-link" href="index.html">
+      <span class="material-symbols-outlined">monitoring</span>
+      <span class="font-label-bold text-label-bold">Monitoreo</span>
+    </a>
+    <a data-page="historico" class="mobile-navigation-link" href="historico.html">
+      <span class="material-symbols-outlined">history</span>
+      <span class="font-label-bold text-label-bold">Histórico</span>
+    </a>
+    <a data-page="configuracion" class="mobile-navigation-link" href="configuracion.html">
+      <span class="material-symbols-outlined">settings</span>
+      <span class="font-label-bold text-label-bold">Configuración</span>
+    </a>
+    <a data-page="auditor" class="mobile-navigation-link" href="auditor.html">
+      <span class="material-symbols-outlined">assignment</span>
+      <span class="font-label-bold text-label-bold">Auditoría</span>
+    </a>
+    <a data-page="usuarios" data-admin-only class="mobile-navigation-link" href="usuarios.html">
+      <span class="material-symbols-outlined">group</span>
+      <span class="font-label-bold text-label-bold">Usuarios</span>
+    </a>
+    <a data-page="api-keys" data-admin-only class="mobile-navigation-link" href="api-keys.html">
+      <span class="material-symbols-outlined">vpn_key</span>
+      <span class="font-label-bold text-label-bold">API Pública</span>
+    </a>
+  </nav>
+</aside>
+
 <!-- Pop-up de alerta en tiempo real (RF10, RI05) -->
 <!-- top-24 (96px) para quedar debajo del header (h-16 = 64px) en vez de superponerse.
      El estado oculto se fija acá con style inline (no solo en common.css) para que
@@ -78,8 +124,8 @@
 </div>
 
 <!-- Modal "Mi perfil" -->
-<div id="modal-perfil" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-  <div class="bg-white rounded p-stack-lg w-full max-w-sm mx-4 flex flex-col gap-stack-md">
+<div id="modal-perfil" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+  <div class="bg-surface rounded p-stack-lg w-full max-w-sm mx-4 flex flex-col gap-stack-md max-h-[90vh] overflow-y-auto">
     <h3 class="font-headline-md text-on-secondary-container">Mi perfil</h3>
     <div id="perfil-contenido" class="flex flex-col gap-3 text-body-sm">
       <p class="text-on-surface-variant">Cargando...</p>
@@ -92,8 +138,8 @@
 </div>
 
 <!-- Modal "Cambiar contraseña" -->
-<div id="modal-password" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-  <div class="bg-white rounded p-stack-lg w-full max-w-sm mx-4 flex flex-col gap-stack-md">
+<div id="modal-password" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+  <div class="bg-surface rounded p-stack-lg w-full max-w-sm mx-4 flex flex-col gap-stack-md max-h-[90vh] overflow-y-auto">
     <h3 class="font-headline-md text-on-secondary-container">Cambiar contraseña</h3>
     <div class="flex flex-col gap-1">
       <label class="text-label-bold text-on-surface-variant uppercase">Contraseña actual</label>

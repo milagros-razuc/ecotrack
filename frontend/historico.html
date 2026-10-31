@@ -10,9 +10,8 @@
 <script src="shared/tailwind-config.js"></script>
 <link href="shared/common.css" rel="stylesheet"/>
 <style>
-  .btn-periodo.active{background:#006d36;color:#fff;border-color:#006d36;}
-  .dark .btn-periodo.active{background:#4ade80!important;color:#052e16!important;border-color:#4ade80!important;}
-  .filtro-fecha:focus,.filtro-select:focus{border-color:#006d36;box-shadow:0 0 0 2px rgba(0,109,54,.10);}
+  .btn-periodo.active{background:var(--color-primary);color:var(--color-primary-contrast);border-color:var(--color-primary);}
+  .filtro-fecha:focus,.filtro-select:focus{border-color:var(--color-primary);box-shadow:0 0 0 2px var(--color-primary-fill);}
 </style>
 </head>
 <body class="bg-background font-body-md text-on-background flex h-screen overflow-hidden" data-page="historico">
@@ -227,35 +226,64 @@ function cambiarPaginaRegistros(delta) {
 }
 
 function initCharts() {
+  const colors = coloresTema();
   const base = {
     responsive: true,
     maintainAspectRatio: true,
-    plugins: { legend: { display: false } },
+    plugins: {
+      legend: { display: false },
+      tooltip: { backgroundColor: colors.surface, titleColor: colors.text, bodyColor: colors.text, borderColor: colors.border, borderWidth: 1 }
+    },
     interaction: { mode: 'index', intersect: false },
     scales: {
-      x: { grid: { display: false }, ticks: { maxTicksLimit: 8, font: { size: 11 } } },
-      y: { beginAtZero: false, grid: { color: 'rgba(0,0,0,.06)' }, ticks: { font: { size: 11 } } }
+      x: { grid: { display: false, color: colors.grid }, ticks: { color: colors.mutedText, maxTicksLimit: 8, font: { size: 11 } } },
+      y: { beginAtZero: false, grid: { color: colors.grid }, ticks: { color: colors.mutedText, font: { size: 11 } } }
     }
   };
 
   chartTemp = new Chart(document.getElementById('chart-temp').getContext('2d'), {
     type: 'line',
-    data: { labels: [], datasets: [{ label: 'Temperatura (°C)', data: [], borderColor: '#006d36', backgroundColor: 'rgba(0,109,54,0.08)', tension: 0.35, pointRadius: 2, pointHoverRadius: 4, fill: true }] },
+    data: { labels: [], datasets: [{ label: 'Temperatura (°C)', data: [], borderColor: colors.primary, backgroundColor: colors.primaryFill, tension: 0.35, pointRadius: 2, pointHoverRadius: 4, fill: true }] },
     options: base
   });
 
   chartHum = new Chart(document.getElementById('chart-hum').getContext('2d'), {
     type: 'bar',
-    data: { labels: [], datasets: [{ label: 'Humedad (%)', data: [], backgroundColor: '#4b53bc', borderRadius: 3, maxBarThickness: 32 }] },
+    data: { labels: [], datasets: [{ label: 'Humedad (%)', data: [], backgroundColor: colors.secondary, borderRadius: 3, maxBarThickness: 32 }] },
     options: base
   });
 
   chartLux = new Chart(document.getElementById('chart-lux').getContext('2d'), {
     type: 'line',
-    data: { labels: [], datasets: [{ label: 'Luminosidad (%)', data: [], borderColor: '#5d5f5f', backgroundColor: 'rgba(93,95,95,0.06)', tension: 0.35, pointRadius: 2, pointHoverRadius: 4, fill: true }] },
+    data: { labels: [], datasets: [{ label: 'Luminosidad (%)', data: [], borderColor: colors.tertiary, backgroundColor: colors.tertiaryFill, tension: 0.35, pointRadius: 2, pointHoverRadius: 4, fill: true }] },
     options: base
   });
 }
+
+function actualizarColoresGraficos() {
+  if (!chartTemp || !chartHum || !chartLux) return;
+  const colors = coloresTema();
+  [chartTemp, chartHum, chartLux].forEach(chart => {
+    chart.options.scales.x.ticks.color = colors.mutedText;
+    chart.options.scales.y.ticks.color = colors.mutedText;
+    chart.options.scales.x.grid.color = colors.grid;
+    chart.options.scales.y.grid.color = colors.grid;
+  });
+  chartTemp.data.datasets[0].borderColor = colors.primary;
+  chartTemp.data.datasets[0].backgroundColor = colors.primaryFill;
+  chartHum.data.datasets[0].backgroundColor = colors.secondary;
+  chartLux.data.datasets[0].borderColor = colors.tertiary;
+  chartLux.data.datasets[0].backgroundColor = colors.tertiaryFill;
+  [chartTemp, chartHum, chartLux].forEach(chart => {
+    chart.options.plugins.tooltip.backgroundColor = colors.surface;
+    chart.options.plugins.tooltip.titleColor = colors.text;
+    chart.options.plugins.tooltip.bodyColor = colors.text;
+    chart.options.plugins.tooltip.borderColor = colors.border;
+  });
+  [chartTemp, chartHum, chartLux].forEach(chart => chart.update('none'));
+}
+
+window.addEventListener('ecotrack:theme-change', actualizarColoresGraficos);
 
 async function cargarDispositivos() {
   const res = await fetch(`${API}/api/dispositivos`, { headers: { Authorization: token } });

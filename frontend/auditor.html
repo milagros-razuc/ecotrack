@@ -10,8 +10,7 @@
 <script src="shared/tailwind-config.js"></script>
 <link href="shared/common.css" rel="stylesheet"/>
 <style>
-.tab-auditor.active{background:#eae7e7;font-weight:700;}
-.dark .tab-auditor.active{background:#333!important;}
+.tab-auditor.active{background:var(--color-surface-high);font-weight:700;}
 </style>
 </head>
 <body class="bg-background font-body-md text-on-background flex h-screen overflow-hidden" data-page="auditor">
@@ -19,17 +18,35 @@
 <!-- Sidebar (inyectado por shared/app.js) -->
 <div id="sidebar-placeholder"></div>
 
-<!-- Modal "Gestionar alerta" (comentario) -->
+<!-- Modal para una única transición de estado -->
 <div id="modal-gestionar" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40">
   <div class="bg-white rounded p-stack-lg w-full max-w-md mx-4 flex flex-col gap-stack-md">
     <h3 id="modal-gestionar-titulo" class="font-headline-md text-on-secondary-container">Gestionar alerta</h3>
     <div class="flex flex-col gap-1">
-      <label class="text-label-bold text-on-surface-variant uppercase">Comentario (opcional)</label>
-      <textarea id="modal-gestionar-comentario" rows="3" maxlength="500" class="px-3 py-2 border border-outline-variant rounded-lg text-body-sm outline-none focus:border-primary resize-none" placeholder="Ej: se ajustó la ventilación del invernadero"></textarea>
+      <label id="modal-gestionar-comentario-label" for="modal-gestionar-comentario" class="text-label-bold text-on-surface-variant uppercase">¿Qué se hizo?</label>
+      <textarea id="modal-gestionar-comentario" rows="3" minlength="3" maxlength="500" required class="px-3 py-2 border border-outline-variant rounded-lg text-body-sm outline-none focus:border-primary resize-none" placeholder="Escribí al menos 3 caracteres"></textarea>
+      <p id="modal-gestionar-ultima-nota" class="hidden text-label text-on-surface-variant"></p>
+      <p id="modal-gestionar-error" class="hidden text-body-sm text-error"></p>
     </div>
     <div class="flex justify-end gap-2">
       <button onclick="cerrarModalGestionar()" class="px-4 py-2 text-on-surface-variant font-label-bold text-label-bold uppercase rounded hover:bg-surface-container-low transition-all">Cancelar</button>
-      <button onclick="confirmarGestion()" class="px-4 py-2 bg-primary text-on-primary font-label-bold text-label-bold uppercase rounded hover:opacity-90 transition-all">Confirmar</button>
+      <button id="modal-gestionar-confirmar" onclick="confirmarGestion()" disabled class="px-4 py-2 bg-primary text-on-primary font-label-bold text-label-bold uppercase rounded hover:opacity-90 transition-all disabled:opacity-40 disabled:cursor-not-allowed">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de historial de acciones, solo lectura -->
+<div id="modal-historial-alerta" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-labelledby="modal-historial-titulo">
+  <div class="bg-surface rounded p-stack-lg w-full max-w-2xl mx-4 flex flex-col gap-stack-md max-h-[90vh] overflow-y-auto">
+    <div class="flex items-center justify-between gap-3">
+      <h3 id="modal-historial-titulo" class="font-headline-md text-on-secondary-container">Historial de alerta</h3>
+      <button type="button" onclick="cerrarHistorialAlerta()" class="p-2 text-on-surface-variant rounded-lg hover:bg-surface-container-highest" aria-label="Cerrar historial">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+    <p id="historial-alerta-error" class="hidden text-error text-body-sm"></p>
+    <div id="historial-alerta-contenido" class="text-body-sm">
+      <p class="text-on-surface-variant">Cargando...</p>
     </div>
   </div>
 </div>
@@ -88,11 +105,12 @@
                   <th class="px-6 py-4">Valor</th>
                   <th class="px-6 py-4">Umbral</th>
                   <th class="px-6 py-4">Estado</th>
+                  <th class="px-6 py-4">Última acción</th>
                   <th class="px-6 py-4 text-center">Acción</th>
                 </tr>
               </thead>
               <tbody id="tabla-alertas" class="text-body-sm">
-                <tr><td colspan="7" class="px-6 py-4 text-center text-on-surface-variant">Cargando...</td></tr>
+                <tr><td colspan="8" class="px-6 py-4 text-center text-on-surface-variant">Cargando...</td></tr>
               </tbody>
             </table>
           </div>
@@ -208,12 +226,30 @@ function cambiarTab(tab) {
 }
 
 function initChart() {
+  const colors = coloresTema();
   chartDistribucion = new Chart(document.getElementById('chart-distribucion').getContext('2d'), {
     type: 'bar',
-    data: { labels: [], datasets: [{ label: 'Alertas', data: [], backgroundColor: '#4b53bc' }] },
-    options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+    data: { labels: [], datasets: [{ label: 'Alertas', data: [], backgroundColor: colors.secondary }] },
+    options: { responsive: true, plugins: { legend: { display: false }, tooltip: { backgroundColor: colors.surface, titleColor: colors.text, bodyColor: colors.text, borderColor: colors.border, borderWidth: 1 } }, scales: { x: { ticks: { color: colors.mutedText }, grid: { color: colors.grid } }, y: { beginAtZero: true, ticks: { stepSize: 1, color: colors.mutedText }, grid: { color: colors.grid } } } }
   });
 }
+
+function actualizarColoresGrafico() {
+  if (!chartDistribucion) return;
+  const colors = coloresTema();
+  chartDistribucion.data.datasets[0].backgroundColor = colors.secondary;
+  chartDistribucion.options.scales.x.ticks.color = colors.mutedText;
+  chartDistribucion.options.scales.y.ticks.color = colors.mutedText;
+  chartDistribucion.options.scales.x.grid.color = colors.grid;
+  chartDistribucion.options.scales.y.grid.color = colors.grid;
+  chartDistribucion.options.plugins.tooltip.backgroundColor = colors.surface;
+  chartDistribucion.options.plugins.tooltip.titleColor = colors.text;
+  chartDistribucion.options.plugins.tooltip.bodyColor = colors.text;
+  chartDistribucion.options.plugins.tooltip.borderColor = colors.border;
+  chartDistribucion.update('none');
+}
+
+window.addEventListener('ecotrack:theme-change', actualizarColoresGrafico);
 
 async function cargarDispositivos() {
   const res = await fetch(`${API}/api/dispositivos`, { headers: { Authorization: token } });
@@ -276,12 +312,22 @@ async function cargarAlertas() {
         ${badgeEstado(a.estado)}
         ${a.comentario ? `<span class="material-symbols-outlined text-[16px] text-on-surface-variant align-middle ml-1 cursor-help" title="${a.comentario.replace(/"/g, '&quot;')}">comment</span>` : ''}
       </td>
-      <td class="px-6 py-4 text-center">
-        <button onclick='abrirModalGestionar(${a.id}, "${a.estado}", ${JSON.stringify(a.comentario || '')})' class="text-primary hover:underline font-label-bold uppercase text-[12px]">
-          ${a.estado === 'atendida' ? 'Reabrir' : 'Gestionar'}
-        </button>
+      <td class="px-6 py-4 text-on-surface-variant">
+        ${a.ultima_accion_fecha
+          ? `${escaparHtml(a.ultima_accion_usuario || 'sistema')}<br><span class="text-label">${escaparHtml(new Date(a.ultima_accion_fecha).toLocaleString('es-AR'))}</span>`
+          : '—'}
       </td>
-      </tr>`).join('') || '<tr><td colspan="7" class="px-6 py-4 text-center text-on-surface-variant">Sin alertas registradas</td></tr>';
+      <td class="px-6 py-4 text-center">
+        <div class="flex flex-col items-center gap-1">
+          <button onclick='abrirModalGestionar(${a.id}, "${a.estado}")' class="text-primary hover:underline font-label-bold uppercase text-[12px]">
+            ${a.estado === 'atendida' ? 'Reabrir' : 'Gestionar'}
+          </button>
+          <button onclick="abrirHistorialAlerta(${a.id})" class="text-on-surface-variant hover:underline font-label-bold uppercase text-[12px]">
+            Historial
+          </button>
+        </div>
+      </td>
+      </tr>`).join('') || '<tr><td colspan="8" class="px-6 py-4 text-center text-on-surface-variant">Sin alertas registradas</td></tr>';
 
     document.getElementById('info-paginacion').textContent =
       `Mostrando ${resultado.data.length ? (resultado.pagina - 1) * resultado.limite + 1 : 0}-${(resultado.pagina - 1) * resultado.limite + resultado.data.length} de ${resultado.total} alertas`;
@@ -290,12 +336,95 @@ async function cargarAlertas() {
   } catch (error) {
     console.error('Error cargando alertas:', error);
     document.getElementById('tabla-alertas').innerHTML =
-      '<tr><td colspan="7" class="px-6 py-4 text-center text-error">No se pudieron cargar las alertas.</td></tr>';
+      '<tr><td colspan="8" class="px-6 py-4 text-center text-error">No se pudieron cargar las alertas.</td></tr>';
   }
 }
 
 window.addEventListener('ecotrack:alerta', () => {
   cargarAlertas();
+});
+
+let historialAlertaId = null;
+
+function escaparHtml(valor) {
+  return String(valor ?? '').replace(/[&<>"']/g, caracter => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  }[caracter]));
+}
+
+function etiquetaAccion(accion) {
+  return {
+    generar_alerta: 'Generación',
+    marcar_atendida: 'Marcada como atendida',
+    reabrir_alerta: 'Reabierta',
+  }[accion] || accion;
+}
+
+function renderizarHistorialAcciones(acciones) {
+  if (!acciones.length) {
+    return '<p class="text-on-surface-variant">No hay acciones históricas registradas para esta alerta.</p>';
+  }
+  return `<ol class="relative border-l border-outline-variant ml-2 space-y-4">
+    ${acciones.map(accion => `
+      <li class="ml-5">
+        <span class="absolute -left-2 mt-1.5 w-4 h-4 rounded-full bg-primary border-2 border-surface"></span>
+        <p class="font-label-bold text-on-surface">${escaparHtml(etiquetaAccion(accion.accion))}</p>
+        <p class="text-label-bold text-on-surface-variant">${escaparHtml(new Date(accion.timestamp).toLocaleString('es-AR'))} · ${escaparHtml(accion.usuario_username || '—')}</p>
+        <p class="text-on-surface-variant mt-1">${escaparHtml(accion.detalle || 'Sin nota')}</p>
+      </li>`).join('')}
+  </ol>`;
+}
+
+async function abrirHistorialAlerta(id) {
+  historialAlertaId = id;
+  document.getElementById('modal-historial-alerta').classList.remove('hidden');
+  document.getElementById('historial-alerta-error').classList.add('hidden');
+  document.getElementById('historial-alerta-contenido').innerHTML =
+    '<p class="text-on-surface-variant">Cargando...</p>';
+  await cargarHistorialAlerta();
+}
+
+function cerrarHistorialAlerta() {
+  historialAlertaId = null;
+  document.getElementById('modal-historial-alerta').classList.add('hidden');
+}
+
+async function cargarHistorialAlerta() {
+  if (historialAlertaId === null) return;
+  try {
+    const res = await fetch(`${API}/api/alertas/${historialAlertaId}/historial`, {
+      headers: { Authorization: token },
+    });
+    if (res.status === 401) return manejarNoAutorizado();
+    if (res.status === 404) throw new Error('No se encontró la alerta o no pertenece a tu cliente');
+    if (!res.ok) throw new Error('No se pudo cargar el historial');
+    const resultado = await res.json();
+    document.getElementById('historial-alerta-contenido').innerHTML =
+      renderizarHistorialAcciones(resultado.data || []);
+  } catch (error) {
+    console.error('Error cargando historial de alerta:', error);
+    const mensaje = document.getElementById('historial-alerta-error');
+    mensaje.textContent = error.message;
+    mensaje.classList.remove('hidden');
+    document.getElementById('historial-alerta-contenido').innerHTML = '';
+  }
+}
+
+window.addEventListener('ecotrack:alerta-accion', event => {
+  if (historialAlertaId === event.detail?.alerta_id) {
+    cargarHistorialAlerta();
+  }
+  if (actividadCargadaUnaVez) {
+    cargarActividad();
+  }
+});
+
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && historialAlertaId !== null) cerrarHistorialAlerta();
 });
 
 // Modal "Gestionar"
@@ -304,29 +433,60 @@ function abrirModalGestionar(id, estadoActual, comentarioActual) {
   const pasaA = estadoActual === 'atendida' ? 'pendiente' : 'atendida';
   document.getElementById('modal-gestionar-titulo').textContent =
     pasaA === 'atendida' ? 'Marcar alerta como atendida' : 'Reabrir alerta';
-  document.getElementById('modal-gestionar-comentario').value = comentarioActual || '';
+  document.getElementById('modal-gestionar-comentario-label').textContent =
+    pasaA === 'atendida' ? '¿Qué se hizo?' : '¿Por qué se reabre?';
+  document.getElementById('modal-gestionar-comentario').value = '';
+  document.getElementById('modal-gestionar-error').classList.add('hidden');
+  document.getElementById('modal-gestionar-ultima-nota').classList.add('hidden');
+  actualizarValidezComentario();
   document.getElementById('modal-gestionar').classList.remove('hidden');
 }
 
 function cerrarModalGestionar() {
   alertaEnGestion = null;
+  document.getElementById('modal-gestionar-comentario').value = '';
+  document.getElementById('modal-gestionar-error').classList.add('hidden');
+  document.getElementById('modal-gestionar-confirmar').disabled = true;
   document.getElementById('modal-gestionar').classList.add('hidden');
+}
+
+function actualizarValidezComentario() {
+  const comentario = document.getElementById('modal-gestionar-comentario').value.trim();
+  document.getElementById('modal-gestionar-confirmar').disabled =
+    comentario.length < 3 || comentario.length > 500;
 }
 
 async function confirmarGestion() {
   if (!alertaEnGestion) return;
   const nuevoEstado = alertaEnGestion.estadoActual === 'atendida' ? 'pendiente' : 'atendida';
   const comentario = document.getElementById('modal-gestionar-comentario').value.trim();
+  if (comentario.length < 3 || comentario.length > 500) return;
 
-  const res = await fetch(`${API}/api/alertas/${alertaEnGestion.id}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', Authorization: token },
-    body: JSON.stringify({ estado: nuevoEstado, comentario }),
-  });
-  if (res.status === 401) return manejarNoAutorizado();
-  cerrarModalGestionar();
-  cargarAlertas();
+  try {
+    const res = await fetch(`${API}/api/alertas/${alertaEnGestion.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: token },
+      body: JSON.stringify({ estado: nuevoEstado, comentario }),
+    });
+    if (res.status === 401) return manejarNoAutorizado();
+    if (!res.ok) {
+      const resultado = await res.json().catch(() => ({}));
+      throw new Error(resultado.error || 'No se pudo actualizar la alerta');
+    }
+    cerrarModalGestionar();
+    cargarAlertas();
+    if (actividadCargadaUnaVez) cargarActividad();
+  } catch (error) {
+    console.error('Error actualizando alerta:', error);
+    document.getElementById('modal-gestionar-comentario').value = '';
+    document.getElementById('modal-gestionar-error').textContent = error.message;
+    document.getElementById('modal-gestionar-error').classList.remove('hidden');
+    actualizarValidezComentario();
+  }
 }
+
+document.getElementById('modal-gestionar-comentario')
+  .addEventListener('input', actualizarValidezComentario);
 
 async function cargarDistribucion() {
   const dispositivo = document.getElementById('filtro-dispositivo').value;
@@ -377,40 +537,53 @@ function cambiarPaginaActividad(delta) {
 }
 
 async function cargarActividad() {
-  const h = { Authorization: token };
-  const entidad = document.getElementById('act-filtro-entidad').value.trim();
-  const accion = document.getElementById('act-filtro-accion').value.trim();
-  const fechaDesde = document.getElementById('act-filtro-desde').value;
-  const fechaHasta = document.getElementById('act-filtro-hasta').value;
+  try {
+    const h = { Authorization: token };
+    const entidad = document.getElementById('act-filtro-entidad').value.trim();
+    const accion = document.getElementById('act-filtro-accion').value.trim();
+    const fechaDesde = document.getElementById('act-filtro-desde').value;
+    const fechaHasta = document.getElementById('act-filtro-hasta').value;
 
-  const params = new URLSearchParams({ pagina: actPaginaActual, limite: LIMITE });
-  if (entidad) params.set('entidad', entidad);
-  if (accion) params.set('accion', accion);
-  if (fechaDesde) params.set('fechaDesde', fechaDesde);
-  if (fechaHasta) params.set('fechaHasta', fechaHasta);
+    const params = new URLSearchParams({ pagina: actPaginaActual, limite: LIMITE });
+    if (entidad) params.set('entidad', entidad);
+    if (accion) params.set('accion', accion);
+    if (fechaDesde) params.set('fechaDesde', fechaDesde);
+    if (fechaHasta) params.set('fechaHasta', fechaHasta);
 
-  const res = await fetch(`${API}/api/auditoria?${params}`, { headers: h });
-  if (res.status === 401) return manejarNoAutorizado();
-  if (res.status === 403) {
-    document.getElementById('tabla-actividad').innerHTML =
-      '<tr><td colspan="5" class="px-6 py-4 text-center text-error">No tenés permisos para ver esta sección</td></tr>';
-    return;
-  }
-  const resultado = await res.json();
+    const res = await fetch(`${API}/api/auditoria?${params}`, { headers: h });
+    if (res.status === 401) return manejarNoAutorizado();
+    if (res.status === 403) {
+      document.getElementById('tabla-actividad').innerHTML =
+        '<tr><td colspan="5" class="px-6 py-4 text-center text-error">No tenés permisos para ver esta sección</td></tr>';
+      return;
+    }
+    if (!res.ok) throw new Error('No se pudo cargar el registro de actividad');
+    const resultado = await res.json();
 
-  document.getElementById('tabla-actividad').innerHTML = resultado.data.map(a => `
-    <tr class="bg-white border-b border-outline-variant hover:bg-primary-container/10 transition-colors">
-      <td class="px-6 py-4 text-on-surface-variant whitespace-nowrap">${new Date(a.timestamp).toLocaleString('es-AR')}</td>
-      <td class="px-6 py-4 font-bold text-on-surface">${a.usuario_username || '—'}</td>
-      <td class="px-6 py-4 capitalize">${a.accion}</td>
-      <td class="px-6 py-4 capitalize">${a.entidad}${a.entidad_id ? ` <span class="text-on-surface-variant font-normal">(${a.entidad_id})</span>` : ''}</td>
-      <td class="px-6 py-4 text-on-surface-variant">${a.detalle || '—'}</td>
+    document.getElementById('tabla-actividad').innerHTML = resultado.data.map(a => `
+  <tr data-row-key="${escaparHtml(`${a.origen}:${a.id}`)}" class="bg-white border-b border-outline-variant hover:bg-primary-container/10 transition-colors">
+      <td class="px-6 py-4 text-on-surface-variant whitespace-nowrap">${escaparHtml(new Date(a.timestamp).toLocaleString('es-AR'))}</td>
+      <td class="px-6 py-4 font-bold text-on-surface">${escaparHtml(a.usuario_username || '—')}</td>
+      <td class="px-6 py-4 capitalize">${escaparHtml(a.accion)}</td>
+      <td class="px-6 py-4 capitalize">
+        ${escaparHtml(a.entidad)}
+        ${a.entidad_id ? `<span class="text-on-surface-variant font-normal">(${escaparHtml(a.entidad_id)})</span>` : ''}
+        ${a.entidad === 'alerta' && a.entidad_id
+          ? `<button type="button" onclick="abrirHistorialAlerta(${Number(a.entidad_id)})" class="ml-2 text-primary hover:underline font-label-bold text-[12px]">Ver historial</button>`
+          : ''}
+      </td>
+      <td class="px-6 py-4 text-on-surface-variant">${escaparHtml(a.detalle || '—')}</td>
     </tr>`).join('') || '<tr><td colspan="5" class="px-6 py-4 text-center text-on-surface-variant">Sin actividad registrada</td></tr>';
 
-  document.getElementById('act-info-paginacion').textContent =
-    `Mostrando ${resultado.data.length ? (resultado.pagina - 1) * resultado.limite + 1 : 0}-${(resultado.pagina - 1) * resultado.limite + resultado.data.length} de ${resultado.total} registros`;
-  document.getElementById('act-btn-prev').disabled = resultado.pagina <= 1;
-  document.getElementById('act-btn-next').disabled = resultado.pagina >= resultado.totalPaginas;
+    document.getElementById('act-info-paginacion').textContent =
+      `Mostrando ${resultado.data.length ? (resultado.pagina - 1) * resultado.limite + 1 : 0}-${(resultado.pagina - 1) * resultado.limite + resultado.data.length} de ${resultado.total} registros`;
+    document.getElementById('act-btn-prev').disabled = resultado.pagina <= 1;
+    document.getElementById('act-btn-next').disabled = resultado.pagina >= resultado.totalPaginas;
+  } catch (error) {
+    console.error('Error cargando actividad:', error);
+    document.getElementById('tabla-actividad').innerHTML =
+      '<tr><td colspan="5" class="px-6 py-4 text-center text-error">No se pudo cargar el registro de actividad.</td></tr>';
+  }
 }
 
 // Init

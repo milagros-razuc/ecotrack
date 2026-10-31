@@ -19,6 +19,7 @@
         align-items: flex-end;
         gap: 12px;
         width: min(420px, calc(100vw - 32px));
+        max-width: calc(100vw - 32px);
         pointer-events: none;
       }
       #alerta-popup {
@@ -30,11 +31,11 @@
         gap: 12px;
         width: 100%;
         padding: 16px 42px 14px 14px;
-        background: #fff;
-        border-left: 8px solid #dc2626;
+        background: var(--color-surface, #fff);
+        border-left: 8px solid var(--color-error, #dc2626);
         border-radius: 8px;
         box-shadow: 0 12px 30px rgba(0, 0, 0, .28);
-        color: #1f2937;
+        color: var(--color-text, #1f2937);
         cursor: pointer;
         pointer-events: auto;
         transform: translateX(120%);
@@ -57,7 +58,7 @@
         width: 38px;
         height: 38px;
         border-radius: 50%;
-        background: #dc2626;
+        background: var(--color-error, #dc2626);
         color: #fff;
         font-size: 24px;
         font-weight: 800;
@@ -66,7 +67,7 @@
       }
       .alerta-visual-title {
         margin: 0 0 4px;
-        color: #b91c1c;
+        color: var(--color-error, #b91c1c);
         font-size: 14px;
         font-weight: 800;
         letter-spacing: .04em;
@@ -79,7 +80,7 @@
       }
       .alerta-visual-hint {
         margin: 6px 0 0;
-        color: #6b7280;
+        color: var(--color-muted-text, #6b7280);
         font-size: 11px;
       }
       .alerta-visual-close {
@@ -88,7 +89,7 @@
         right: 10px;
         border: 0;
         background: transparent;
-        color: #6b7280;
+        color: var(--color-muted-text, #6b7280);
         cursor: pointer;
         font-size: 20px;
         line-height: 1;
