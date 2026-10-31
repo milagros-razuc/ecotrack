@@ -250,6 +250,31 @@ async function inicializarDB() {
   `);
   // ────────────────────────────────────────────────────────────────────────
 
+  // ── Historial inmutable de acciones de alertas ─────────────────────────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS alerta_acciones (
+      id SERIAL PRIMARY KEY,
+      alerta_id INTEGER NOT NULL REFERENCES alertas(id) ON DELETE CASCADE,
+      cliente_id INTEGER NOT NULL REFERENCES clientes(id),
+      usuario_id INTEGER REFERENCES usuarios(id) ON DELETE SET NULL,
+      usuario_username VARCHAR(50),
+      accion VARCHAR(50) NOT NULL,
+      detalle TEXT,
+      timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      CONSTRAINT chk_alerta_acciones_accion
+        CHECK (accion IN ('generar_alerta', 'marcar_atendida', 'reabrir_alerta'))
+    )
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_alerta_acciones_cliente_alerta_fecha
+      ON alerta_acciones (cliente_id, alerta_id, timestamp ASC, id ASC)
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_alerta_acciones_cliente_fecha
+      ON alerta_acciones (cliente_id, timestamp DESC)
+  `);
+  // ────────────────────────────────────────────────────────────────────────
+
   // ── API pública (RF19/RI20) ──────────────────────────────────────────
   await pool.query(`
     CREATE TABLE IF NOT EXISTS api_keys (

@@ -15,7 +15,7 @@ async function evaluarUmbral(io, dispositivoCodigo, variable, valor, clienteId) 
 
   const fueraDeRango = valor < umbral.umbral_min || valor > umbral.umbral_max;
   if (fueraDeRango) {
-    const alerta = await alertasService.registrar({
+    const resultado = await alertasService.registrar({
       dispositivoCodigo,
       variable,
       valor,
@@ -25,7 +25,7 @@ async function evaluarUmbral(io, dispositivoCodigo, variable, valor, clienteId) 
 
     console.log(`Alerta: ${dispositivoCodigo} ${variable}=${valor} fuera de rango [${umbral.umbral_min}, ${umbral.umbral_max}]`);
 
-    if (clienteId === null || clienteId === undefined) return;
+    if (!resultado || clienteId === null || clienteId === undefined) return;
 
     io.to(clientRoom(clienteId)).emit('alerta', {
       dispositivoCodigo,

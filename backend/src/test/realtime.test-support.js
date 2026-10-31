@@ -122,6 +122,7 @@ async function seedDatabase(pool) {
 async function cleanupDatabase(pool, seed) {
   const deviceCodes = [seed.devices.a, seed.devices.b, seed.devices.unassigned];
   await pool.query('DELETE FROM lecturas WHERE dispositivo_codigo = ANY($1::text[])', [deviceCodes]);
+  // Las acciones se eliminan por ON DELETE CASCADE al borrar la alerta.
   await pool.query('DELETE FROM alertas WHERE dispositivo_codigo = ANY($1::text[])', [deviceCodes]);
   await pool.query('DELETE FROM umbrales WHERE dispositivo_codigo = ANY($1::text[])', [deviceCodes]);
   await pool.query('DELETE FROM dispositivos WHERE codigo = ANY($1::text[])', [deviceCodes]);

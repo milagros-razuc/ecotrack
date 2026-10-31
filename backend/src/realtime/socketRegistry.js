@@ -6,7 +6,7 @@ function userRoom(userId) {
   return `usuario:${userId}`;
 }
 
-function createSocketRegistry() {
+function createSocketRegistry(io) {
   const socketsByUser = new Map();
   const expiryTimers = new Map();
 
@@ -58,7 +58,11 @@ function createSocketRegistry() {
     }
   }
 
-  return { register, unregister, socketsForUser, hasExpiryTimer, disconnectUserSockets };
+  function emitToClient(clienteId, event, payload) {
+    io?.to(clientRoom(clienteId)).emit(event, payload);
+  }
+
+  return { register, unregister, socketsForUser, hasExpiryTimer, disconnectUserSockets, emitToClient };
 }
 
 let activeRegistry = null;

@@ -64,10 +64,10 @@ const umbralSchema = z.object({
 });
 
 // Para PATCH /api/alertas/:id (botón "Gestionar" de Auditoría)
-// comentario es opcional: permite dejar una nota al atender o reabrir (RF11).
+// Cada transición debe conservar una nota propia en el historial inmutable.
 const actualizarEstadoAlertaSchema = z.object({
   estado: z.enum(['pendiente', 'atendida']),
-  comentario: z.string().max(500).optional(),
+  comentario: z.string().trim().min(3).max(500),
 });
 
 // Para el mensaje MQTT entrante en ecotrack/<codigo>/lecturas (RF04/RNF03).

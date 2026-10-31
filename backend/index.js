@@ -16,7 +16,7 @@ function crearServidor({ iniciarMqtt = true } = {}) {
   const io = new Server(server, {
     cors: { origin: obtenerOrigenesPermitidos(), methods: ['GET', 'POST'] }
   });
-  const socketRegistry = createSocketRegistry();
+  const socketRegistry = createSocketRegistry(io);
   setActiveRegistry(socketRegistry);
 
   io.use(async (socket, next) => {

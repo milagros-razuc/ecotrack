@@ -54,14 +54,29 @@ async function listar({ clienteId, entidad, accion, pagina, limite, fechaDesde, 
   }
 
   const where = `WHERE ${condiciones.join(' AND ')}`;
+  const actividad = `
+    SELECT id, cliente_id, usuario_id, usuario_username, accion, entidad,
+           entidad_id, detalle, timestamp, 'auditoria'::varchar AS origen
+    FROM auditoria
+    WHERE accion <> 'cambiar_estado_alerta'
+    UNION ALL
+    SELECT id, cliente_id, usuario_id, usuario_username, accion, 'alerta'::varchar AS entidad,
+           alerta_id::varchar AS entidad_id, detalle, timestamp, 'alerta_acciones'::varchar AS origen
+    FROM alerta_acciones
+  `;
 
-  const totalResult = await pool.query(`SELECT COUNT(*) FROM auditoria ${where}`, params);
+  const totalResult = await pool.query(
+    `SELECT COUNT(*) FROM (${actividad}) actividad ${where}`,
+    params
+  );
   const total = parseInt(totalResult.rows[0].count, 10);
 
   const dataParams = [...params, limiteSeguro, offset];
   const dataResult = await pool.query(
-    `SELECT * FROM auditoria ${where}
-     ORDER BY timestamp DESC
+    `SELECT id, cliente_id, usuario_id, usuario_username, accion, entidad,
+            entidad_id, detalle, timestamp, origen
+     FROM (${actividad}) actividad ${where}
+     ORDER BY timestamp DESC, id DESC, origen DESC
      LIMIT $${dataParams.length - 1} OFFSET $${dataParams.length}`,
     dataParams
   );

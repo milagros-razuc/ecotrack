@@ -200,6 +200,29 @@ test('US1: las alertas llegan solo al cliente dueño del dispositivo', async () 
   }
 });
 
+test('US1: las acciones de alerta llegan solo al cliente histórico', async () => {
+  await seedTemperatureThreshold(fixture.seed.devices.a);
+  const clientASocket = connectWithToken(fixture.signToken(fixture.seed.users.a));
+  const clientBSocket = connectWithToken(fixture.signToken(fixture.seed.users.b));
+
+  try {
+    await connectAll(clientASocket, clientBSocket);
+    const clientAActions = record(clientASocket, 'alerta-accion');
+    const clientBActions = record(clientBSocket, 'alerta-accion');
+    await fixture.procesarMensaje(`ecotrack/${fixture.seed.devices.a}/lecturas`, reading(23.4));
+    await waitGrace();
+    clientAActions.stop();
+    clientBActions.stop();
+
+    assert.strictEqual(clientAActions.events.length, 1);
+    assert.strictEqual(clientBActions.events.length, 0);
+    assert.strictEqual(clientAActions.events[0].cliente_id, fixture.seed.clients.a.id);
+    assert.strictEqual(clientAActions.events[0].accion, 'generar_alerta');
+  } finally {
+    closeAll(clientASocket, clientBSocket);
+  }
+});
+
 test('US1: dos usuarios del mismo cliente reciben la misma alerta', async () => {
   await seedTemperatureThreshold(fixture.seed.devices.a);
   const firstSocket = connectWithToken(fixture.signToken(fixture.seed.users.a));

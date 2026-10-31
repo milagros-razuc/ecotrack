@@ -1,13 +1,63 @@
 const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
 
-// Login: máximo 5 intentos cada 15 min por IP.
-const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 5,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: 'Demasiados intentos de inicio de sesión. Probá de nuevo en unos minutos.' },
-});
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const LOGIN_LIMIT_MESSAGE = {
+  error: 'Demasiados intentos. Probá de nuevo en unos minutos.',
+};
+
+function createLoginRateLimiter(options) {
+  return rateLimit({
+    windowMs: LOGIN_WINDOW_MS,
+    standardHeaders: true,
+    legacyHeaders: false,
+    skipSuccessfulRequests: true,
+    message: LOGIN_LIMIT_MESSAGE,
+    ...options,
+  });
+}
+
+function normalizarUsername(username) {
+  return username.trim().toLowerCase();
+}
+
+function createLoginLimiter() {
+  // La instancia única mantiene los contadores en memoria: no es consistente
+  // entre múltiples procesos o réplicas del backend.
+  const porIpYUsuario = createLoginRateLimiter({
+    max: 5,
+    keyGenerator: (req) => JSON.stringify([
+      ipKeyGenerator(req.ip),
+      normalizarUsername(req.body.username),
+    ]),
+  });
+  const porIp = createLoginRateLimiter({
+    max: 30,
+    keyGenerator: (req) => ipKeyGenerator(req.ip),
+  });
+  const porUsuario = createLoginRateLimiter({
+    max: 20,
+    keyGenerator: (req) => normalizarUsername(req.body.username),
+  });
+
+  return (req, res, next) => {
+    const tieneUsername = typeof req.body?.username === 'string';
+    const limiters = tieneUsername
+      ? [porIpYUsuario, porIp, porUsuario]
+      : [porIp];
+
+    let indice = 0;
+    const ejecutarSiguiente = (error) => {
+      if (error) return next(error);
+      const limiter = limiters[indice++];
+      if (!limiter) return next();
+      limiter(req, res, ejecutarSiguiente);
+    };
+
+    ejecutarSiguiente();
+  };
+}
+
+const loginLimiter = createLoginLimiter();
 
 // API pública — primera capa: límite duro por IP, corre ANTES de resolver
 // la clave. Cuenta todo el tráfico entrante sin importar si la clave es
@@ -33,4 +83,9 @@ const apiPublicaPorClave = rateLimit({
   message: { error: 'Límite de solicitudes excedido.' },
 });
 
-module.exports = { loginLimiter, apiPublicaPorIp, apiPublicaPorClave };
+module.exports = {
+  loginLimiter,
+  createLoginLimiter,
+  apiPublicaPorIp,
+  apiPublicaPorClave,
+};

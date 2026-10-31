@@ -8,6 +8,8 @@ const router = express.Router();
 // que usuarios.js
 router.use(verificarRol('admin'));
 
+// El listado unifica auditoría administrativa y acciones de alertas, siempre
+// limitado al cliente resuelto por el token.
 router.get('/', async (req, res, next) => {
   try {
     const { entidad, accion, pagina, limite, fechaDesde, fechaHasta } = req.query;
