@@ -13,3 +13,8 @@ mosquitto/config/passwd.test
 codigo-esp32-mosquitto/certs/*.key
 respaldo_*.sql
 convertir_lecturas_*.sql
+
+salida.txt
+demo.ps1
+backup_demo.sql
+*.bak

@@ -276,9 +276,12 @@ el payload no cambian sin versionarse, porque hay firmware desplegado. El listen
 cifrado en `1883` permanece cerrado. Backend y clientes que ya soporten TLS deben validar
 el certificado del broker contra el CA configurado y el nombre incluido en el SAN.
 
-**Rate limiting (4.6.7 de la tesis):** login con máximo 5 intentos cada 15 minutos por
-IP; API pública con máximo 100 solicitudes cada 5 minutos por clave (o por IP si no hay
-clave).
+**Rate limiting (4.6.7 de la tesis):** login con tres límites encadenados cada 15 minutos:
+5 intentos por combinación de IP y username normalizado, 30 por IP y 20 por username
+normalizado; los logins exitosos no cuentan y cualquier límite superado responde 429 con
+un mensaje genérico. Si el username no es un string, se aplica solo el límite por IP.
+La API pública conserva el máximo de 100 solicitudes cada 5 minutos por clave y 300 por
+IP.
 
 ---
 
