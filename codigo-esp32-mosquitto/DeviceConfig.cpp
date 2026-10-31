@@ -3,8 +3,6 @@
 #include <ctype.h>
 #include <Preferences.h>
 
-#include "esp32Secret.h"
-
 namespace {
 constexpr char kNamespace[] = "ecotrack";
 
@@ -34,8 +32,34 @@ bool validHost(const String& host) {
 }  // namespace
 
 DeviceConfig defaultConfig() {
-  return {SECRET_SSID, SECRET_PASS, SECRET_MQTT_HOST, SECRET_DEVICE_ID,
-          SECRET_MQTT_USER, SECRET_MQTT_PASS};
+  return {};
+}
+
+bool loadFactoryIdentity(DeviceConfig& config, String& error) {
+  Preferences prefs;
+  if (!prefs.begin(kNamespace, true)) {
+    error = "No se pudo abrir la identidad de fabrica";
+    return false;
+  }
+  const bool ready = prefs.getBool("factoryReady", false);
+  config.deviceId = prefs.getString("deviceId", "");
+  config.softApPassword = prefs.getString("softApPass", "");
+  config.setupPin = prefs.getString("setupPin", "");
+  config.serverHost = prefs.getString("serverHost", "");
+  config.deviceSecret = prefs.getString("deviceSecret", "");
+  prefs.end();
+
+  bool validPin = config.setupPin.length() == 6;
+  for (size_t i = 0; validPin && i < config.setupPin.length(); ++i) {
+    validPin = isdigit(static_cast<unsigned char>(config.setupPin[i]));
+  }
+  if (!ready || config.deviceId.isEmpty() || !validPin ||
+      !validHost(config.serverHost) || config.deviceSecret.isEmpty()) {
+    error = "Identidad de fabrica incompleta";
+    return false;
+  }
+  error = "";
+  return true;
 }
 
 bool loadSavedConfig(DeviceConfig& config) {
@@ -45,10 +69,11 @@ bool loadSavedConfig(DeviceConfig& config) {
   if (saved) {
     config.ssid = prefs.getString("ssid", "");
     config.wifiPassword = prefs.getString("wifiPass", "");
+#ifdef ECOTRACK_DEV_PORTAL
     config.mqttHost = prefs.getString("mqttHost", "");
-    config.deviceId = prefs.getString("deviceId", "");
     config.mqttUser = prefs.getString("mqttUser", "");
     config.mqttPassword = prefs.getString("mqttPass", "");
+#endif
   }
   prefs.end();
   return saved;
@@ -62,16 +87,22 @@ bool saveConfig(const DeviceConfig& config) {
   if (ok) {
     prefs.putString("ssid", config.ssid);
     prefs.putString("wifiPass", config.wifiPassword);
-    prefs.putString("mqttHost", config.mqttHost);
+    prefs.putString("serverHost", config.serverHost);
     prefs.putString("deviceId", config.deviceId);
+#ifdef ECOTRACK_DEV_PORTAL
+    prefs.putString("mqttHost", config.mqttHost);
     prefs.putString("mqttUser", config.mqttUser);
     prefs.putString("mqttPass", config.mqttPassword);
+#endif
     ok = prefs.getString("ssid", "") == config.ssid
       && prefs.getString("wifiPass", "") == config.wifiPassword
-      && prefs.getString("mqttHost", "") == config.mqttHost
-      && prefs.getString("deviceId", "") == config.deviceId
+      && prefs.getString("serverHost", "") == config.serverHost
+      && prefs.getString("deviceId", "") == config.deviceId;
+#ifdef ECOTRACK_DEV_PORTAL
+    ok = ok
       && prefs.getString("mqttUser", "") == config.mqttUser
       && prefs.getString("mqttPass", "") == config.mqttPassword;
+#endif
   }
   const bool committed = ok && prefs.putBool("configured", true) == 1;
   prefs.end();
@@ -85,8 +116,8 @@ bool validateConfig(const DeviceConfig& config, String& error) {
              (!config.wifiPassword.isEmpty() && config.wifiPassword.length() < 8) ||
              hasControlChars(config.wifiPassword)) {
     error = "PASS debe estar vacia (red abierta) o tener entre 8 y 63 caracteres";
-  } else if (!validHost(config.mqttHost)) {
-    error = "MQTT_HOST debe ser un hostname o IPv4 valido";
+  } else if (!validHost(config.serverHost)) {
+    error = "SERVER_HOST debe ser un hostname o IPv4 valido";
   } else if (config.deviceId.isEmpty() || config.deviceId.length() > 32) {
     error = "DEVICE_ID debe tener entre 1 y 32 caracteres";
   } else {
@@ -97,6 +128,7 @@ bool validateConfig(const DeviceConfig& config, String& error) {
         return false;
       }
     }
+#ifdef ECOTRACK_DEV_PORTAL
     if (config.mqttUser.isEmpty() || config.mqttUser.length() > 64 || hasControlChars(config.mqttUser)) {
       error = "MQTT_USER debe tener entre 1 y 64 caracteres";
     } else if (config.mqttPassword.isEmpty() || config.mqttPassword.length() > 128 || hasControlChars(config.mqttPassword)) {
@@ -105,6 +137,10 @@ bool validateConfig(const DeviceConfig& config, String& error) {
       error = "";
       return true;
     }
+#else
+    error = "";
+    return true;
+#endif
   }
   return false;
 }
@@ -113,10 +149,14 @@ bool setConfigField(DeviceConfig& config, const String& field, const String& val
   DeviceConfig candidate = config;
   if (field == "SSID") candidate.ssid = value;
   else if (field == "PASS") candidate.wifiPassword = value;
+#ifdef ECOTRACK_DEV_PORTAL
   else if (field == "MQTT_HOST") candidate.mqttHost = value;
   else if (field == "DEVICE_ID") candidate.deviceId = value;
   else if (field == "MQTT_USER") candidate.mqttUser = value;
   else if (field == "MQTT_PASS") candidate.mqttPassword = value;
+#else
+  else if (field == "DEVICE_ID") candidate.deviceId = value;
+#endif
   else {
     error = "Campo desconocido";
     return false;

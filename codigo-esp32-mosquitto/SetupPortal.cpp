@@ -5,13 +5,11 @@
 #include <WiFi.h>
 
 #include "SetupPortalPage.h"
-#include "esp32Secret.h"
-
-#ifndef SECRET_SETUP_AP_PASS
-#define SECRET_SETUP_AP_PASS "EcoTrack-Setup"
-#endif
 
 namespace {
+constexpr unsigned long kPortalTimeoutMs = 10UL * 60UL * 1000UL;
+constexpr unsigned long kPinLockoutMs = 5UL * 60UL * 1000UL;
+constexpr uint8_t kMaxPinAttempts = 5;
 DNSServer dns;
 WebServer web(80);
 DeviceConfig* activeConfig = nullptr;
@@ -19,6 +17,15 @@ void (*connectCallback)() = nullptr;
 String currentStatus = "READY";
 bool active = false;
 bool routesRegistered = false;
+unsigned long lastActivityAt = 0;
+unsigned long portalStartedAt = 0;
+unsigned long pinLockedUntil = 0;
+uint8_t failedPinAttempts = 0;
+bool pinAuthenticated = false;
+
+void markActivity() {
+  lastActivityAt = millis();
+}
 
 String htmlEscape(String value) {
   value.replace("&", "&amp;");
@@ -44,6 +51,7 @@ String jsonString(const String& value) {
 }
 
 void listNetworks() {
+  markActivity();
   if (currentStatus == "WIFI_CONNECTING" || currentStatus == "MQTT_CONNECTING") {
     web.send(409, "application/json", "[]");
     return;
@@ -69,25 +77,69 @@ void listNetworks() {
 }
 
 void showForm() {
+  markActivity();
+  if (!pinAuthenticated) {
+    noCache();
+    web.send_P(200, "text/html; charset=utf-8", kSetupPinPage);
+    return;
+  }
   String page = FPSTR(kSetupPortalPage);
   page.replace("{{SSID}}", htmlEscape(activeConfig->ssid));
+#ifdef ECOTRACK_DEV_PORTAL
+  page.replace("{{DEV_FIELDS}}", FPSTR(kSetupDevFields));
   page.replace("{{MQTT_HOST}}", htmlEscape(activeConfig->mqttHost));
   page.replace("{{DEVICE_ID}}", htmlEscape(activeConfig->deviceId));
   page.replace("{{MQTT_USER}}", htmlEscape(activeConfig->mqttUser));
+#else
+  page.replace("{{DEV_FIELDS}}", "");
+#endif
   noCache();
   web.send(200, "text/html; charset=utf-8", page);
 }
 
+void unlockPortal() {
+  if (static_cast<long>(millis() - pinLockedUntil) < 0) {
+    web.send(429, "text/plain; charset=utf-8", "Portal bloqueado temporalmente.");
+    return;
+  }
+  if (!web.hasArg("setupPin") || web.arg("setupPin") != activeConfig->setupPin) {
+    ++failedPinAttempts;
+    if (failedPinAttempts >= kMaxPinAttempts) {
+      failedPinAttempts = 0;
+      pinLockedUntil = millis() + kPinLockoutMs;
+      web.send(429, "text/plain; charset=utf-8",
+               "Demasiados intentos. Reintente en 5 minutos.");
+    } else {
+      web.send(401, "text/plain; charset=utf-8", "PIN incorrecto.");
+    }
+    return;
+  }
+  failedPinAttempts = 0;
+  pinAuthenticated = true;
+  web.send(200, "text/plain; charset=utf-8", "PIN correcto.");
+}
+
 void saveForm() {
+  if (!pinAuthenticated) {
+    web.send(401, "text/plain; charset=utf-8", "Se requiere el PIN.");
+    return;
+  }
   if (currentStatus == "WIFI_CONNECTING") {
     web.send(409, "text/plain; charset=utf-8", "Ya se está probando WiFi.");
     return;
   }
   DeviceConfig candidate = *activeConfig;
   String error;
+#ifdef ECOTRACK_DEV_PORTAL
   const char* names[] = {"SSID", "MQTT_HOST", "DEVICE_ID", "MQTT_USER"};
   const char* args[] = {"ssid", "mqttHost", "deviceId", "mqttUser"};
-  for (size_t i = 0; i < 4; ++i) {
+  constexpr size_t fieldCount = 4;
+#else
+  const char* names[] = {"SSID"};
+  const char* args[] = {"ssid"};
+  constexpr size_t fieldCount = 1;
+#endif
+  for (size_t i = 0; i < fieldCount; ++i) {
     if (!web.hasArg(args[i])) {
       web.send(400, "text/plain; charset=utf-8", "Falta completar " + String(names[i]));
       return;
@@ -108,17 +160,20 @@ void saveForm() {
       return;
     }
   }
+#ifdef ECOTRACK_DEV_PORTAL
   if (web.hasArg("mqttPass") && !web.arg("mqttPass").isEmpty()) {
     if (!setConfigField(candidate, "MQTT_PASS", web.arg("mqttPass"), error)) {
       web.send(400, "text/plain; charset=utf-8", error);
       return;
     }
   }
+#endif
   if (!validateConfig(candidate, error)) {
     web.send(400, "text/plain; charset=utf-8", error);
     return;
   }
   *activeConfig = candidate;
+  markActivity();
   noCache();
   web.send(200, "text/plain; charset=utf-8", "Datos válidos. Probando la conexión WiFi…");
   currentStatus = "WIFI_CONNECTING";
@@ -126,16 +181,23 @@ void saveForm() {
 }
 }  // namespace
 
-bool startSetupPortal(const String& apName, DeviceConfig& config, void (*connectWifi)()) {
+bool startSetupPortal(const String& apName, DeviceConfig& config,
+                      void (*connectWifi)()) {
   if (active) return true;
   activeConfig = &config;
   connectCallback = connectWifi;
   currentStatus = "READY";
+  lastActivityAt = millis();
+  portalStartedAt = lastActivityAt;
+  pinAuthenticated = false;
+  failedPinAttempts = 0;
+  pinLockedUntil = 0;
   WiFi.mode(WIFI_AP_STA);
-  if (!WiFi.softAP(apName.c_str(), SECRET_SETUP_AP_PASS)) return false;
+  if (!WiFi.softAP(apName.c_str())) return false;
   dns.start(53, "*", WiFi.softAPIP());
   if (!routesRegistered) {
     web.on("/", HTTP_GET, showForm);
+    web.on("/unlock", HTTP_POST, unlockPortal);
     web.on("/networks", HTTP_GET, listNetworks);
     web.on("/save", HTTP_POST, saveForm);
     web.on("/status", HTTP_GET, []() {
@@ -155,6 +217,11 @@ bool startSetupPortal(const String& apName, DeviceConfig& config, void (*connect
 
 void pollSetupPortal() {
   if (!active) return;
+  if (setupPortalExpired(millis())) {
+    currentStatus = "PORTAL_EXPIRED";
+    stopSetupPortal();
+    return;
+  }
   dns.processNextRequest();
   web.handleClient();
 }
@@ -163,10 +230,18 @@ void stopSetupPortal() {
   if (!active) return;
   web.stop();
   dns.stop();
-  WiFi.softAPdisconnect(false);
+  WiFi.softAPdisconnect(true);
   active = false;
+  lastActivityAt = 0;
+  portalStartedAt = 0;
+  pinAuthenticated = false;
 }
 
 bool setupPortalActive() { return active; }
 
 void setupPortalStatus(const String& message) { currentStatus = message; }
+
+bool setupPortalExpired(unsigned long now) {
+  return active && portalStartedAt != 0 &&
+         static_cast<unsigned long>(now - portalStartedAt) >= kPortalTimeoutMs;
+}

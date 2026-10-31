@@ -6,14 +6,17 @@ struct DeviceConfig {
   String ssid;
   String wifiPassword;
   String mqttHost;
+  String serverHost;
   String deviceId;
   String mqttUser;
   String mqttPassword;
+  String softApPassword;
+  String setupPin;
+  String deviceSecret;
 };
 
-// Los valores del header son los iniciales. Un perfil confirmado por WiFi
-// queda guardado en NVS y tiene prioridad en los siguientes arranques.
 DeviceConfig defaultConfig();
+bool loadFactoryIdentity(DeviceConfig& config, String& error);
 bool loadSavedConfig(DeviceConfig& config);
 bool saveConfig(const DeviceConfig& config);
 bool validateConfig(const DeviceConfig& config, String& error);

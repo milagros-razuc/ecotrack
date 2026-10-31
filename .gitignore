@@ -1,4 +1,6 @@
 node_modules
+__pycache__/
+*.pyc
 .env
 
 .env
@@ -11,6 +13,12 @@ mosquitto/config/certs/broker.crt
 mosquitto/config/certs/broker.key
 mosquitto/config/passwd.test
 codigo-esp32-mosquitto/certs/*.key
+factory-output/
+factory-*.csv
+factory-*.bin
+*.nvs.bin
+*.nvs.csv
+*.label.txt
 respaldo_*.sql
 convertir_lecturas_*.sql
 
