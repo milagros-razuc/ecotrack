@@ -8,8 +8,6 @@
 #include "ReadingBuffer.h"
 #include "SetupPortal.h"
 #include "ecotrack_ca.h"
-#include "esp32Secret.h"
-
 #define DHTPIN 4
 #define DHTTYPE DHT11
 #define LDRPIN 34
@@ -126,7 +124,7 @@ void beginWifi() {
 
 void pollConnectingWifi() {
   if (WiFi.status() == WL_CONNECTED) {
-    mqtt.setServer(config.mqttHost.c_str(), kMqttPort);
+    mqtt.setServer(config.serverHost.c_str(), kMqttPort);
     lastMqttRetryAt = 0;
     mqttVerifyStartedAt = millis();
     mode = Mode::verifyingMqtt;
@@ -162,9 +160,14 @@ void pollVerifyingMqtt() {
 
   lastMqttRetryAt = millis();
 
-  if (!mqtt.connect(config.deviceId.c_str(),
-                    config.mqttUser.c_str(),
-                    config.mqttPassword.c_str())) {
+#ifdef ECOTRACK_DEV_PORTAL
+  const bool mqttConnected = mqtt.connect(config.deviceId.c_str(),
+                                          config.mqttUser.c_str(),
+                                          config.mqttPassword.c_str());
+#else
+  const bool mqttConnected = mqtt.connect(config.deviceId.c_str());
+#endif
+  if (!mqttConnected) {
     const int mqttState = mqtt.state();
     setupPortalStatus("MQTT_FAIL:" + String(mqttState));
     printMqttFailure("No se pudo conectar a MQTT");
@@ -183,6 +186,8 @@ void pollVerifyingMqtt() {
   readySince = millis();
   mode = Mode::readyDisplay;
   setupPortalStatus("READY:" + WiFi.localIP().toString());
+  stopSetupPortal();
+  WiFi.mode(WIFI_STA);
   Serial.println("WiFi y MQTT confirmados. IP: " +
                  WiFi.localIP().toString());
 }
@@ -200,8 +205,6 @@ void pollReadyDisplay() {
   }
   mqtt.loop();
   if (millis() - readySince < kReadyDisplayMs) return;
-  stopSetupPortal();
-  WiFi.mode(WIFI_STA);
   mode = Mode::running;
   Serial.println("Iniciando lecturas y publicacion MQTT");
 }
@@ -227,7 +230,14 @@ void reconnectMqtt() {
   if (lastMqttRetryAt != 0 && millis() - lastMqttRetryAt < kMqttRetryMs) return;
   lastMqttRetryAt = millis();
   logHeap("antes_tls");
-  if (mqtt.connect(config.deviceId.c_str(), config.mqttUser.c_str(), config.mqttPassword.c_str())) {
+#ifdef ECOTRACK_DEV_PORTAL
+  const bool mqttConnected = mqtt.connect(config.deviceId.c_str(),
+                                          config.mqttUser.c_str(),
+                                          config.mqttPassword.c_str());
+#else
+  const bool mqttConnected = mqtt.connect(config.deviceId.c_str());
+#endif
+  if (mqttConnected) {
     logHeap("conectado_tls");
     Serial.println("MQTT reconectado");
   } else {
@@ -334,6 +344,11 @@ void setup() {
   mqtt.setBufferSize(512);
   mqtt.setSocketTimeout(3);
   config = defaultConfig();
+  String identityError;
+  if (!loadFactoryIdentity(config, identityError)) {
+    Serial.println("No se pudo cargar identidad de fabrica: " + identityError);
+    return;
+  }
   const bool saved = loadSavedConfig(config);
   configNeedsSave = !saved;
   const String suffix = String(static_cast<uint32_t>(ESP.getEfuseMac()), HEX);

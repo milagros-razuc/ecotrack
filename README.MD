@@ -35,6 +35,7 @@ ESP32 (DHT11 + LDR)
 
 - Docker Desktop
 - Arduino IDE (para programar el ESP32)
+- Python 3 con el paquete `esp-idf-nvs-partition-gen`
 - NodeMCU ESP32S de 38 pines
 - Sensor DHT11
 - Fotorresistencia LDR + resistencia 10K
@@ -159,25 +160,46 @@ Los dos últimos mensajes de usuario solo aparecen la primera vez que se levanta
 | LDR — Pin 2 | — | P34 (GPIO34) |
 | Resistencia 10K | — | P34 → GND |
 
-### Credenciales del sketch
+### Identidad y credenciales del dispositivo
 
-En el archivo `esp32Secret.h`:
+La identidad de fábrica (`device_id`, PIN de instalación, `serverHost`, clave SoftAP
+opcional y secreto reservado) se genera por dispositivo y se carga en NVS mediante el
+procedimiento de fabricación. El `serverHost` queda grabado de fábrica. El SoftAP de
+configuración es abierto pero temporal:
+el portal exige primero el PIN de 6 dígitos, bloquea cinco intentos incorrectos durante
+5 minutos y se apaga como máximo a los 10 minutos. Durante ese tramo, el PIN y la
+clave WiFi viajan sin cifrar dentro de la red local del SoftAP. No se deben agregar
+secretos a `esp32Secret.h.example`, al sketch ni al repositorio (RNF06), ni se imprimen
+por serial. Los campos `mqttHost`, `mqttUser` y `mqttPass` solo se compilan cuando se
+define `ECOTRACK_DEV_PORTAL`; esa macro queda apagada por defecto.
 
-```cpp
-#define SECRET_SSID      "nombre_de_tu_wifi"
-#define SECRET_PASS      "contraseña_wifi"
-#define SECRET_MQTT_HOST "IP_de_tu_PC"
-#define SECRET_DEVICE_ID "ESP32-001"
-#define SECRET_MQTT_USER "esp32-001"
-#define SECRET_MQTT_PASS "tu_contraseña_esp32"
+> **Estado TLS del firmware**: el firmware valida la hora por NTP, usa `WiFiClientSecure`
+> con la CA de EcoTrack y conecta al listener MQTTS autenticado en `8883`. El tópico y el
+> formato JSON de lecturas se mantienen compatibles con Mosquitto y el backend.
+
+### Esquema de particiones y reflasheo
+
+El archivo [`partitions.csv`](codigo-esp32-mosquitto/partitions.csv) define el layout
+estándar Minimal SPIFFS: NVS en `0x9000` (`0x5000`), `otadata` en `0xE000`
+(`0x2000`), dos slots de aplicación (`app0` y `app1`) de `0x1E0000` y
+`littlefs` en `0x3D0000` (`0x20000`). Como este repositorio usa Arduino IDE y no
+PlatformIO, copiá el archivo al directorio `tools/partitions` del paquete ESP32 instalado y
+seleccioná el esquema equivalente desde **Herramientas > Partition Scheme**. El cambio
+exige reflashear por USB; después cargá la imagen NVS de fábrica, porque el borrado de
+flash puede eliminar la configuración anterior.
+
+La imagen NVS de fábrica debe generarse con el tamaño de la partición `0x5000`:
+
+```powershell
+python scripts\provision_factory.py --count 1 --output C:\ecotrack-factory --server-host broker.ecotrack.local --nvs-size 0x5000
 ```
 
-> Estas credenciales viajan hardcodeadas en `esp32Secret.h`, que está fuera del control de versiones (ver RNF06). Reprogramar el WiFi de un nodo hoy requiere reflashear el sketch — el aprovisionamiento por Bluetooth (RF15) todavía no está implementado.
+Al compilar, registrá el tamaño de firmware y la capacidad de la partición de aplicación:
 
-> **Estado TLS del firmware**: el ESP32 todavía no conecta por TLS. La implementación de
-> `WiFiClientSecure`, NTP y la validación del CA está pendiente en T018-T020. Hasta
-> completar esa fase, el firmware no debe considerarse compatible con el listener MQTTS
-> operativo en `8883`.
+`porcentaje usado = bytes del firmware / bytes disponibles del slot × 100`
+
+La salida de compilación debe conservarse junto con la evidencia de instalación. Esta
+feature prepara el layout para OTA futuro, pero no implementa OTA.
 
 El intervalo entre lecturas (RF02) es configurable vía `INTERVALO_CAPTURA_MS`, definible en `esp32Secret.h` o como build flag (`-DINTERVALO_CAPTURA_MS=5000`). Por defecto queda en 10 segundos si no se sobreescribe.
 

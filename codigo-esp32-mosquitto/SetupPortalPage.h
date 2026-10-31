@@ -28,7 +28,7 @@ static const char kSetupPortalPage[] PROGMEM = R"ECOTRACK(
 </head>
 <body><main>
   <h1>Configurar EcoTrack</h1>
-  <p>Elegí tu red WiFi e ingresá su contraseña. Los datos del servidor suelen estar preparados por el instalador.</p>
+  <p>Ingresá el nombre y la contraseña de tu red WiFi.</p>
   <form id="config">
     <fieldset><legend>Red WiFi</legend>
       <label for="ssid">Nombre de red (SSID)</label><input id="ssid" name="ssid" list="networks" maxlength="32" required value="{{SSID}}"><datalist id="networks"></datalist>
@@ -36,15 +36,7 @@ static const char kSetupPortalPage[] PROGMEM = R"ECOTRACK(
       <label for="wifiPass">Contraseña WiFi</label><input id="wifiPass" name="wifiPass" type="password" maxlength="63" autocomplete="new-password" placeholder="Dejar vacía para conservar">
       <label class="check"><input id="openWifi" name="openWifi" type="checkbox" value="1"> La red no tiene contraseña</label>
     </fieldset>
-    <details id="advanced"><summary>Opciones avanzadas del servidor</summary>
-      <p><small>Si estos datos no están completos, pedilos al instalador de EcoTrack.</small></p>
-      <fieldset><legend>Conexión MQTT</legend>
-        <label for="mqttHost">IP o nombre del broker</label><input id="mqttHost" name="mqttHost" maxlength="253" value="{{MQTT_HOST}}">
-        <label for="deviceId">ID del dispositivo</label><input id="deviceId" name="deviceId" maxlength="32" value="{{DEVICE_ID}}">
-        <label for="mqttUser">Usuario MQTT</label><input id="mqttUser" name="mqttUser" maxlength="64" value="{{MQTT_USER}}">
-        <label for="mqttPass">Contraseña MQTT</label><input id="mqttPass" name="mqttPass" type="password" maxlength="128" autocomplete="new-password" placeholder="Dejar vacía para conservar">
-      </fieldset>
-    </details>
+    {{DEV_FIELDS}}
     <button id="submit" type="submit">Conectar EcoTrack</button>
   </form>
   <div id="status" role="status" aria-live="polite">Listo para configurar.</div>
@@ -71,7 +63,7 @@ static const char kSetupPortalPage[] PROGMEM = R"ECOTRACK(
       else if(value==='NTP_FAIL') {status.textContent='No se pudo sincronizar la hora por NTP; no se abrió una conexión MQTT segura. Reintentando…';button.disabled=false;}
       else if(value.startsWith('READY:')) {status.textContent='Configuración completa. EcoTrack ya se conectó; podés volver a tu red WiFi. Esta red temporal se apagará en unos segundos.';button.disabled=true;}
       else if(value==='WIFI_FAIL') {status.textContent='No se pudo conectar a WiFi. Revisá el nombre y la contraseña de la red.';button.disabled=false;}
-      else if(value.startsWith('MQTT_FAIL:')) {status.textContent='WiFi conectó, pero el servidor EcoTrack no respondió (código '+value.slice(10)+'). Revisá las opciones avanzadas o consultá al instalador.';document.getElementById('advanced').open=true;button.disabled=false;}
+      else if(value.startsWith('MQTT_FAIL:')) {status.textContent='WiFi conectó, pero el servidor EcoTrack no respondió (código '+value.slice(10)+').';button.disabled=false;}
       else if(value==='ERR_SAVE') {status.textContent='No se pudo guardar la configuración. Probá de nuevo.';button.disabled=false;}
     }catch(_){}
   }
@@ -80,7 +72,7 @@ static const char kSetupPortalPage[] PROGMEM = R"ECOTRACK(
     try{
       const response=await fetch('/save',{method:'POST',body:new URLSearchParams(new FormData(form))});
       status.textContent=await response.text();
-      if(!response.ok){button.disabled=false;document.getElementById('advanced').open=true}
+      if(!response.ok){button.disabled=false}
     }catch(_){status.textContent='Se perdió la conexión con el ESP32.';button.disabled=false;}
   });
     (function(){
@@ -94,7 +86,7 @@ static const char kSetupPortalPage[] PROGMEM = R"ECOTRACK(
       });
       campo.insertAdjacentElement('afterend',b);
     });
-    ['ssid','wifiPass','mqttHost','deviceId','mqttUser','mqttPass'].forEach(function(n){
+    ['setupPin','ssid','wifiPass'].forEach(function(n){
       const c=document.getElementById(n);
       if(c){c.setAttribute('autocapitalize','none');c.setAttribute('autocorrect','off');c.setAttribute('spellcheck','false');}
     });
@@ -103,3 +95,37 @@ static const char kSetupPortalPage[] PROGMEM = R"ECOTRACK(
   scan();
 </script></body></html>
 )ECOTRACK";
+
+static const char kSetupPinPage[] PROGMEM = R"ECOTRACK_PIN(
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Desbloquear EcoTrack</title><style>
+body{font:16px system-ui,sans-serif;background:#eef4ee;margin:0;padding:24px 12px}
+main{max-width:540px;margin:auto;background:white;border-radius:18px;padding:28px}
+input,button{width:100%;font:inherit;padding:12px;margin-top:12px;box-sizing:border-box}
+button{background:#236c42;color:white;border:0;border-radius:9px;font-weight:700}
+#status{margin-top:18px}
+</style></head><body><main><h1>Configurar EcoTrack</h1>
+<p>Ingresá el PIN de instalación para continuar.</p>
+<form id="unlock"><label for="setupPin">PIN de instalación</label>
+<input id="setupPin" name="setupPin" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required>
+<button type="submit">Desbloquear configuración</button></form><p id="status" role="status"></p>
+<script>
+document.getElementById('unlock').addEventListener('submit',async function(event){
+event.preventDefault();const response=await fetch('/unlock',{method:'POST',body:new URLSearchParams(new FormData(this))});
+document.getElementById('status').textContent=await response.text();
+if(response.ok) window.location='/';
+});
+</script></main></body></html>
+)ECOTRACK_PIN";
+
+#ifdef ECOTRACK_DEV_PORTAL
+static const char kSetupDevFields[] PROGMEM = R"ECOTRACK_DEV(
+<details id="advanced"><summary>Opciones avanzadas del servidor</summary>
+<fieldset><legend>Conexión MQTT</legend>
+<label for="mqttHost">IP o nombre del broker</label><input id="mqttHost" name="mqttHost" maxlength="253" value="{{MQTT_HOST}}">
+<label for="deviceId">ID del dispositivo</label><input id="deviceId" name="deviceId" maxlength="32" value="{{DEVICE_ID}}">
+<label for="mqttUser">Usuario MQTT</label><input id="mqttUser" name="mqttUser" maxlength="64" value="{{MQTT_USER}}">
+<label for="mqttPass">Contraseña MQTT</label><input id="mqttPass" name="mqttPass" type="password" maxlength="128">
+</fieldset></details>
+)ECOTRACK_DEV";
+#endif
