@@ -201,7 +201,7 @@ Al compilar, registrá el tamaño de firmware y la capacidad de la partición de
 La salida de compilación debe conservarse junto con la evidencia de instalación. Esta
 feature prepara el layout para OTA futuro, pero no implementa OTA.
 
-El intervalo entre lecturas (RF02) es configurable vía `INTERVALO_CAPTURA_MS`, definible en `esp32Secret.h` o como build flag (`-DINTERVALO_CAPTURA_MS=5000`). Por defecto queda en 10 segundos si no se sobreescribe.
+**Estado actual de RF02:** el sketch permite ajustar el intervalo al compilar mediante `INTERVALO_CAPTURA_MS` en `esp32Secret.h` o con el build flag `-DINTERVALO_CAPTURA_MS=5000`; por defecto usa 10 segundos. Esto no implementa aún la configuración desde el dashboard ni la confirmación del valor aplicado por dispositivo. Ese flujo está planificado en R4 y depende del cierre de autenticación MQTT en R3 ([roadmap](ROADMAP.md)).
 
 ### Librerías necesarias (Arduino IDE)
 
@@ -237,6 +237,11 @@ El login usa JWT (`jsonwebtoken`) con contraseñas hasheadas por `bcrypt`. Cada 
 | GET | `/api/alertas` | Lista paginada y filtrable (`estado`, `dispositivo`, `variable`, `fechaDesde`, `fechaHasta`) | Autenticado |
 | GET | `/api/alertas/distribucion` | Cantidad de alertas por variable | Autenticado |
 | PATCH | `/api/alertas/:id` | Cambia el estado de una alerta, con comentario opcional | Autenticado |
+| GET, POST | `/api/api-keys` | Listar y crear claves para el cliente; la clave nueva se muestra una sola vez | Admin |
+| DELETE | `/api/api-keys/:id` | Revocar una clave del cliente | Admin |
+| GET | `/api/public/dispositivos` | Listar dispositivos asociados a la API key | API key (`X-Api-Key`) |
+| GET | `/api/public/lecturas` | Consultar lecturas (`dispositivo`, `limite`) | API key (`X-Api-Key`) |
+| GET | `/api/public/alertas` | Consultar alertas (`dispositivo`, `estado`, `variable`, `pagina`, `limite`, fechas) | API key (`X-Api-Key`) |
 | GET | `/api/usuarios` | Lista los usuarios | Admin |
 | POST | `/api/usuarios` | Alta de usuario | Admin |
 | PATCH | `/api/usuarios/:id` | Modifica nombre y/o rol | Admin |
@@ -413,9 +418,9 @@ ecotrack/
 ## Trabajo futuro
 
 - [x] Modelo multi-cliente (RF18/RNF05): tabla `clientes`, `cliente_id` en `usuarios` y `dispositivos`, con aislamiento de datos completo — DB, middleware `extraerCliente`, filtro por `cliente_id` en los 5 services y las 5 rutas. El frontend no necesitó cambios: el filtro viaja en el token de forma transparente
-- [ ] Aprovisionamiento del ESP32 por Bluetooth (RF15), hoy las credenciales WiFi van hardcodeadas en `esp32Secret.h`
-- [ ] API pública documentada para sistemas externos (RF19), con autenticación por API key
-- [ ] Rate limiting en la API
+- [x] Portal web temporal de configuración WiFi por SoftAP (RF15/RI13); el aprovisionamiento de fábrica guarda identidad por dispositivo en NVS. La aceptación física y de rendimiento sigue pendiente (R10).
+- [x] API pública de solo lectura con API key (RF19/RI20); queda pendiente decidir el contrato de estado de dispositivos y completar la cobertura de claves inválidas/revocadas y aislamiento (R8).
+- [ ] Alinear el rate limit del login con RNF21: hoy el código permite 5 intentos por combinación IP/usuario y 30 por IP cada 15 minutos; el requisito define 5 por IP. La API pública sí aplica 100 por clave y 300 por IP cada 5 minutos.
 - [ ] Recuperación de contraseña por email
 - [ ] Sensores mejorados: DHT22 + BH1750
 - [ ] Integración con LLM para análisis de tendencias ambientales

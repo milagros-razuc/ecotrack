@@ -14,14 +14,14 @@ description: "Tareas para alinear el catálogo normativo EcoTrack con la tesis v
 
 **Purpose**: Crear el crosswalk auditable que servirá como evidencia de cada disposición.
 
-- [ ] T001 Crear `specs/012-alinear-requisitos-tesis/crosswalk.md` con una fila por ID y las columnas definidas en `data-model.md`.
+- [X] T001 Crear `specs/012-alinear-requisitos-tesis/crosswalk.md` con una fila por ID y las columnas definidas en `data-model.md`.
 
 ## Phase 2: Foundational — inventario y disposiciones
 
 **Purpose**: Fijar las fuentes y clasificar todas las diferencias antes de cambiar el catálogo normativo.
 
-- [ ] T002 Enumerar RF01–RF23, RI01–RI25, RE01–RE06, RD01–RD10 y RNF01–RNF22 en `specs/012-alinear-requisitos-tesis/crosswalk.md`, citando sección de tesis, texto actual del catálogo y tipo de diferencia.
-- [ ] T003 Registrar en `specs/012-alinear-requisitos-tesis/crosswalk.md` la disposición de cada diferencia y separar los criterios extra del catálogo como candidatos no normativos, sin eliminarlos ni reasignarlos a otro ID.
+- [X] T002 Enumerar RF01–RF23, RI01–RI25, RE01–RE06, RD01–RD10 y RNF01–RNF22 en `specs/012-alinear-requisitos-tesis/crosswalk.md`, citando sección de tesis, texto actual del catálogo y tipo de diferencia.
+- [X] T003 Registrar en `specs/012-alinear-requisitos-tesis/crosswalk.md` la disposición de cada diferencia y separar los criterios extra del catálogo como candidatos no normativos, sin eliminarlos ni reasignarlos a otro ID.
 
 **Checkpoint**: Las 86 filas están clasificadas; ninguna discrepancia se resolvió por promedio, inferencia de implementación o renumeración.
 
@@ -33,9 +33,9 @@ description: "Tareas para alinear el catálogo normativo EcoTrack con la tesis v
 
 ### Implementation
 
-- [ ] T004 [US1] Actualizar el encabezado, la autoridad y las tablas RF01–RF23 y RI01–RI25 de `docs/requisitos.md` según el crosswalk y la tesis vigente.
-- [ ] T005 [US1] Actualizar las tablas RE01–RE06, RD01–RD10 y RNF01–RNF22 de `docs/requisitos.md` según el crosswalk, conservando unidades, cargas, umbrales, plazos y referencias normativas de la tesis.
-- [ ] T006 [US1] Alinear en `docs/requisitos.md` las reglas de negocio, límites de tasa y criterios de aceptación que repitan requisitos, y marcar los criterios adicionales identificados por T003 como candidatos pendientes de decisión.
+- [X] T004 [US1] Actualizar el encabezado, la autoridad y las tablas RF01–RF23 y RI01–RI25 de `docs/requisitos.md` según el crosswalk y la tesis vigente.
+- [X] T005 [US1] Actualizar las tablas RE01–RE06, RD01–RD10 y RNF01–RNF22 de `docs/requisitos.md` según el crosswalk, conservando unidades, cargas, umbrales, plazos y referencias normativas de la tesis.
+- [X] T006 [US1] Alinear en `docs/requisitos.md` las reglas de negocio, límites de tasa y criterios de aceptación que repitan requisitos, y marcar los criterios adicionales identificados por T003 como candidatos pendientes de decisión.
 
 ## Phase 4: User Story 2 — trazabilidad honesta (Priority: P1)
 
@@ -45,11 +45,11 @@ description: "Tareas para alinear el catálogo normativo EcoTrack con la tesis v
 
 ### Implementation
 
-- [ ] T007 [US2] Actualizar en `README.MD` las referencias normativas o afirmaciones de pendientes que el crosswalk identifique como obsoletas, conservando solo estados confirmados en el checkout revisado.
-- [ ] T008 [US2] Revisar en `specs/001-aislar-eventos-cliente/` a `specs/010-endurecer-provisionamiento-wifi/` y en `origin/011-pruebas-unitarias-backend` las referencias cuyo ID cambia de significado; actualizar solo referencias vigentes que impidan usar el catálogo nuevo, preservar el historial cerrado y registrar el impacto/disposición en `specs/012-alinear-requisitos-tesis/crosswalk.md`.
-- [ ] T009 [US2] Registrar en `specs/012-alinear-requisitos-tesis/crosswalk.md` los cambios necesarios para la matriz externa de Downloads, incluidos estados fechados, IDs de interfaz ausentes y la fila RF23 afectada por OCR; no editar ese archivo externo en esta feature.
-- [ ] T010 [US2] Validar desde la raíz del repo que `docs/requisitos.md` tenga exactamente una fila para cada uno de los 86 IDs esperados, comparar el diff por ID con la tesis y revisar referencias afectadas según `quickstart.md`.
-- [ ] T011 [US2] Actualizar `ROADMAP.md` para marcar R1 como `done` y enlazar el crosswalk, solo después de satisfacer SC-001–SC-004.
+- [X] T007 [US2] Actualizar en `README.MD` las referencias normativas o afirmaciones de pendientes que el crosswalk identifique como obsoletas, conservando solo estados confirmados en el checkout revisado.
+- [X] T008 [US2] Revisar en `specs/001-aislar-eventos-cliente/` a `specs/010-endurecer-provisionamiento-wifi/` y en `origin/011-pruebas-unitarias-backend` las referencias cuyo ID cambia de significado; actualizar solo referencias vigentes que impidan usar el catálogo nuevo, preservar el historial cerrado y registrar el impacto/disposición en `specs/012-alinear-requisitos-tesis/crosswalk.md`.
+- [X] T009 [US2] Registrar en `specs/012-alinear-requisitos-tesis/crosswalk.md` los cambios necesarios para la matriz externa de Downloads, incluidos estados fechados, IDs de interfaz ausentes y la fila RF23 afectada por OCR; no editar ese archivo externo en esta feature.
+- [X] T010 [US2] Validar desde la raíz del repo que `docs/requisitos.md` tenga exactamente una fila para cada uno de los 86 IDs esperados, comparar el diff por ID con la tesis y revisar referencias afectadas según `quickstart.md`.
+- [X] T011 [US2] Actualizar `ROADMAP.md` para marcar R1 como `done` y enlazar el crosswalk, solo después de satisfacer SC-001–SC-004.
 
 ## Dependencies & Execution Order
 
