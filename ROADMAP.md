@@ -8,7 +8,7 @@ El baseline de detalle está en [docs/baseline-pendientes-2026-11.md](docs/basel
 
 | ID | Paquete | Intención y límite de alcance | Depende de | Estado | Spec / artefacto |
 |---|---|---|---|---|---|
-| R1 | Reconciliar baseline de requisitos | Alinear `docs/requisitos.md`, matriz de trazabilidad y specs vigentes con la tesis acordada; corregir estados obsoletos. No cambia comportamiento del producto. | — | in-progress | [Inventario fechado](docs/baseline-pendientes-2026-11.md) |
+| R1 | Reconciliar baseline de requisitos | Alinear `docs/requisitos.md` con la tesis, mapear diferencias de matriz externa y referencias de specs; corregir estados obsoletos del repo. No cambia comportamiento del producto. | — | in-progress | [Inventario fechado](docs/baseline-pendientes-2026-11.md); [Spec Kit 012](specs/012-alinear-requisitos-tesis/) |
 | R2 | Suite 011 y trazabilidad | Reconciliar la rama de pruebas unitarias y sus TODOs/resultados contra `main`; separar cobertura unitaria, integración, hardware y carga. No declarar aceptación sin ejecución observada. | R1 | planned | `origin/011-pruebas-unitarias-backend` (pendiente de reconciliar) |
 | R3 | Autenticación MQTT por dispositivo | Cerrar credenciales de entrega, conexión autenticada del ESP32 y ACL por identidad; preservar TLS y contrato de lecturas. No incluye configuración dinámica RF02. | R1 y coordinación de aprovisionamiento | planned | Próxima feature Spec Kit |
 | R4 | Intervalo de captura configurable (RF02) | Configurar desde dashboard y confirmar valor aplicado por dispositivo; acordar rango/unidad, versión, persistencia y reconexión. | R3 | planned | Próxima feature Spec Kit |
