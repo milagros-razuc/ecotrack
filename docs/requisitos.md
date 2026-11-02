@@ -1,7 +1,8 @@
 # EcoTrack IoT — Requisitos
 
-Resumen operativo del documento *Proyecto Final de Sistemas — EcoTrack (versión 1)*,
-de Razuc Milagros y Cabrera Ramiro (UdeMM). Sirve como fuente de verdad para Spec Kit.
+Catálogo de requisitos normativos reconciliado con *Proyecto Final de Sistemas — EcoTrack*,
+versión modificada el 2026-10-31, de Razuc Milagros y Cabrera Ramiro (UdeMM). La tesis
+vigente es la autoridad para el texto de los requisitos y sus IDs.
 
 **Cómo usarlo**
 
@@ -38,29 +39,29 @@ clientes es absoluto.
 
 | ID | Requisito |
 |---|---|
-| RF01 | Capturar temperatura, humedad y luminosidad de forma continua con sensores conectados al ESP32. |
-| RF02 | Permitir configurar el intervalo de captura. |
-| RF03 | El dispositivo transmite los datos automáticamente al backend por WiFi. |
-| RF04 | El backend valida formato y coherencia de lo recibido y rechaza o registra lo que no cumple. |
-| RF05 | Almacenar los datos en base estructurada, asociados al cliente y al dispositivo. |
-| RF06 | Mostrar en tiempo real los valores actuales en un dashboard accesible desde cualquier navegador. |
-| RF07 | Consultar el historial por rango de fechas y por variable. |
-| RF08 | Configurar umbrales máximo y mínimo por variable. |
-| RF09 | Generar alertas automáticas al superar o bajar de los umbrales. |
-| RF10 | Notificar alertas activas con un pop-up dentro del dashboard. |
-| RF11 | Registrar un log de alertas (variable, valor, umbral, fecha y hora) y permitir gestionar su estado. |
-| RF12 | Gestionar dispositivos (alta, baja y modificación) asociados a un cliente. |
-| RF13 | Panel de control con estado de dispositivos, alertas activas y resumen, del cliente del usuario. |
-| RF14 | Registrar logs de actividad para auditoría y trazabilidad. |
-| RF15 | Configuración inicial del WiFi de cada ESP32 mediante un portal cautivo SoftAP temporal, accesible desde una app o página móvil, sin reprogramar el firmware por unidad. |
-| RF16 | El admin crea, modifica y elimina cuentas dentro de su cliente, asignando rol. |
-| RF17 | Las funciones administrativas se restringen a usuarios admin. |
-| RF18 | Cada dispositivo se asocia a un cliente; cada usuario ve y opera solo sobre lo de su cliente. |
-| RF19 | API pública documentada para sistemas externos autorizados (lecturas, alertas, estado de dispositivos). |
-| RF20 | Cada usuario ve y edita su perfil, incluido el cambio de contraseña. |
-| RF21 | Aprovisionar y reclamar dispositivos mediante un token único de un solo uso; la baja los libera sin borrar su histórico. |
-| RF22 | Continuar capturando lecturas sin conexión al broker, conservando hasta 360 lecturas en un buffer volátil y publicándolas al recuperar la conexión. |
-| RF23 | Aceptar un timestamp de captura opcional en las lecturas, conservarlo para el histórico y procesar las lecturas diferidas según su atraso. |
+| RF01 | El sistema debe capturar datos de temperatura, humedad y luminosidad de forma continua a través de sensores físicos conectados al microcontrolador ESP32. |
+| RF02 | El sistema debe permitir configurar el intervalo de captura de datos según las necesidades del entorno monitoreado. |
+| RF03 | El dispositivo IoT debe transmitir los datos capturados al backend de forma automática mediante conexión WiFi. |
+| RF04 | El backend debe recibir los datos enviados por los dispositivos, validar su formato y coherencia, y rechazar o registrar aquellos que no cumplan los criterios definidos. |
+| RF05 | El sistema debe almacenar los datos en una base de datos estructurada, asociándolos al cliente y dispositivo correspondiente. |
+| RF06 | El sistema debe mostrar en tiempo real los valores actuales de temperatura, humedad y luminosidad a través de un dashboard, accesible desde cualquier dispositivo con navegador web. |
+| RF07 | El sistema debe permitir al usuario consultar el historial de datos de uno o todos los dispositivos, por rango de fechas y agregado por día, semana o mes, visualizando cada variable ambiental. |
+| RF08 | El sistema debe permitir configurar umbrales máximos y mínimos para cada variable ambiental. |
+| RF09 | El sistema debe generar alertas automáticas cuando alguna variable supere o se encuentre por debajo de los umbrales configurados. |
+| RF10 | El sistema debe notificar al usuario ante alertas activas mediante una notificación emergente (pop-up) dentro del dashboard, mientras se encuentra utilizando el sistema. |
+| RF11 | El sistema debe registrar un log de alertas generadas, indicando variable, valor registrado, umbral superado, fecha y hora, y debe permitir gestionar su estado. |
+| RF12 | El sistema debe permitir la gestión de dispositivos IoT asociados a un cliente: modificación de sus datos, baja y reclamo. El dispositivo se aprovisiona previamente mediante un script administrativo, y un administrador lo reclama presentando su token de reclamo (RF21). |
+| RF13 | El sistema debe mostrar un panel de control con el estado general de los dispositivos, alertas activas y resumen de variables, correspondientes al cliente del usuario autenticado. |
+| RF14 | El sistema debe registrar logs de actividad del sistema para auditoría y trazabilidad. |
+| RF15 | El sistema debe soportar la configuración inicial de las credenciales WiFi del dispositivo ESP32 mediante un portal web de configuración, servido por el propio dispositivo en modo punto de acceso temporal y accesible desde cualquier celular o computadora con WiFi, sin aplicación dedicada |
+| RF16 | El sistema debe permitir a un usuario con rol administrador crear, modificar y eliminar cuentas de usuario dentro de su cliente/organización, asignando a cada una un rol. |
+| RF17 | El sistema debe restringir las funcionalidades administrativas exclusivamente a los usuarios con rol administrador. |
+| RF18 | El sistema debe asociar cada dispositivo IoT a un cliente/cuenta determinado, de forma que cada usuario visualice y opere únicamente sobre los dispositivos, lecturas y alertas correspondientes a su cliente. |
+| RF19 | El sistema debe exponer una API pública documentada que permita a sistemas externos autorizados consultar lecturas, alertas y estado de dispositivos de forma segura. |
+| RF20 | El sistema debe permitir a cada usuario visualizar y editar los datos de su perfil personal, incluyendo el cambio de su contraseña. |
+| RF21 | Un administrador puede reclamar un dispositivo sin dueño presentando su token de reclamo. El dispositivo queda asociado a su cliente y no puede ser reclamado por otro cliente mientras tenga dueño. |
+| RF22 | El firmware debe almacenar temporalmente las lecturas tomadas mientras no hay conexión con el broker (hasta 360, equivalentes a 1 hora al intervalo por defecto) y reenviarlas en orden cronológico al reconectar. |
+| RF23 | Cada lectura debe llevar la fecha y hora de captura (ts) cuando el dispositivo dispone de hora sincronizada. El backend almacena la lectura con ese valor; si no viene ts, usa la hora de recepción. |
 
 ---
 
@@ -70,46 +71,46 @@ clientes es absoluto.
 
 | ID | Requisito |
 |---|---|
-| RI01 | Dashboard web con login, panel, histórico, auditoría, configuración, usuarios y perfil. |
-| RI02 | Valores actuales en tarjetas con indicadores y barras de progreso, actualizados sin recargar. |
-| RI03 | Histórico con series temporales, período de agregación, filtro por dispositivo y ordenamiento por fecha de captura. |
-| RI04 | Configuración de umbrales por variable y dispositivo, y activación de notificaciones. |
-| RI05 | Alertas con indicador por estado (pendiente o atendida) y notificación emergente al generarse. |
-| RI06 | Login con usuario y contraseña; la interfaz se adapta al rol. |
-| RI07 | Auditoría: listar, filtrar, paginar alertas y gestionar su estado. |
-| RI08 | Gestión de usuarios solo para admin, dentro de su cliente. |
-| RI09 | Perfil: cualquier usuario edita sus datos y contraseña. |
+| RI01 | Interfaz web (dashboard) accesible desde cualquier navegador moderno y distintos dispositivos, con pantallas de login, panel principal, histórico, auditoría, configuración, gestión de usuarios y perfil. |
+| RI02 | El dashboard debe presentar los valores actuales mediante tarjetas con indicadores numéricos y barras de progreso, actualizados automáticamente sin recargar la página. |
+| RI03 | Vista de histórico con gráficos de series temporales por variable, con selección de período de agregación, rango de fechas y filtro por dispositivo |
+| RI04 | Pantalla de configuración donde un administrador defina umbrales mínimos y máximos por variable y dispositivo, y active/desactive notificaciones. |
+| RI05 | Visualización de alertas activas mediante indicadores por estado (pendiente/atendida) y notificación emergente al generarse. |
+| RI06 | Autenticación mediante usuario y contraseña; la interfaz debe adaptar las opciones según el rol del usuario autenticado. |
+| RI07 | Pantalla de auditoría que permita listar, filtrar y paginar el historial de alertas, y gestionar su estado. |
+| RI08 | Pantalla de gestión de usuarios, accesible únicamente para administradores, para crear, modificar y eliminar cuentas dentro de su cliente/organización. |
+| RI09 | Pantalla de perfil de usuario, donde cualquier usuario autenticado pueda consultar y editar sus propios datos y contraseña. |
 
 ### Hardware
 
 | ID | Requisito |
 |---|---|
-| RI10 | Sensor de temperatura y humedad por protocolo digital de un solo cable. |
-| RI11 | Luminosidad con fotorresistencia (LDR) en entrada analógica. |
-| RI12 | Alimentación por USB (5 V). |
-| RI13 | Portal SoftAP temporal para la configuración inicial de WiFi, con desactivación al conectar o al vencer el tiempo límite. |
+| RI10 | El ESP32 debe conectarse a un sensor de temperatura y humedad mediante protocolo digital de un solo cable (single-wire). |
+| RI11 | El ESP32 debe conectarse a un sensor de luminosidad mediante fotorresistencia (LDR) en una entrada analógica (ADC). |
+| RI12 | El dispositivo debe alimentarse mediante conexión USB (5V). |
+| RI13 | El ESP32 debe poder operar temporalmente como punto de acceso WiFi (SoftAP) y servir una página de configuración HTTP, para ingresar los datos de la red del sitio |
 
 ### Software
 
 | ID | Requisito |
 |---|---|
-| RI14 | API REST en capas para recepción de datos, dashboard y sistemas externos autorizados. |
-| RI15 | Base de datos relacional para clientes, dispositivos, lecturas, umbrales, alertas y usuarios. |
-| RI16 | Firmware con librerías específicas para sensores y comunicación inalámbrica (WiFi, SoftAP) y mensajería. |
-| RI17 | Autenticación por tokens, contraseñas con hash seguro y validación por esquemas; la autorización contempla rol y cliente. |
-| RI18 | Dashboard con tecnologías estándar del lado cliente, consumiendo la API REST. |
-| RI19 | El backend emite eventos en tiempo real hacia los clientes conectados, sin consulta periódica. |
-| RI20 | La API pública exige un mecanismo de autenticación propio (claves de API), independiente del dashboard, y documentación técnica. |
+| RI14 | El backend debe exponer una API REST organizada en capas, para la recepción de datos, la comunicación con el dashboard y su consumo por sistemas externos autorizados. |
+| RI15 | Base de datos relacional para el almacenamiento estructurado de clientes, dispositivos, lecturas, umbrales, alertas y usuarios. |
+| RI16 | El firmware debe implementarse con librerías específicas para lectura de sensores y comunicación inalámbrica (WiFi) y por mensajería. |
+| RI17 | Autenticación basada en tokens, contraseñas con hash seguro y validación de datos mediante esquemas definidos; el esquema de autorización debe contemplar rol y cliente/organización. |
+| RI18 | Dashboard desarrollado con tecnologías estándar del lado del cliente, consumiendo la API REST del backend. |
+| RI19 | El backend debe emitir eventos en tiempo real hacia los clientes conectados, sin necesidad de consulta periódica. |
+| RI20 | La API pública debe requerir un mecanismo de autenticación propio (ej. claves de API), independiente de las credenciales del dashboard, y contar con documentación técnica. |
 
 ### Comunicación
 
 | ID | Requisito |
 |---|---|
-| RI21 | Dispositivo a backend por publicación/suscripción segura; cada dispositivo publica en un tópico asociado a su código y el cliente se resuelve en el backend. |
-| RI22 | Datos en JSON. |
-| RI23 | Backend a dashboard por HTTP, complementado con comunicación bidireccional para tiempo real. |
-| RI24 | La conexión dispositivo-bróker y backend-bróker usa MQTTS en el puerto 8883, valida el certificado contra el CA configurado y se autentica con credenciales específicas. |
-| RI25 | El firmware mantiene un buffer volátil de hasta 360 lecturas y las reenvía en orden de captura al recuperar la conexión. |
+| RI21 | Comunicación entre dispositivo IoT y backend mediante protocolo publicación/suscripción, cada dispositivo publica sus lecturas en un tópico único asociado a su código de dispositivo. La identificación del cliente se resuelve en el backend.El acceso a cada tópico se restringe mediante ACL por dispositivo (RNF16) |
+| RI22 | Los datos transmitidos deben utilizar formato estructurado JSON. |
+| RI23 | Comunicación backend-dashboard mediante protocolo de transferencia de hipertexto, complementado con comunicación bidireccional para tiempo real. |
+| RI24 | La conexión backend-bróker debe autenticarse con credenciales propias del backend, sobre TLS |
+| RI25 | Las claves de API se almacenan únicamente como hash |
 
 ---
 
@@ -117,22 +118,22 @@ clientes es absoluto.
 
 | ID | Requisito |
 |---|---|
-| RE01 | Procesar, almacenar, evaluar umbrales y emitir el evento de cada lectura en un máximo de 1 s en el 95 % de los casos. |
-| RE02 | El dashboard refleja lo más reciente en un máximo de 2 s mediante actualización periódica y eventos en tiempo real, sin sobrecarga. |
-| RE03 | Soportar al menos 100 dispositivos y 10 clientes activos simultáneamente. |
-| RE04 | Resolver consultas de historial agregado de hasta 1 año en un máximo de 3 s en el 95 % de los casos. |
-| RE05 | Mantener el consumo del ESP32 por debajo de 500 mA durante la operación normal. |
-| RE06 | Mantener una latencia máxima de 3 s en el 95 % de las solicitudes bajo una carga de al menos 100 clientes concurrentes. |
-| RD01 | WiFi según IEEE 802.11. |
-| RD02 | Dispositivo-backend según MQTT (OASIS). |
-| RD03 | Backend REST con JSON. |
-| RD04 | Autenticación con estándar abierto de tokens y hash adaptativo de contraseñas. |
-| RD05 | Referencia ISO/IEC 25010. |
-| RD06 | Configuración inicial de conectividad mediante un portal cautivo SoftAP temporal. |
-| RD07 | Firmware liviano (RAM y flash limitadas). |
-| RD08 | Precisión de sensores acotada por el modelo (DHT11: ±2 °C, ±5 %). |
-| RD09 | Alcance de WiFi y Bluetooth limitado por cobertura y distancia. |
-| RD10 | Sin redundancia de hardware en la versión inicial. |
+| RE01 | Con 50 dispositivos activos enviando una lectura cada 10 s, el sistema debe procesar, almacenar, evaluar umbrales y emitir el evento en tiempo real en un tiempo ≤ 500 ms para el percentil 95 (p95), medido desde la recepción en el bróker. |
+| RE02 | El dashboard debe reflejar una lectura nueva en ≤ 2 s (p95) desde su almacenamiento. Como respaldo, debe refrescarse cada 30 s si se pierde la conexión en tiempo real. |
+| RE03 | El sistema debe soportar 50 dispositivos conectados simultáneamente, pertenecientes a al menos 5 clientes, con una latencia p95 que no supere en más de 20 % la medida con 5 dispositivos y sin pérdida de lecturas. |
+| RE04 | Las consultas de historial agregado deben responder en ≤ 2 s (p95) para rangos de hasta 30 días de un dispositivo. |
+| RE05 | El firmware del ESP32 debe usar como máximo el 60 % de la RAM disponible durante la operación normal y mantener el ciclo de lectura y envío dentro de su intervalo de captura, sin reinicios por falta de memoria durante 24 h continuas. |
+| RE06 | Con 10 veces más clientes y lecturas registradas que en el caso base (RE03), los tiempos de RE01 y RE04 no deben aumentar más de 25 %. |
+| RD01 | La comunicación inalámbrica debe cumplir con el estándar IEEE 802.11 (WiFi). |
+| RD02 | La comunicación dispositivo-backend debe seguir el estándar MQTT (OASIS). |
+| RD03 | El backend debe seguir los principios de arquitectura REST, con formato JSON. |
+| RD04 | La autenticación debe basarse en un estándar abierto de tokens de sesión, con hash adaptativo para contraseñas. |
+| RD05 | Se tomarán como referencia los lineamientos de la norma ISO/IEC 25010\. |
+| RD06 | La configuración inicial de conectividad se basa en el estándar IEEE 802.11 (modo SoftAP) y en HTTP para el formulario de configuración |
+| RD07 | El ESP32 posee recursos limitados de RAM y almacenamiento flash, por lo que el firmware debe diseñarse de forma liviana. |
+| RD08 | Los sensores utilizados poseen una precisión acotada según el modelo elegido. |
+| RD09 | El alcance de la conexión WiFi del ESP32 y de su punto de acceso de configuración está limitado por la cobertura y la distancia al dispositivo del usuario |
+| RD10 | El sistema no contempla, en su versión inicial, redundancia de hardware ante fallas físicas. |
 
 ---
 
@@ -140,32 +141,34 @@ clientes es absoluto.
 
 | ID | Requisito |
 |---|---|
-| RNF01 | Acceso con credenciales verificadas por hash seguro; sesiones por tokens con expiración definida. |
-| RNF02 | Comunicación dispositivo-bróker y bróker-backend autenticada con credenciales específicas por dispositivo o servicio y protegida mediante TLS. |
-| RNF03 | Validar con esquemas los datos de entrada de todas las peticiones. |
-| RNF04 | Historial completo de eventos de alerta, con consulta y gestión desde auditoría. |
-| RNF05 | Aislamiento lógico entre clientes: ninguna consulta expone información de otro cliente. |
-| RNF06 | Credenciales sensibles fuera del control de versiones. |
-| RNF07 | Backend organizado en capas diferenciadas. |
-| RNF08 | Documentación técnica actualizada. |
-| RNF09 | Convenciones de estilo y buenas prácticas. |
-| RNF10 | Dashboard compatible con navegadores modernos. |
-| RNF11 | Dashboard adaptable a distintos tamaños de pantalla. |
-| RNF12 | Backend desplegable en distintos entornos de hosting. |
-| RNF13 | Ante una caída del broker de hasta 1 h, el dispositivo conserva hasta 360 lecturas y las reenvía al restablecerse la conexión, sin perder más del 1 % de las lecturas del período. |
-| RNF14 | Al menos el 90 % de los usuarios puede completar las tareas principales sin capacitación especializada y en menos de 5 minutos por tarea. |
-| RNF15 | Escalabilidad: nuevos clientes y dispositivos sin rediseñar la estructura. |
-| RNF16 | Los tokens de reclamo son únicos, aleatorios, de un solo uso y nunca se almacenan en texto plano. |
-| RNF17 | El reclamo, la baja y la rotación de dispositivos se ejecutan atómicamente y se auditan; los rechazos no modifican el estado. |
-| RNF18 | Lecturas y alertas conservan el `cliente_id` del propietario vigente al generarse y nunca se exponen al propietario posterior. |
-| RNF19 | Un dispositivo sin propietario no persiste lecturas ni genera alertas, eventos en tiempo real o actividad válida. |
-| RNF20 | Las lecturas diferidas conservan su timestamp de captura y se consultan en la partición temporal correspondiente. |
-| RNF21 | El sistema rechaza timestamps más de 1 minuto en el futuro o más de 24 horas en el pasado. |
-| RNF22 | Las lecturas con más de 5 minutos de atraso se almacenan, pero no generan alertas ni eventos en tiempo real. |
+| RNF01 | El acceso al dashboard debe requerir autenticación mediante credenciales verificadas por hash seguro, con sesiones gestionadas por tokens con expiración definida. |
+| RNF02 | La comunicación entre dispositivos, bróker y backend debe cifrarse con TLS, y cada dispositivo debe autenticarse con credenciales propias e individuales. |
+| RNF03 | El sistema debe validar los datos de entrada de todas las peticiones mediante esquemas definidos. |
+| RNF04 | El sistema debe registrar el historial completo de eventos de alerta, con consulta y gestión desde auditoría. |
+| RNF05 | El sistema debe garantizar el aislamiento lógico de los datos entre clientes, sin que ninguna consulta exponga información de otro cliente. |
+| RNF06 | Las credenciales sensibles deben mantenerse fuera del control de versiones. |
+| RNF07 | El código del backend debe organizarse en capas claramente diferenciadas. |
+| RNF08 | El sistema debe contar con documentación técnica actualizada. |
+| RNF09 | El código debe seguir convenciones de estilo y buenas prácticas. |
+| RNF10 | El dashboard debe ser compatible con los principales navegadores web modernos. |
+| RNF11 | El dashboard debe adaptarse a distintos tamaños de pantalla. |
+| RNF12 | El backend debe poder desplegarse en distintos entornos de hosting. |
+| RNF13 | Ante la caída del backend o del bróker, los dispositivos deben reconectarse automáticamente en ≤ 60 s una vez restablecido el servicio, sin intervención manual, y el sistema debe volver a operar con normalidad. |
+| RNF14 | Un usuario sin capacitación previa debe completar las tareas principales (iniciar sesión, ver lecturas actuales, consultar el historial y gestionar una alerta) en ≤ 5 minutos, con una tasa de éxito ≥ 90 % en una prueba con al menos 5 usuarios. |
+| RNF15 | El sistema debe ser escalable, permitiendo el registro de nuevos clientes y dispositivos sin rediseñar la estructura existente. |
+| RNF16 | El bróker debe aplicar ACL por dispositivo: cada dispositivo solo puede publicar en su propio tópico. |
+| RNF17 | Un dispositivo sin dueño solo puede ser reclamado presentando un token de reclamo único, aleatorio y de un solo uso. Conocer el código del dispositivo no debe alcanzar. |
+| RNF18 | Cuando un dispositivo cambia de cliente, el nuevo cliente no debe poder acceder a las lecturas, alertas ni umbrales generados bajo el cliente anterior. |
+| RNF19 | Las sesiones deben invalidarse de inmediato ante cambio de contraseña, cambio de rol o eliminación del usuario, incluidas las conexiones en tiempo real ya abiertas. |
+| RNF20 | Los eventos en tiempo real solo deben entregarse a usuarios autenticados del cliente dueño del dispositivo. El cliente se toma del token y no de datos enviados por el navegador, y no se emiten eventos de dispositivos sin cliente. |
+| RNF21 | El sistema debe limitar los intentos de acceso: 5 por cada 15 minutos por IP en el login y, en la API pública, 100 por cada 5 minutos por clave de API y 300 por cada 5 minutos por IP. |
+| RNF22 | Las lecturas reenviadas con más de 5 minutos de atraso se almacenan pero no generan alertas ni eventos en tiempo real. |
 
 ---
 
 ## 6. Reglas de negocio
+
+Las reglas del dominio de la tesis se resumen aquí; los criterios de implementación que no figuran como requisito se identifican al final de esta sección.
 
 **Umbrales**
 
@@ -203,18 +206,19 @@ clientes es absoluto.
 - Nadie elimina su propia cuenta ni deja a su cliente sin admin.
 - Cambiar la contraseña o el rol de un usuario invalida todas sus sesiones abiertas (`token_version` + desconexión de sus sockets). En el cambio de contraseña se incluye la sesión que originó el cambio: debe iniciar sesión de nuevo.
 
-**Emparejamiento (configuración inicial del WiFi)**
+**Configuración inicial del WiFi**
 
-- El portal SoftAP se desactiva tras 5 minutos o al conectar por WiFi y MQTT.
-- Un dispositivo con credenciales guardadas solo vuelve al portal ante una falla de
-  arranque o al mantener presionado el botón BOOT durante 3 segundos.
+- El portal SoftAP es temporal y permite cargar las credenciales de la red del sitio (RF15, RI13, RD06). La tesis no fija un tiempo exacto de cierre.
 
 **Lecturas diferidas**
 
 - Una lectura con `ts` se almacena con ese valor. Se rechaza si `ts` es más de 1 minuto
-  futuro o anterior a 24 horas respecto de la recepción.
+  en el futuro o más de 24 horas en el pasado respecto de la recepción (RF23; regla de
+  negocio de §3.5 de la tesis).
 - Una lectura con `ts` anterior a `reclamado_en` se descarta sin persistirla ni producir
-  alertas o eventos en tiempo real.
+  alertas o eventos en tiempo real (RF23, RNF18 y RNF19; regla de §3.5). La referencia
+  `RNF18` en la tesis se interpreta junto con el requisito vigente de no exponer datos
+  históricos al propietario posterior (RNF18) y el descarte de mensajes sin dueño (RNF19).
 - Una lectura con más de 5 minutos de atraso se almacena, pero no genera alertas ni se
   emite por tiempo real. Las lecturas con atraso de hasta 5 minutos conservan el flujo
   normal.
@@ -227,12 +231,25 @@ clientes es absoluto.
 - Mientras el dispositivo no tenga propietario, sus mensajes MQTT se descartan sin
   persistirse y queda disponible para un nuevo reclamo luego de una rotación explícita.
 
-**Producción y configuración**
+**Configuración vigente de implementación (informativa; no requisito de tesis)**
 
 - Con `NODE_ENV=production` no existen credenciales por defecto: el arranque falla si
   falta `ADMIN_PASS`, y no se crea el usuario de prueba.
 - Los orígenes permitidos por CORS (API REST y Socket.io) se configuran por entorno
   (`CORS_ORIGIN`); no se aceptan orígenes arbitrarios.
+
+
+### Criterios adicionales fuera de las 86 filas normativas (pendientes de decisión o confirmación)
+
+Los siguientes detalles provienen de decisiones de diseño, implementación o requisitos que no están expresados con ese nivel de precisión en las tablas de la tesis. Se conservan para trazabilidad, pero no deben usarse como criterio normativo hasta que se acuerden y se vinculen a la spec correspondiente. Ver el [crosswalk de R1](../specs/012-alinear-requisitos-tesis/crosswalk.md).
+
+- Pérdida máxima de 1 % durante una caída de una hora; la tesis define capacidad/orden del buffer (RF22), no ese porcentaje.
+- Hash del token de reclamo, atomicidad del reclamo/baja/rotación y auditoría de esos eventos, más allá de RF14 y RNF17.
+- Particionado temporal de lecturas diferidas.
+- Descartar mensajes con timestamp anterior a `reclamado_en` y mensajes de dispositivos sin propietario: se conservan como reglas de dominio de §3.5, pero requieren corregir la referencia de ID heredada en la tesis y validar el comportamiento al implementar.
+- Política actual del login: 5 intentos por combinación IP/username, 30 por IP y 20 por username en 15 minutos. No cumple por sí sola RNF21, que fija 5 por IP; debe resolverse en su propia fase. También son criterios adicionales la protección contra la eliminación propia o del último administrador del cliente y el umbral exacto de 2 minutos para clasificar un dispositivo como online.
+- Tiempo exacto para cerrar el portal SoftAP, reingreso por botón BOOT y condición de cierre tras conexión WiFi/MQTT.
+- Para RF02, rango/unidad del intervalo, estado deseado/reportado, persistencia y confirmación del dispositivo; la decisión de configurar desde el dashboard y la coordinación con MQTT se planifican en R4, después de R3.
 
 ---
 
@@ -276,12 +293,7 @@ el payload no cambian sin versionarse, porque hay firmware desplegado. El listen
 cifrado en `1883` permanece cerrado. Backend y clientes que ya soporten TLS deben validar
 el certificado del broker contra el CA configurado y el nombre incluido en el SAN.
 
-**Rate limiting (4.6.7 de la tesis):** login con tres límites encadenados cada 15 minutos:
-5 intentos por combinación de IP y username normalizado, 30 por IP y 20 por username
-normalizado; los logins exitosos no cuentan y cualquier límite superado responde 429 con
-un mensaje genérico. Si el username no es un string, se aplica solo el límite por IP.
-La API pública conserva el máximo de 100 solicitudes cada 5 minutos por clave y 300 por
-IP.
+**Rate limiting (RNF21):** el requisito establece 5 intentos de login por IP en cada ventana de 15 minutos y, para la API pública, 100 solicitudes por clave y 300 por IP en cada ventana de 5 minutos. La diferencia entre estos criterios y el limitador de login actual se registra entre los criterios adicionales de esta sección.
 
 ---
 
@@ -311,19 +323,19 @@ segura y fuera del control de versiones; se aplica minimización de datos.
 
 | ID | Caso de uso | Actor | Requisitos |
 |---|---|---|---|
-| CU01 | Iniciar sesión | Sin registrar | RF16, RI06, RNF08 |
-| CU02 | Cerrar sesión | Autenticado | RI06 |
-| CU03 | Ver panel principal en tiempo real | Autenticado | RF06, RF13, RI02, RI19 |
-| CU04 | Consultar histórico de lecturas | Autenticado | RF07, RI03 |
-| CU05 | Ver y editar perfil propio | Autenticado | RF20, RI09 |
-| CU06 | Gestionar alertas | Autenticado | RF09, RF11, RI05, RI07 |
-| CU07 | Aprovisionar, reclamar, modificar y liberar dispositivos IoT | Operador y Admin | RF12, RF18, RF21, RNF17, RNF18 |
-| CU08 | Configurar umbrales de alerta | Admin | RF08, RI04 |
-| CU09 | Gestionar usuarios | Admin | RF16, RI08 |
+| CU01 | Iniciar sesión | Sin registrar | RI06, RNF01, RNF05, RNF21 |
+| CU02 | Cerrar sesión | Autenticado | RI06, RNF19 |
+| CU03 | Ver panel principal en tiempo real | Autenticado | RF06, RF13, RI02, RI19, RNF20 |
+| CU04 | Consultar histórico de lecturas | Autenticado | RF07, RI03, RE04, RNF18 |
+| CU05 | Ver y editar perfil propio | Autenticado | RF20, RI09, RNF19 |
+| CU06 | Gestionar alertas | Autenticado | RF09, RF10, RF11, RI05, RI07, RNF04, RNF18 |
+| CU07 | Aprovisionar, reclamar, modificar y liberar dispositivos IoT | Operador y Admin | RF12, RF14, RF17, RF18, RF21, RNF17, RNF18 |
+| CU08 | Configurar umbrales de alerta | Admin | RF08, RF14, RF17, RI04 |
+| CU09 | Gestionar usuarios | Admin | RF14, RF16, RF17, RI08, RNF19 |
 | CU10 | Configurar conectividad mediante portal SoftAP | Admin y ESP32 | RF15, RI13, RD06 |
-| CU11 | Capturar y publicar lectura ambiental, incluso diferida | ESP32 | RF01, RF03, RF22, RF23, RI21, RI25 |
-| CU12 | Recibir y procesar mensaje de lectura | Backend | RF04, RF05, RF09, RF22, RF23, RI16, RI19 |
-| CU13 | Consultar datos vía API pública | Sistema externo | RF19, RI20 |
+| CU11 | Capturar y publicar lectura ambiental, incluso diferida | ESP32 | RF01, RF02, RF03, RI16, RI21, RI22, RNF16, RF22, RF23 |
+| CU12 | Recibir y procesar mensaje de lectura | Backend | RF04, RF05, RF09, RF10, RI19, RI21, RI24, RNF20, RNF18, RF23, RNF22 |
+| CU13 | Consultar datos vía API pública | Sistema externo | RF19, RI20, RI25, RNF21 |
 
 ---
 
