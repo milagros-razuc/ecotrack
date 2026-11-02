@@ -432,4 +432,4 @@ ecotrack/
 | Backend | Node.js, Express, pg, JWT, bcrypt, Zod |
 | Base de datos | PostgreSQL 15 |
 | Frontend | HTML, Tailwind CSS, Chart.js |
-| Infraestructura | Docker, Docker Compose, nginx | 
+| Infraestructura | Docker, Docker Compose, nginx |
