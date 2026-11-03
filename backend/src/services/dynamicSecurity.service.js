@@ -32,6 +32,11 @@ function createMqttClient() {
   });
 }
 
+function isMissingEntityError(error) {
+  const detail = `${error?.code || ''} ${error?.message || ''}`;
+  return /(?:does not exist|not found|unknown (?:client|role)|no existe)/i.test(detail);
+}
+
 function requestCommand(client, command) {
   const correlationData = crypto.randomUUID();
   const payload = JSON.stringify({ commands: [command], correlationData });
@@ -64,7 +69,10 @@ function requestCommand(client, command) {
       if (responseCorrelation && responseCorrelation !== correlationData) return;
       if (!commandResponse) return;
       if (commandResponse.error) {
-        finish(new Error('dynamic-security command rejected'));
+        const detail = typeof commandResponse.error === 'string'
+          ? commandResponse.error
+          : JSON.stringify(commandResponse.error);
+        finish(new Error(`dynamic-security command rejected: ${detail}`));
         return;
       }
       finish(null, commandResponse);
@@ -174,10 +182,19 @@ function createDynamicSecurityService({ connect = createMqttClient, request = re
   }
 
   async function removeDevice(identity) {
-    await runCommands([
+    const errors = [];
+    const commands = [
       { command: 'deleteClient', username: identity.username },
       { command: 'deleteRole', rolename: identity.roleName },
-    ]);
+    ];
+    for (const command of commands) {
+      try {
+        await runCommands([command]);
+      } catch (error) {
+        if (!isMissingEntityError(error)) errors.push(error);
+      }
+    }
+    if (errors.length > 0) throw errors[0];
   }
 
   return { provisionDevice, removeDevice };

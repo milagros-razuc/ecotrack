@@ -27,7 +27,7 @@ function createEnrollmentService({
   pool = poolPorDefecto,
   dynamicSecurity = createDynamicSecurityService(),
   randomBytes = crypto.randomBytes,
-  mqttHost = process.env.MQTT_HOST || 'localhost',
+  mqttHost = process.env.MQTT_PUBLIC_HOST || 'localhost',
   mqttPort = Number(process.env.MQTT_PORT || 8883),
 } = {}) {
   async function enrolar({ deviceId, deviceSecret }) {
@@ -91,7 +91,6 @@ function createEnrollmentService({
           console.error('No se pudo confirmar el rollback de dynamic-security para el enrolamiento');
         }
       }
-      if (error instanceof EnrollmentError || error.rollbackFailed) throw new EnrollmentError();
       throw new EnrollmentError();
     } finally {
       client.release();

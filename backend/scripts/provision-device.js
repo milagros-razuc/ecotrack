@@ -31,7 +31,7 @@ async function main(args = process.argv.slice(2)) {
   }
 
   const parsed = parsearArgumentos(args);
-  if (!parsed || !/^[^\\s]{1,50}$/.test(parsed.codigo)) {
+  if (!parsed || !/^[^\s]{1,50}$/.test(parsed.codigo)) {
     throw new Error('Uso inválido. Ejecutá --help para ver el formato.');
   }
 
