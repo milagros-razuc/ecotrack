@@ -39,8 +39,12 @@ services:
     environment:
       DB_HOST: postgres
       MQTT_HOST: mosquitto
+      MQTT_PUBLIC_HOST: ${MQTT_PUBLIC_HOST:?set MQTT_PUBLIC_HOST in root .env}
       MQTT_PORT: 8883
       MQTT_CA_PATH: /run/secrets/ecotrack-ca.crt
+      DYNSEC_CA_PATH: /run/secrets/ecotrack-ca.crt
+      DYNSEC_ADMIN_USER: ${DYNSEC_ADMIN_USER}
+      DYNSEC_ADMIN_PASS: ${DYNSEC_ADMIN_PASS}
     volumes:
       - ./mosquitto/config/certs/ecotrack-ca.crt:/run/secrets/ecotrack-ca.crt:ro
     ports:
