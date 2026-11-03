@@ -1,0 +1,11 @@
+{
+  "defaultACLAccess": {
+    "publishClientSend": "deny",
+    "publishClientReceive": "deny",
+    "subscribe": "deny",
+    "unsubscribe": "deny"
+  },
+  "clients": [],
+  "groups": [],
+  "roles": []
+}
