@@ -5,6 +5,7 @@ const morgan = require('morgan');
 
 const authRouter = require('./routes/auth');
 const dispositivosRouter = require('./routes/dispositivos');
+const createEnrollmentRouter = require('./routes/enrolamiento');
 const lecturasRouter = require('./routes/lecturas');
 const alertasRouter = require('./routes/alertas');
 const umbralesRouter = require('./routes/umbrales');
@@ -24,6 +25,9 @@ app.use(morgan('dev'));
 app.use(helmet());
 app.use(express.json());
 app.use(cors({ origin: obtenerOrigenesPermitidos() }));
+
+// El firmware se autentica con el secreto de fábrica, no con una sesión JWT.
+app.use('/api/dispositivos/enrolar', createEnrollmentRouter());
 
 // Pública: no requiere token. /me y /change-password validan la sesión
 app.use('/api/auth', authRouter);

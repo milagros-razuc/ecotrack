@@ -12,8 +12,8 @@ from scripts.provision_factory import (
     FactoryIdentity,
     NvsGenerationError,
     _write_nvs_csv,
+    _write_backend_export,
     _run_nvs_generator,
-    export_backend,
     generate_identity,
     provision,
     valid_server_host,
@@ -56,38 +56,39 @@ class ProvisionFactoryTest(unittest.TestCase):
             self.assertNotIn("wifiPass", content)
             self.assertNotIn("mqttPass", content)
 
-    def test_export_backend_contains_only_device_id_and_secret_hash(self):
+    def test_backend_export_contains_only_device_id_and_secret_hash(self):
         identity = FactoryIdentity(
-            "ET-EXPORT-XYZ9", "SoftApSecret", "s" * 64, "654321", "localhost"
+            "ET-TEST12345678", "Password123", "a" * 64, "987654", "broker.ecotrack.local"
         )
         with tempfile.TemporaryDirectory() as directory:
-            export_path = Path(directory) / "backend.csv"
-            sql_path = Path(directory) / "backend.sql"
-            export_backend([identity], export_path, sql_path)
-
-            with export_path.open(newline="", encoding="utf-8") as handle:
-                rows = list(csv.DictReader(handle))
+            path = Path(directory) / "backend.csv"
+            _write_backend_export(path, [identity])
+            content = path.read_text(encoding="utf-8")
+            rows = list(csv.DictReader(content.splitlines()))
+            self.assertEqual(rows[0]["device_id"], identity.device_id)
             self.assertEqual(
-                rows,
-                [{
-                    "device_id": identity.device_id,
-                    "factory_secret_hash": hashlib.sha256(
-                        identity.device_secret.encode("utf-8")
-                    ).hexdigest(),
-                }],
+                rows[0]["factory_secret_hash"],
+                hashlib.sha256(identity.device_secret.encode("utf-8")).hexdigest(),
             )
-            exported = export_path.read_text(encoding="utf-8") + sql_path.read_text(
-                encoding="utf-8"
-            )
-            self.assertNotIn(identity.device_secret, exported)
-            self.assertNotIn(identity.setup_pin, exported)
-            self.assertNotIn(identity.softap_password, exported)
-            self.assertIn("ON CONFLICT (device_id) DO NOTHING", exported)
+            self.assertNotIn(identity.device_secret, content)
+            self.assertNotIn(identity.setup_pin, content)
+            self.assertNotIn(identity.softap_password, content)
 
-    def test_export_backend_rejects_repo_path(self):
-        identity = generate_identity("localhost")
-        with self.assertRaisesRegex(ValueError, "fuera del repositorio"):
-            export_backend([identity], Path(__file__).resolve().parents[1] / "backend.csv")
+    @patch("scripts.provision_factory._run_nvs_generator")
+    def test_provision_can_write_backend_export_without_secret_or_pin(self, run_generator):
+        identity = FactoryIdentity(
+            "ET-TEST12345678", "Password123", "a" * 64, "987654", "localhost"
+        )
+        run_generator.side_effect = lambda _, __, image_path, ___, ____: image_path.write_bytes(
+            b"nvs"
+        )
+        with tempfile.TemporaryDirectory() as parent:
+            output = Path(parent) / "factory"
+            with patch("scripts.provision_factory.generate_identity", return_value=identity):
+                provision(1, output, "nvs_partition_gen.py", "0x5000", export_backend=True)
+            export = (output / "backend.csv").read_text(encoding="utf-8")
+            self.assertNotIn(identity.device_secret, export)
+            self.assertNotIn(identity.setup_pin, export)
 
     @patch("scripts.provision_factory.subprocess.run")
     def test_default_nvs_generator_uses_current_python_module(self, run):

@@ -80,6 +80,18 @@ def _write_nvs_csv(path: Path, identity: FactoryIdentity) -> None:
         writer.writerow(["deviceSecret", "data", "string", identity.device_secret])
 
 
+def _write_backend_export(path: Path, identities: list[FactoryIdentity]) -> None:
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(["device_id", "factory_secret_hash", "created_at"])
+        created_at = datetime.now(timezone.utc).isoformat()
+        for identity in identities:
+            secret_hash = hashlib.sha256(
+                identity.device_secret.encode("utf-8")
+            ).hexdigest()
+            writer.writerow([identity.device_id, secret_hash, created_at])
+
+
 def _sanitize_error(message: str, identity: FactoryIdentity | None) -> str:
     if identity is None:
         return message
@@ -154,64 +166,6 @@ def _prepare_output(output: Path) -> None:
     output.mkdir(parents=True)
 
 
-def _ensure_outside_repo(path: Path) -> Path:
-    path = path.resolve()
-    repo_root = Path(__file__).resolve().parents[1]
-    try:
-        path.relative_to(repo_root)
-    except ValueError:
-        return path
-    raise ValueError("el export debe estar fuera del repositorio")
-
-
-def _factory_backend_rows(identities: list[FactoryIdentity]) -> list[tuple[str, str]]:
-    return [
-        (
-            identity.device_id,
-            hashlib.sha256(identity.device_secret.encode("utf-8")).hexdigest(),
-        )
-        for identity in identities
-    ]
-
-
-def export_backend(
-    identities: list[FactoryIdentity],
-    output: Path,
-    sql_output: Path | None = None,
-) -> Path:
-    """Write only device IDs and SHA-256 factory-secret hashes outside the repo."""
-    output = _ensure_outside_repo(output)
-    output.parent.mkdir(parents=True, exist_ok=True)
-    rows = _factory_backend_rows(identities)
-    with tempfile.NamedTemporaryFile(
-        mode="w", newline="", encoding="utf-8", dir=output.parent, delete=False
-    ) as handle:
-        temporary = Path(handle.name)
-        writer = csv.writer(handle)
-        writer.writerow(["device_id", "factory_secret_hash"])
-        writer.writerows(rows)
-    temporary.replace(output)
-
-    if sql_output is not None:
-        sql_output = _ensure_outside_repo(sql_output)
-        sql_output.parent.mkdir(parents=True, exist_ok=True)
-        with tempfile.NamedTemporaryFile(
-            mode="w", encoding="utf-8", dir=sql_output.parent, delete=False
-        ) as handle:
-            sql_temporary = Path(handle.name)
-            for device_id, secret_hash in rows:
-                escaped_device_id = device_id.replace("'", "''")
-                handle.write(
-                    "INSERT INTO dispositivos_fabrica "
-                    "(device_id, factory_secret_hash) "
-                    f"VALUES ('{escaped_device_id}', '{secret_hash}') "
-                    "ON CONFLICT (device_id) DO NOTHING;\n"
-                )
-        sql_temporary.replace(sql_output)
-
-    return output
-
-
 def provision(
     count: int,
     output: Path,
@@ -219,19 +173,20 @@ def provision(
     size: str,
     keep_on_error: bool = False,
     server_host: str = "localhost",
-    export_backend_path: Path | None = None,
-    export_backend_sql_path: Path | None = None,
+    export_backend: bool = False,
 ) -> Path:
     if count < 1:
         raise ValueError("count debe ser mayor que cero")
     if not valid_server_host(server_host):
         raise ValueError("server-host debe ser un hostname o IPv4 valido")
     output = output.resolve()
-    _ensure_outside_repo(output)
-    if export_backend_path is not None:
-        _ensure_outside_repo(export_backend_path)
-    if export_backend_sql_path is not None:
-        _ensure_outside_repo(export_backend_sql_path)
+    repo_root = Path(__file__).resolve().parents[1]
+    try:
+        output.relative_to(repo_root)
+    except ValueError:
+        pass
+    else:
+        raise ValueError("output debe estar fuera del repositorio")
 
     output.parent.mkdir(parents=True, exist_ok=True)
     _prepare_output(output)
@@ -303,12 +258,8 @@ def provision(
 
         for item in temp.iterdir():
             shutil.move(str(item), output / item.name)
-    if export_backend_path is not None:
-        export_backend(
-            [identity for identity, _ in rows],
-            export_backend_path,
-            export_backend_sql_path,
-        )
+    if export_backend:
+        _write_backend_export(output / "backend.csv", identities)
     return output
 
 
@@ -320,19 +271,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--nvs-size", default="0x5000")
     parser.add_argument("--server-host", required=True)
     parser.add_argument(
-        "--export-backend",
-        type=Path,
-        help="archivo CSV externo con device_id y hash SHA-256 del secreto de fábrica",
-    )
-    parser.add_argument(
-        "--export-backend-sql",
-        type=Path,
-        help="archivo SQL externo opcional para dispositivos_fabrica",
-    )
-    parser.add_argument(
         "--keep-on-error",
         action="store_true",
         help="conservar los CSV NVS intermedios si falla el generador",
+    )
+    parser.add_argument(
+        "--export-backend",
+        action="store_true",
+        help="generar backend.csv con device_id y hash del secreto, sin secretos ni PIN",
     )
     args = parser.parse_args(argv)
     try:
@@ -344,7 +290,6 @@ def main(argv: list[str] | None = None) -> int:
             args.keep_on_error,
             args.server_host,
             args.export_backend,
-            args.export_backend_sql,
         )
     except NvsGenerationError as error:
         print(f"Error: {error}", file=sys.stderr)
