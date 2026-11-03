@@ -37,6 +37,8 @@ repositorio y se importa en una única transacción, sin imprimir hashes.
   importación, omisiones y rollback ante fila inválida.
 - [X] T057 Documentar en quickstart el import de `backend.csv` después del export
   de fábrica.
+- [X] T058 Corregir las raíces prohibidas del importador para soportar host y
+  contenedor, y cubrir rutas temporales, backend, repo y `/tmp` equivalente.
 
 ## Phase 1: Setup
 

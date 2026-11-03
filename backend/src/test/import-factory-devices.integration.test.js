@@ -9,12 +9,46 @@ const {
   withTemporaryDatabase,
 } = require('./realtime.test-support');
 const {
+  assertOutsideRepository,
+  getForbiddenRoots,
   importFactoryDevices,
 } = require('../../scripts/import-factory-devices');
 
-function csvFile(name, content) {
+function csvFile(name) {
   return path.join(os.tmpdir(), `ecotrack-${name}-${Date.now()}.csv`);
 }
+
+test('acepta un CSV temporal y rechaza backend y raíz del repositorio', async () => {
+  const temporaryCsv = csvFile('accepted');
+  await fs.writeFile(temporaryCsv, 'device_id,factory_secret_hash\n');
+  try {
+    assertOutsideRepository(temporaryCsv);
+    assert.throws(
+      () => assertOutsideRepository(path.join(__dirname, '..', '..', 'scripts', 'file.csv')),
+      /fuera del repositorio/,
+    );
+    assert.throws(
+      () => assertOutsideRepository(path.resolve(__dirname, '..', '..', '..', 'README.MD')),
+      /fuera del repositorio/,
+    );
+  } finally {
+    await fs.rm(temporaryCsv, { force: true });
+  }
+});
+
+test('acepta /tmp equivalente cuando el script corre bajo /app/scripts', async () => {
+  const layoutRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'ecotrack-container-'));
+  const scriptDir = path.join(layoutRoot, 'app', 'scripts');
+  const csvPath = path.join(layoutRoot, 'tmp', 'backend.csv');
+  await fs.mkdir(scriptDir, { recursive: true });
+  await fs.mkdir(path.dirname(csvPath), { recursive: true });
+  try {
+    assert.deepEqual(getForbiddenRoots(scriptDir), [path.join(layoutRoot, 'app')]);
+    assertOutsideRepository(csvPath, { scriptDir });
+  } finally {
+    await fs.rm(layoutRoot, { recursive: true, force: true });
+  }
+});
 
 async function createFactoryTable(pool) {
   await pool.query(`

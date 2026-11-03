@@ -3,6 +3,7 @@
 require('dotenv').config();
 
 const fs = require('fs/promises');
+const fsSync = require('fs');
 const path = require('path');
 const poolPorDefecto = require('../src/config/db');
 
@@ -70,20 +71,42 @@ function parseCsv(content) {
   });
 }
 
-function assertOutsideRepository(csvPath) {
-  const repositoryRoot = path.resolve(__dirname, '../..');
+function findRepositoryRoot(scriptDir) {
+  let current = path.resolve(scriptDir);
+  while (true) {
+    if (fsSync.existsSync(path.join(current, '.git'))) return current;
+    const parent = path.dirname(current);
+    if (parent === current) return null;
+    current = parent;
+  }
+}
+
+function getForbiddenRoots(scriptDir = __dirname) {
+  const backendRoot = path.resolve(scriptDir, '..');
+  const repositoryRoot = findRepositoryRoot(scriptDir);
+  return repositoryRoot && repositoryRoot !== backendRoot
+    ? [backendRoot, repositoryRoot]
+    : [backendRoot];
+}
+
+function isWithinRoot(candidatePath, rootPath) {
+  const relativePath = path.relative(rootPath, candidatePath);
+  return relativePath === ''
+    || (!relativePath.startsWith('..') && !path.isAbsolute(relativePath));
+}
+
+function assertOutsideRepository(csvPath, { scriptDir = __dirname } = {}) {
   const absolutePath = path.resolve(csvPath);
-  const relativePath = path.relative(repositoryRoot, absolutePath);
-  if (relativePath === '' || (!relativePath.startsWith('..') && !path.isAbsolute(relativePath))) {
+  if (getForbiddenRoots(scriptDir).some((root) => isWithinRoot(absolutePath, root))) {
     throw new Error('La ruta CSV debe estar fuera del repositorio');
   }
   return absolutePath;
 }
 
-async function importFactoryDevices({ csvPath, pool = poolPorDefecto }) {
-  const absolutePath = assertOutsideRepository(csvPath);
+async function importFactoryDevices({ csvPath, pool = poolPorDefecto, scriptDir = __dirname }) {
+  const absolutePath = assertOutsideRepository(csvPath, { scriptDir });
   const canonicalPath = await fs.realpath(absolutePath);
-  assertOutsideRepository(canonicalPath);
+  assertOutsideRepository(canonicalPath, { scriptDir });
   const content = await fs.readFile(canonicalPath, 'utf8');
   const rows = parseCsv(content);
   const client = await pool.connect();
@@ -141,6 +164,9 @@ if (require.main === module) {
 
 module.exports = {
   assertOutsideRepository,
+  findRepositoryRoot,
+  getForbiddenRoots,
+  isWithinRoot,
   importFactoryDevices,
   main,
   parseCsv,

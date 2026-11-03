@@ -32,6 +32,13 @@
    docker compose exec -T backend rm -f /tmp/backend.csv
    ```
 
+   This is the container workflow: `docker compose cp` places the file in
+   `/tmp`, the import runs inside the backend container, and the temporary file
+   is removed afterward. If running the script directly on the host instead,
+   provide `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER` and `DB_PASS` for the
+   target database in the environment; the CSV must still be outside the
+   repository.
+
 4. For every exported factory `device_id`, first create the corresponding
    pending row in `dispositivos` by running `provision-device.js`, and then claim
    that same device in the dashboard:
