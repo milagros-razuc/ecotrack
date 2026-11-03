@@ -28,6 +28,16 @@ un log sanitizado en stderr, no un incidente persistido.
   seguido del reclamo dashboard, el origen de variables Compose y el contexto
   host/contenedor de `mosquitto_ctrl`.
 
+**Importación de fábrica**: `backend.csv` se valida completo fuera del
+repositorio y se importa en una única transacción, sin imprimir hashes.
+
+- [X] T055 [P] Añadir `backend/scripts/import-factory-devices.js` para validar e
+  importar el CSV con `ON CONFLICT DO NOTHING`, rechazando rutas dentro del repo.
+- [X] T056 [P] Añadir test de integración con base PostgreSQL descartable para
+  importación, omisiones y rollback ante fila inválida.
+- [X] T057 Documentar en quickstart el import de `backend.csv` después del export
+  de fábrica.
+
 ## Phase 1: Setup
 
 **Purpose**: Preparar contratos, secretos locales y cobertura de validación sin modificar firmware ni producción todavía.

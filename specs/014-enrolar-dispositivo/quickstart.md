@@ -20,7 +20,19 @@
 
 1. Run the factory export outside Git.
 2. Apply the factory-device migration.
-3. For every exported factory `device_id`, first create the corresponding
+3. Import `backend.csv` into `dispositivos_fabrica` from a path outside the
+   repository. The command validates all rows before opening the transaction;
+   it never prints hashes and reports only inserted/omitted counts:
+
+   ```powershell
+   $backendCsv = 'C:\ruta\fuera\del\repo\backend.csv'
+   docker compose cp $backendCsv backend:/tmp/backend.csv
+   docker compose exec -T backend node scripts/import-factory-devices.js `
+     /tmp/backend.csv
+   docker compose exec -T backend rm -f /tmp/backend.csv
+   ```
+
+4. For every exported factory `device_id`, first create the corresponding
    pending row in `dispositivos` by running `provision-device.js`, and then claim
    that same device in the dashboard:
 
@@ -31,10 +43,10 @@
    Capture the one-time claim token only in a protected variable or secret
    operator channel. Do not put it in the factory backend export: that export
    contains only `device_id` and `factory_secret_hash`.
-4. Claim one device for client A and another for client B through the existing
+5. Claim one device for client A and another for client B through the existing
    dashboard flow, using the `device_id` as the claim `codigo` and the
    one-time token from the previous step.
-5. Confirm no request body or log contains the claim token.
+6. Confirm no request body or log contains the claim token.
 
 ## Issue HTTPS certificate
 
