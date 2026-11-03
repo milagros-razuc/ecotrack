@@ -55,6 +55,8 @@ services:
 
   caddy:
     image: caddy:2-alpine
+    environment:
+      PUBLIC_HOST: ${MQTT_PUBLIC_HOST:?set MQTT_PUBLIC_HOST in root .env}
     ports:
       - "443:443"
     volumes:

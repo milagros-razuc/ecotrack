@@ -11,9 +11,9 @@
   `./backend/.env`, a different file.
 - `DYNSEC_CA_PATH=/run/secrets/ecotrack-ca.crt` is declared in the backend
   service in `docker-compose.yml`; it is not read from the root `.env`.
-- `MQTT_PUBLIC_HOST` is a separate root `.env` variable for the hostname visible
-  to the board. Its definitive value is pending and must not be replaced by the
-  internal Docker hostname `mosquitto`.
+- `MQTT_PUBLIC_HOST` is the single root `.env` value for the public host visible
+  to the board and the Caddy site. Do not use the internal Docker hostname
+  `mosquitto` there.
 - `serverHost` is a DNS hostname and the CA matching `ecotrack_ca.h` is available.
 
 ## Prepare data
@@ -57,7 +57,11 @@
 
 ## Issue HTTPS certificate
 
-For the development proxy, Caddy creates a local certificate for `localhost`.
+For development, set `MQTT_PUBLIC_HOST` to the PC IP or a local DNS name. Caddy
+receives the same value as `PUBLIC_HOST` and creates an internal certificate for
+that site; `localhost` remains available as an additional local test site.
+`MQTT_PUBLIC_HOST` must not be `localhost`, because that name is already the
+additional site.
 Start the services and export Caddy's persisted root CA outside the repository:
 
 ```powershell
@@ -77,7 +81,8 @@ docker compose up -d mosquitto backend caddy
 ```
 
 Verify ports 3000 and 8080 are not published externally and Caddy answers on
-`https://localhost:443`. The dashboard and its API use the same HTTPS origin;
+`https://<MQTT_PUBLIC_HOST>:443` (and `https://localhost:443`). The dashboard
+and its API use the same HTTPS origin;
 the frontend uses relative `/api/*` URLs, so login cookies/tokens are not sent
 cross-origin. The backend Compose service must define
 `DYNSEC_CA_PATH=/run/secrets/ecotrack-ca.crt`; this is the CA consumed by the
@@ -93,6 +98,29 @@ line, first open `https://localhost/login.html` in a browser trusted with the
 exported Caddy CA, then submit the login form. The browser request must be
 `POST https://localhost/api/auth/login` and must not request
 `http://localhost:3000` or `http://localhost:8080`.
+
+When moving to a production DNS name, keep the same `MQTT_PUBLIC_HOST` value
+and remove `tls internal` from the public site block in `caddy/Caddyfile`.
+Caddy will then obtain and renew a publicly trusted certificate automatically;
+the `localhost` block can remain internal for local tests.
+
+When the public host changes, reissue the broker certificate with the matching
+SAN before restarting the broker. The command accepts either an IP or DNS name,
+keeps private keys outside Git, and updates the firmware copy of the project CA:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\generate-mqtt-certs.ps1 `
+  -HostName $env:MQTT_PUBLIC_HOST
+docker compose restart mosquitto backend
+```
+
+The script creates or reuses the project CA at
+`mosquitto/config/certs/ecotrack-ca.key` and writes the broker certificate and
+key beside it. The CA private key is ignored by Git and must never be copied
+into the repository or printed. `codigo-esp32-mosquitto/ecotrack_ca.h` contains
+the public CA certificate used by firmware as `kEcotrackCa`; it is not a private
+key. If that embedded certificate predates the current CA, regenerate the
+firmware header from the public `ecotrack-ca.crt` before flashing.
 
 ## MQTT CLI credentials without password arguments
 

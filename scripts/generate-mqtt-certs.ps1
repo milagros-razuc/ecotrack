@@ -1,6 +1,7 @@
 param(
     [Parameter(Mandatory = $true)]
-    [string]$HostIp,
+    [Alias('HostIp')]
+    [string]$HostName,
     [string]$OutputRoot
 )
 
@@ -10,7 +11,6 @@ if (-not $OutputRoot) { $OutputRoot = Join-Path $scriptDir '..' }
 $repoRoot = (Resolve-Path $OutputRoot).Path
 $mosquittoCerts = Join-Path $repoRoot 'mosquitto\config\certs'
 $esp32Certs = Join-Path $repoRoot 'codigo-esp32-mosquitto\certs'
-$sanConfig = Join-Path $scriptDir 'mqtt-broker-san.cnf'
 
 New-Item -ItemType Directory -Force -Path $mosquittoCerts, $esp32Certs | Out-Null
 
@@ -30,7 +30,23 @@ openssl req -new -newkey rsa:2048 -nodes `
     -keyout $brokerKey -out $brokerCsr `
     -subj '/C=AR/O=EcoTrack/OU=Development/CN=mosquitto'
 
-$san = (Get-Content $sanConfig -Raw).Replace('IP_REPLACE_ME', $HostIp)
+$parsedIp = $null
+$isIp = [System.Net.IPAddress]::TryParse($HostName, [ref]$parsedIp)
+$san = @"
+[server_cert]
+basicConstraints = critical,CA:false
+keyUsage = critical,digitalSignature,keyEncipherment
+extendedKeyUsage = serverAuth
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1 = mosquitto
+DNS.2 = localhost
+DNS.3 = $HostName
+"@
+if ($isIp) {
+    $san += "IP.1 = $HostName`r`n"
+}
 $temporarySanConfig = Join-Path $env:TEMP ('ecotrack-mqtt-san-' + [guid]::NewGuid().ToString() + '.cnf')
 Set-Content -Path $temporarySanConfig -Value $san -Encoding ascii
 try {

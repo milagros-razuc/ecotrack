@@ -1,7 +1,10 @@
 # HTTPS/TLS Contract
 
-- Caddy listens on `443` and proxies `/api/dispositivos/enrolar` to
-  `backend:3000`.
+- Caddy listens on `443` using the `PUBLIC_HOST` environment value, which
+  Compose derives from the single root `.env` value `MQTT_PUBLIC_HOST`, and
+  proxies `/api/dispositivos/enrolar` to `backend:3000`.
+- `MQTT_PUBLIC_HOST` must differ from `localhost`; `localhost` is retained as a
+  separate local test site.
 - Caddy serves the frontend on `/` through the internal `frontend:80` service
   and proxies `/api/*`, `/socket.io/*` and `/health` to `backend:3000`.
 - Backend port `3000` is internal to the Compose network for this endpoint and is
