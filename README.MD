@@ -23,10 +23,10 @@ ESP32 (DHT11 + LDR)
        │
        ├──► PostgreSQL (almacenamiento)
        │
-       └──► API REST (puerto 3000)
+       └──► Caddy HTTPS (puerto 443)
                 │
                 ▼
-         Frontend (nginx, puerto 8080)
+         Frontend (nginx, red interna)
 ```
 
 ---
@@ -141,9 +141,9 @@ Los dos últimos mensajes de usuario solo aparecen la primera vez que se levanta
 
 | Servicio | URL |
 |---|---|
-| Dashboard | http://localhost:8080/login.html |
-| API REST | http://localhost:3000 |
-| Healthcheck | http://localhost:3000/health |
+| Dashboard | https://localhost/login.html |
+| API REST | https://localhost/api |
+| Healthcheck | https://localhost/health |
 
 ---
 
@@ -291,9 +291,10 @@ Para reutilizarlo, el operador debe generar un token nuevo con `--rotate`.
 
 ### Ejemplo de request al login
 
-```bash
-curl -X POST http://localhost:3000/api/auth/login \
-  -H "Content-Type: application/json" \
+```powershell
+curl.exe --cacert "$env:TEMP\ecotrack-caddy-root.crt" `
+  -X POST https://localhost/api/auth/login `
+  -H "Content-Type: application/json" `
   -d '{"username":"admin","password":"tu_pass"}'
 ```
 
