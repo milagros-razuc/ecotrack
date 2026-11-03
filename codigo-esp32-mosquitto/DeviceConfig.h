@@ -6,6 +6,7 @@ struct DeviceConfig {
   String ssid;
   String wifiPassword;
   String mqttHost;
+  uint16_t mqttPort = 8883;
   String serverHost;
   String deviceId;
   String mqttUser;
@@ -13,6 +14,7 @@ struct DeviceConfig {
   String softApPassword;
   String setupPin;
   String deviceSecret;
+  bool mqttEnrolled = false;
 };
 
 DeviceConfig defaultConfig();

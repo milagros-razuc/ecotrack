@@ -5,6 +5,7 @@
 #include <time.h>
 
 #include "DeviceConfig.h"
+#include "EnrollmentClient.h"
 #include "ReadingBuffer.h"
 #include "SetupPortal.h"
 #include "ecotrack_ca.h"
@@ -22,11 +23,9 @@ constexpr unsigned long kMqttRetryMs = 3000;
 constexpr unsigned long kWifiRetryMs = 5000;
 constexpr unsigned long kReadyDisplayMs = 8000;
 constexpr unsigned long kBootHoldMs = 3000;
-constexpr unsigned long kInitialMqttTimeoutMs = 20000;
 constexpr unsigned long kNtpTimeoutMs = 10000;
 constexpr unsigned long kHeapLogIntervalMs = 30000;
 constexpr time_t kValidEpoch = 1700000000;
-constexpr uint16_t kMqttPort = 8883;
 constexpr size_t kReadingBufferCapacity = 360;
 constexpr size_t kForwardBatchSize = 1;
 
@@ -50,11 +49,25 @@ unsigned long lastCaptureAt = 0;
 unsigned long wifiLostAt = 0;
 unsigned long ntpStartedAt = 0;
 unsigned long lastNtpRetryAt = 0;
+unsigned long nextEnrollmentAt = 0;
 unsigned long lastHeapLogAt = 0;
+uint8_t enrollmentAttempts = 0;
 bool ntpReady = false;
 ReadingBuffer<kReadingBufferCapacity> readingBuffer;
 
 void beginWifi();
+
+bool hasMqttCredentials() {
+  return config.mqttEnrolled && !config.mqttUser.isEmpty() &&
+         !config.mqttPassword.isEmpty() &&
+         !config.mqttHost.isEmpty() && config.mqttPort != 0;
+}
+
+void mqttMessageCallback(char*, byte*, unsigned int) {}
+
+uint16_t enrollmentJitterMs() {
+  return static_cast<uint16_t>(random(0, 15000));
+}
 
 void logHeap(const char* etiqueta) {
   Serial.printf("HEAP %s libre=%u min=%u\n", etiqueta, ESP.getFreeHeap(),
@@ -124,7 +137,6 @@ void beginWifi() {
 
 void pollConnectingWifi() {
   if (WiFi.status() == WL_CONNECTED) {
-    mqtt.setServer(config.serverHost.c_str(), kMqttPort);
     lastMqttRetryAt = 0;
     mqttVerifyStartedAt = millis();
     mode = Mode::verifyingMqtt;
@@ -146,13 +158,40 @@ void pollVerifyingMqtt() {
   }
 
   if (!pollNtpSync()) {
-    if (!setupPortalActive() &&
-        millis() - mqttVerifyStartedAt >= kInitialMqttTimeoutMs) {
-      enterProvisioning();
-    }
     return;
   }
 
+#ifdef ECOTRACK_DEV_PORTAL
+  if (!config.mqttUser.isEmpty() && !config.mqttPassword.isEmpty() &&
+      !config.mqttHost.isEmpty()) {
+    config.mqttEnrolled = true;
+  }
+#endif
+
+  if (!hasMqttCredentials()) {
+    if (nextEnrollmentAt != 0 && millis() < nextEnrollmentAt) return;
+    EnrollmentResponse enrollment;
+    if (enrollDevice(config, enrollment) == EnrollmentResult::success) {
+      config.mqttUser = enrollment.mqttUser;
+      config.mqttPassword = enrollment.mqttPassword;
+      config.mqttHost = enrollment.mqttHost;
+      config.mqttPort = enrollment.mqttPort;
+      config.mqttEnrolled = true;
+      configNeedsSave = true;
+      enrollmentAttempts = 0;
+      nextEnrollmentAt = 0;
+      setupPortalStatus("MQTT_ENROLLED");
+    } else {
+      enrollmentAttempts = min<uint8_t>(enrollmentAttempts + 1, 8);
+      nextEnrollmentAt = millis() +
+                        enrollmentBackoffMs(enrollmentAttempts, enrollmentJitterMs());
+      setupPortalStatus("ENROLLMENT_RETRY");
+      Serial.println("No se pudo enrolar el dispositivo; se reintentara");
+      return;
+    }
+  }
+
+  mqtt.setServer(config.mqttHost.c_str(), config.mqttPort);
   if (lastMqttRetryAt != 0 &&
       millis() - lastMqttRetryAt < kMqttRetryMs) {
     return;
@@ -165,12 +204,22 @@ void pollVerifyingMqtt() {
                                           config.mqttUser.c_str(),
                                           config.mqttPassword.c_str());
 #else
-  const bool mqttConnected = mqtt.connect(config.deviceId.c_str());
+  const bool mqttConnected = mqtt.connect(config.deviceId.c_str(),
+                                          config.mqttUser.c_str(),
+                                          config.mqttPassword.c_str());
 #endif
   if (!mqttConnected) {
     const int mqttState = mqtt.state();
     setupPortalStatus("MQTT_FAIL:" + String(mqttState));
     printMqttFailure("No se pudo conectar a MQTT");
+    return;
+  }
+
+  const String subscriptionTopic = "ecotrack/" + config.deviceId + "/#";
+  if (!mqtt.subscribe(subscriptionTopic.c_str())) {
+    mqtt.disconnect();
+    setupPortalStatus("MQTT_SUBSCRIBE_FAIL");
+    Serial.println("No se pudo suscribir al topico del dispositivo");
     return;
   }
 
@@ -230,14 +279,23 @@ void reconnectMqtt() {
   if (lastMqttRetryAt != 0 && millis() - lastMqttRetryAt < kMqttRetryMs) return;
   lastMqttRetryAt = millis();
   logHeap("antes_tls");
+  mqtt.setServer(config.mqttHost.c_str(), config.mqttPort);
 #ifdef ECOTRACK_DEV_PORTAL
   const bool mqttConnected = mqtt.connect(config.deviceId.c_str(),
                                           config.mqttUser.c_str(),
                                           config.mqttPassword.c_str());
 #else
-  const bool mqttConnected = mqtt.connect(config.deviceId.c_str());
+  const bool mqttConnected = mqtt.connect(config.deviceId.c_str(),
+                                          config.mqttUser.c_str(),
+                                          config.mqttPassword.c_str());
 #endif
   if (mqttConnected) {
+    const String subscriptionTopic = "ecotrack/" + config.deviceId + "/#";
+    if (!mqtt.subscribe(subscriptionTopic.c_str())) {
+      mqtt.disconnect();
+      Serial.println("No se pudo suscribir al topico del dispositivo");
+      return;
+    }
     logHeap("conectado_tls");
     Serial.println("MQTT reconectado");
   } else {
@@ -343,6 +401,7 @@ void setup() {
   wifiClient.setCACert(kEcotrackCa);
   mqtt.setBufferSize(512);
   mqtt.setSocketTimeout(3);
+  mqtt.setCallback(mqttMessageCallback);
   config = defaultConfig();
   String identityError;
   if (!loadFactoryIdentity(config, identityError)) {

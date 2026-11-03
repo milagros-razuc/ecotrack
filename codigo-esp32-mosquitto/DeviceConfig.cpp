@@ -69,11 +69,11 @@ bool loadSavedConfig(DeviceConfig& config) {
   if (saved) {
     config.ssid = prefs.getString("ssid", "");
     config.wifiPassword = prefs.getString("wifiPass", "");
-#ifdef ECOTRACK_DEV_PORTAL
     config.mqttHost = prefs.getString("mqttHost", "");
     config.mqttUser = prefs.getString("mqttUser", "");
     config.mqttPassword = prefs.getString("mqttPass", "");
-#endif
+    config.mqttPort = prefs.getUShort("mqttPort", 8883);
+    config.mqttEnrolled = prefs.getBool("mqttEnrolled", false);
   }
   prefs.end();
   return saved;
@@ -85,26 +85,28 @@ bool saveConfig(const DeviceConfig& config) {
   // Invalidar antes de escribir: un corte de energia no deja un perfil parcial activo.
   bool ok = prefs.putBool("configured", false) == 1;
   if (ok) {
+    prefs.putBool("mqttEnrolled", false);
     prefs.putString("ssid", config.ssid);
     prefs.putString("wifiPass", config.wifiPassword);
     prefs.putString("serverHost", config.serverHost);
     prefs.putString("deviceId", config.deviceId);
-#ifdef ECOTRACK_DEV_PORTAL
     prefs.putString("mqttHost", config.mqttHost);
     prefs.putString("mqttUser", config.mqttUser);
     prefs.putString("mqttPass", config.mqttPassword);
-#endif
+    prefs.putUShort("mqttPort", config.mqttPort);
     ok = prefs.getString("ssid", "") == config.ssid
       && prefs.getString("wifiPass", "") == config.wifiPassword
       && prefs.getString("serverHost", "") == config.serverHost
       && prefs.getString("deviceId", "") == config.deviceId;
-#ifdef ECOTRACK_DEV_PORTAL
     ok = ok
+      && prefs.getString("mqttHost", "") == config.mqttHost
       && prefs.getString("mqttUser", "") == config.mqttUser
-      && prefs.getString("mqttPass", "") == config.mqttPassword;
-#endif
+      && prefs.getString("mqttPass", "") == config.mqttPassword
+      && prefs.getUShort("mqttPort", 8883) == config.mqttPort;
   }
-  const bool committed = ok && prefs.putBool("configured", true) == 1;
+  const bool committed = ok
+      && prefs.putBool("mqttEnrolled", config.mqttEnrolled) == 1
+      && prefs.putBool("configured", true) == 1;
   prefs.end();
   return committed;
 }

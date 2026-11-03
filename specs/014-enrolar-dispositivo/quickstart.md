@@ -208,6 +208,14 @@ The success response is captured once by the firmware and its MQTT password is
 not printed. Repeat the request and verify the generic rejection without
 credentials.
 
+The normal firmware build requires a local, ignored
+`codigo-esp32-mosquitto/enroll_ca.h`, copied from the public Caddy enrollment CA
+or the production CA. Its `kEnrollCa` constant is separate from
+`kEcotrackCa`, which validates MQTT; never use `setInsecure()` and never commit
+the operational CA bundle. The firmware synchronizes NTP before this HTTPS
+request, retries generic failures with a non-blocking backoff starting at 90
+seconds (capped at 15 minutes, with jitter), and does not reopen the portal.
+
 ## Unit tests
 
 ```powershell

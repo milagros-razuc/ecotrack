@@ -1,0 +1,9 @@
+#pragma once
+
+// Replace this file locally with the public Caddy/production enrollment CA.
+// Never use setInsecure() and never commit the operational CA bundle.
+const char kEnrollCa[] PROGMEM = R"EOF(
+-----BEGIN CERTIFICATE-----
+REPLACE_WITH_PUBLIC_ENROLLMENT_CA
+-----END CERTIFICATE-----
+)EOF";

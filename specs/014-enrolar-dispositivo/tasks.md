@@ -155,14 +155,14 @@ persistente y sin exponer backend:3000 al exterior.
 ### Tests for User Story 1
 
 - [ ] T035 [P] [US1] Añadir tests de parsing/validación del payload de enrolamiento y preservación de la primera fila namespace en `codigo-esp32-mosquitto/tests/enrollment_client_test.cpp`.
-- [ ] T036 [P] [US1] Añadir tests de backoff no bloqueante, tope de 60 segundos, no reapertura del portal y ausencia de secretos en Serial en `codigo-esp32-mosquitto/tests/enrollment_client_test.cpp`.
+- [ ] T036 [P] [US1] Añadir tests de backoff no bloqueante, tope de 15 minutos, no reapertura del portal y ausencia de secretos en Serial en `codigo-esp32-mosquitto/tests/enrollment_client_test.cpp`.
 
 ### Implementation for User Story 1
 
-- [ ] T037 Implementar cliente HTTPS en `codigo-esp32-mosquitto/codigo-esp32-mosquitto.ino`/helper separado para enviar únicamente `device_id` y `device_secret` a `/api/dispositivos/enrolar` por `serverHost:443`, usando `ecotrack_ca.h` y sin `setInsecure()`.
-- [ ] T038 Guardar `mqtt_user`/`mqtt_pass` recibidos en NVS namespace `ecotrack`, preservando `device_id`, `device_secret` y la primera fila namespace en `codigo-esp32-mosquitto/DeviceConfig.cpp`.
-- [ ] T039 Integrar el estado de enrolamiento con la conexión MQTT TLS 8883, evitando reabrir el portal y sin imprimir secretos en `codigo-esp32-mosquitto/codigo-esp32-mosquitto.ino`.
-- [ ] T040 Implementar backoff creciente no bloqueante de 3 segundos hasta 60 segundos en el loop de firmware, sin detener lecturas ni modificar el payload MQTT en `codigo-esp32-mosquitto/codigo-esp32-mosquitto.ino`.
+- [X] T037 Implementar cliente HTTPS en `codigo-esp32-mosquitto/codigo-esp32-mosquitto.ino`/helper separado para enviar únicamente `device_id` y `device_secret` a `/api/dispositivos/enrolar` por `serverHost:443`, usando `kEnrollCa` y sin `setInsecure()`.
+- [X] T038 Guardar `mqtt_user`/`mqtt_pass` recibidos en NVS namespace `ecotrack`, preservando `device_id`, `device_secret` y la primera fila namespace en `codigo-esp32-mosquitto/DeviceConfig.cpp`.
+- [X] T039 Integrar el estado de enrolamiento con la conexión MQTT TLS 8883, evitando reabrir el portal y sin imprimir secretos en `codigo-esp32-mosquitto/codigo-esp32-mosquitto.ino`.
+- [X] T040 Implementar backoff creciente no bloqueante de 90 segundos hasta 15 minutos en el loop de firmware, sin detener lecturas ni modificar el payload MQTT en `codigo-esp32-mosquitto/codigo-esp32-mosquitto.ino`.
 - [ ] T041 Ejecutar tests/build del firmware disponibles y guardar salida real de compilación, tests y revisión de Serial en `specs/014-enrolar-dispositivo/evidence/`.
 
 **Checkpoint**: El dispositivo puede pasar de NVS sin MQTT a credenciales MQTT persistidas sin portal en bucle y con backoff acotado.
