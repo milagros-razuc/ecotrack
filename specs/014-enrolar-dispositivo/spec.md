@@ -6,7 +6,7 @@
 
 **Status**: Draft
 
-**Input**: User description: "Endpoint POST /api/dispositivos/enrolar por HTTPS. Entrada: device_id y secreto de fábrica. El backend valida contra el hash del secreto (nunca guardar el secreto en claro), vincula el equipo al cliente según el código de alta + token ingresados en el dashboard, crea usuario y rol con ACL en Mosquitto vía dynamic-security y devuelve las credenciales UNA sola vez. Requisitos: mismo error genérico en todos los rechazos, token de un solo uso, rate limit, aislamiento por cliente_id, comparación en tiempo constante, sin secretos en logs. Si falla dynamic-security, rollback: no deja el dispositivo a medias ni credenciales huérfanas. Tests unitarios con el doble de MQTT y dos clientes (A y B)."
+**Input**: User description: "Endpoint POST /api/dispositivos/enrolar por HTTPS. El firmware envía únicamente device_id y secreto de fábrica. El código de alta y el token de un solo uso los ingresa previamente el cliente en el dashboard, cuyo reclamo vincula device_id con cliente_id. El backend valida contra el hash del secreto (nunca guardar el secreto en claro), crea usuario y rol con ACL en Mosquitto vía dynamic-security y devuelve las credenciales UNA sola vez. Requisitos: mismo error genérico en todos los rechazos, rate limit, aislamiento por cliente_id, comparación en tiempo constante, sin secretos en logs. Si falla dynamic-security, rollback: no deja el dispositivo a medias ni credenciales huérfanas. Tests unitarios con el doble de MQTT y dos clientes (A y B). HTTPS termina en nginx con certificado firmado por la misma CA embebida en el firmware y SAN igual a serverHost."
 
 **Requisitos relacionados**: RF03, RF04, RF12, RF18, RF19, RF21, RI06, RI14, RI15, RNF02, RNF03, RNF05, RNF06, RNF15, RNF16, RNF17, RNF20, RNF21.
 
@@ -14,9 +14,10 @@
 
 ### User Story 1 - Enrolar un dispositivo desde el dashboard (Priority: P1)
 
-Como administrador de un cliente, necesito ingresar el código de alta y el token
-del dispositivo junto con su secreto de fábrica, para vincularlo a mi cliente y
-recibir las credenciales MQTT que el equipo usará posteriormente.
+Como administrador de un cliente, necesito reclamar previamente el dispositivo con
+el código de alta y el token de un solo uso en el dashboard, para vincularlo a mi
+cliente antes de que el firmware solicite sus credenciales MQTT con `device_id` y
+secreto de fábrica.
 
 **Why this priority**: El flujo permite convertir un dispositivo preparado en una
 identidad operativa sin exponer secretos de fábrica ni habilitar acceso entre clientes.
@@ -27,10 +28,10 @@ vinculación, la creación de la identidad MQTT y la entrega única de credencia
 
 **Acceptance Scenarios**:
 
-1. **Given** un administrador autenticado del cliente A y un dispositivo válido sin
-   dueño, **When** presenta el código de alta, token de un solo uso y secreto de
-   fábrica correctos, **Then** el dispositivo queda vinculado al cliente A y recibe
-   una identidad MQTT limitada a su topic.
+1. **Given** un dispositivo reclamado por el cliente A mediante el flujo existente
+   de código de alta y token de un solo uso, **When** el firmware envía únicamente
+   `device_id` y `device_secret` correctos por HTTPS, **Then** recibe una identidad
+   MQTT limitada a su topic.
 2. **Given** una respuesta exitosa de enrolamiento, **When** el administrador vuelve
    a consultar el endpoint o solicita nuevamente las credenciales, **Then** la
    operación no devuelve el secreto MQTT ni permite reutilizar el token.
@@ -136,15 +137,19 @@ o suscripción cruzada.
 
 - **FR-001**: El sistema MUST exponer `POST /api/dispositivos/enrolar` únicamente
   sobre HTTPS y exigir una sesión autenticada con permiso administrativo del cliente.
-- **FR-002**: La entrada MUST aceptar `device_id`, secreto de fábrica, código de
-  alta y token de un solo uso con validación de formato, presencia y tamaño antes de
-  cualquier operación externa.
+- **FR-002**: La entrada del endpoint MUST aceptar únicamente `device_id` y
+  `device_secret`, con validación de formato, presencia y tamaño antes de cualquier
+  operación externa. El código de alta y el token no forman parte del body: se
+  validan en el reclamo previo del dashboard y su resultado debe haber vinculado el
+  dispositivo al `cliente_id`.
 - **FR-003**: El sistema MUST almacenar únicamente un hash del secreto de fábrica
   y MUST comparar el secreto recibido en tiempo constante; el secreto en claro no
   puede persistirse, devolverse ni registrarse.
-- **FR-004**: El código de alta y el token MUST validarse contra el cliente de la
-  sesión y el dispositivo solicitado; el token MUST consumirse de forma atómica y
-  no reutilizable únicamente al completar un enrolamiento exitoso.
+- **FR-004**: El flujo existente de reclamo MUST validar el código de alta y el
+  token contra el cliente de la sesión y el dispositivo solicitado; el token MUST
+  consumirse de forma atómica y no reutilizable al completar el reclamo. El endpoint
+  de enrolamiento solo continúa si ese reclamo ya vinculó el dispositivo al
+  `cliente_id`.
 - **FR-005**: El vínculo MUST usar el `cliente_id` de la sesión autenticada y nunca
   un `cliente_id` enviado por el cliente HTTP; la operación MUST impedir que A
   vincule o consulte dispositivos de B.
@@ -181,11 +186,21 @@ o suscripción cruzada.
 - **FR-016**: El endpoint MUST rechazar cualquier intento sin HTTPS, sin sesión
   administrativa válida o fuera del límite de solicitudes, usando el mismo error
   genérico cuando corresponda.
+- **FR-017**: El firmware MUST validar el certificado del backend con la CA
+  embebida, usando `serverHost` como hostname HTTPS en el puerto 443 y sin
+  `setInsecure()` ni equivalentes.
+- **FR-018**: La terminación TLS MUST ejecutarse en nginx o proxy equivalente en
+  `443`, reenviar `/api/dispositivos/enrolar` al backend interno en `3000`, usar un
+  certificado con SAN igual a `serverHost` y mantener las claves fuera del
+  repositorio.
+- **FR-019**: Debe existir un script reproducible para emitir el certificado del
+  proxy firmado por la misma CA de `ecotrack_ca.h`, sin guardar claves privadas ni
+  certificados operativos en el repositorio.
 
 ### Key Entities
 
 - **Dispositivo pendiente de enrolamiento**: equipo con `device_id`, estado sin
-  dueño, hash del secreto de fábrica, código de alta y token asociado.
+  dueño, hash del secreto de fábrica y estado del reclamo previo.
 - **Token de alta**: valor aleatorio, ligado a un dispositivo y cliente, con estado
   disponible/consumido/revocado y consumo atómico.
 - **Credencial MQTT**: usuario y secreto generados para el dispositivo, entregados
@@ -220,10 +235,10 @@ o suscripción cruzada.
 
 ## Assumptions
 
-- El usuario ya autenticado en el dashboard es administrador del cliente que intenta
-  enrolar; no se agrega una pantalla de autorización distinta en esta feature.
-- El código de alta y token se generan por el flujo administrativo existente y están
-  asociados a un único dispositivo y cliente antes de iniciar el endpoint.
+- El código de alta y token se generan y consumen por el flujo administrativo
+  existente del dashboard; el endpoint no recibe esos valores.
+- El usuario del dashboard es administrador del cliente que reclama el dispositivo;
+  el firmware no participa en el reclamo.
 - El hash del secreto de fábrica se registra durante el aprovisionamiento y se
   conserva fuera del firmware y del repositorio.
 - Dynamic-security ofrece operaciones de creación y revocación suficientes para
@@ -236,3 +251,5 @@ o suscripción cruzada.
   inventa si no se ejecuta.
 - La política inicial de rate limit se reutiliza del control de acceso existente y
   se fija en el plan antes de implementar, sin permitir intentos ilimitados.
+- `serverHost` es un hostname resoluble y se usa también como SAN del certificado
+  HTTPS; no se usa una dirección IP como identidad del certificado.

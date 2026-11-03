@@ -52,6 +52,11 @@ const dispositivoSchema = z.object({
   ubicacion: z.string().optional(),
 });
 
+const enrolamientoSchema = z.object({
+  device_id: z.string().min(1).max(50),
+  device_secret: z.string().min(1),
+}).strict();
+
 const umbralSchema = z.object({
   dispositivoCodigo: z.string().min(1),
   variable: z.enum(['temperatura', 'humedad', 'luminosidad']),
@@ -114,6 +119,7 @@ module.exports = {
   loginSchema,
   changePasswordSchema,
   dispositivoSchema,
+  enrolamientoSchema,
   umbralSchema,
   actualizarEstadoAlertaSchema,
   crearUsuarioSchema,

@@ -1,4 +1,5 @@
 import csv
+import hashlib
 import importlib.util
 import sys
 import subprocess
@@ -11,6 +12,7 @@ from scripts.provision_factory import (
     FactoryIdentity,
     NvsGenerationError,
     _write_nvs_csv,
+    _write_backend_export,
     _run_nvs_generator,
     generate_identity,
     provision,
@@ -53,6 +55,40 @@ class ProvisionFactoryTest(unittest.TestCase):
             )
             self.assertNotIn("wifiPass", content)
             self.assertNotIn("mqttPass", content)
+
+    def test_backend_export_contains_only_device_id_and_secret_hash(self):
+        identity = FactoryIdentity(
+            "ET-TEST12345678", "Password123", "a" * 64, "987654", "broker.ecotrack.local"
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "backend.csv"
+            _write_backend_export(path, [identity])
+            content = path.read_text(encoding="utf-8")
+            rows = list(csv.DictReader(content.splitlines()))
+            self.assertEqual(rows[0]["device_id"], identity.device_id)
+            self.assertEqual(
+                rows[0]["factory_secret_hash"],
+                hashlib.sha256(identity.device_secret.encode("utf-8")).hexdigest(),
+            )
+            self.assertNotIn(identity.device_secret, content)
+            self.assertNotIn(identity.setup_pin, content)
+            self.assertNotIn(identity.softap_password, content)
+
+    @patch("scripts.provision_factory._run_nvs_generator")
+    def test_provision_can_write_backend_export_without_secret_or_pin(self, run_generator):
+        identity = FactoryIdentity(
+            "ET-TEST12345678", "Password123", "a" * 64, "987654", "localhost"
+        )
+        run_generator.side_effect = lambda _, __, image_path, ___, ____: image_path.write_bytes(
+            b"nvs"
+        )
+        with tempfile.TemporaryDirectory() as parent:
+            output = Path(parent) / "factory"
+            with patch("scripts.provision_factory.generate_identity", return_value=identity):
+                provision(1, output, "nvs_partition_gen.py", "0x5000", export_backend=True)
+            export = (output / "backend.csv").read_text(encoding="utf-8")
+            self.assertNotIn(identity.device_secret, export)
+            self.assertNotIn(identity.setup_pin, export)
 
     @patch("scripts.provision_factory.subprocess.run")
     def test_default_nvs_generator_uses_current_python_module(self, run):

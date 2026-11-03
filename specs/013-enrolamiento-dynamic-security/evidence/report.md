@@ -1,7 +1,7 @@
 # Dynamic Security Spike Report
 
 - Resultado: **Aprobado**
-- Fecha: 2026-11-03T00:41:13.919Z
+- Fecha: 2026-11-03T00:51:06.834Z
 - ACL estático: activo durante la prueba
 
 | Caso | Operación | Topic | Esperado | Salida real | Estado |

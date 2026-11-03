@@ -83,9 +83,21 @@ const apiPublicaPorClave = rateLimit({
   message: { error: 'Límite de solicitudes excedido.' },
 });
 
+const enrollmentLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: false,
+  keyGenerator: (req) => `${ipKeyGenerator(req.ip)}:${typeof req.body?.device_id === 'string' ? req.body.device_id : 'unknown'}`,
+  statusCode: 409,
+  message: { error: 'No se pudo enrolar el dispositivo' },
+});
+
 module.exports = {
   loginLimiter,
   createLoginLimiter,
   apiPublicaPorIp,
   apiPublicaPorClave,
+  enrollmentLimiter,
 };

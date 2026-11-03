@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import ipaddress
 import re
 import secrets
@@ -77,6 +78,18 @@ def _write_nvs_csv(path: Path, identity: FactoryIdentity) -> None:
         writer.writerow(["setupPin", "data", "string", identity.setup_pin])
         writer.writerow(["serverHost", "data", "string", identity.server_host])
         writer.writerow(["deviceSecret", "data", "string", identity.device_secret])
+
+
+def _write_backend_export(path: Path, identities: list[FactoryIdentity]) -> None:
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(["device_id", "factory_secret_hash", "created_at"])
+        created_at = datetime.now(timezone.utc).isoformat()
+        for identity in identities:
+            secret_hash = hashlib.sha256(
+                identity.device_secret.encode("utf-8")
+            ).hexdigest()
+            writer.writerow([identity.device_id, secret_hash, created_at])
 
 
 def _sanitize_error(message: str, identity: FactoryIdentity | None) -> str:
@@ -160,6 +173,7 @@ def provision(
     size: str,
     keep_on_error: bool = False,
     server_host: str = "localhost",
+    export_backend: bool = False,
 ) -> Path:
     if count < 1:
         raise ValueError("count debe ser mayor que cero")
@@ -244,6 +258,8 @@ def provision(
 
         for item in temp.iterdir():
             shutil.move(str(item), output / item.name)
+    if export_backend:
+        _write_backend_export(output / "backend.csv", identities)
     return output
 
 
@@ -259,6 +275,11 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="conservar los CSV NVS intermedios si falla el generador",
     )
+    parser.add_argument(
+        "--export-backend",
+        action="store_true",
+        help="generar backend.csv con device_id y hash del secreto, sin secretos ni PIN",
+    )
     args = parser.parse_args(argv)
     try:
         provision(
@@ -268,6 +289,7 @@ def main(argv: list[str] | None = None) -> int:
             args.nvs_size,
             args.keep_on_error,
             args.server_host,
+            args.export_backend,
         )
     except NvsGenerationError as error:
         print(f"Error: {error}", file=sys.stderr)

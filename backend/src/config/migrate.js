@@ -139,6 +139,18 @@ async function inicializarDB() {
     ALTER TABLE dispositivos ADD COLUMN IF NOT EXISTS reclamado_en TIMESTAMPTZ
   `);
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS dispositivos_fabrica (
+      device_id VARCHAR(50) PRIMARY KEY,
+      factory_secret_hash VARCHAR(64) NOT NULL UNIQUE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      enrolled_at TIMESTAMPTZ
+    )
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_dispositivos_fabrica_enrolled
+      ON dispositivos_fabrica (enrolled_at)
+  `);
+  await pool.query(`
     ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS cliente_id INTEGER REFERENCES clientes(id)
   `);
   await pool.query(`
