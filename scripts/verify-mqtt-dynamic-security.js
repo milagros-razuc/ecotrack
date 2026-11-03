@@ -5,8 +5,8 @@ const mqtt = require('../backend/node_modules/mqtt');
 const repoRoot = path.resolve(__dirname, '..');
 const statePath = process.env.DYNSEC_STATE_FILE
   || path.join(require('os').tmpdir(), 'ecotrack-dynsec-test-clients.json');
-const reportPath = process.env.DYNSEC_REPORT_FILE
-  || path.join(repoRoot, 'specs', '013-enrolamiento-dynamic-security', 'evidence', 'report.md');
+const reportPath = process.env.DYNSEC_ACL_REPORT_FILE
+  || path.join(repoRoot, 'specs', '013-enrolamiento-dynamic-security', 'evidence', 'acl-ab.md');
 
 function connect(client, state) {
   const mqttClient = mqtt.connect(state.brokerUrl, {
@@ -15,53 +15,76 @@ function connect(client, state) {
     ca: fs.readFileSync(state.caPath),
     rejectUnauthorized: true,
     protocolVersion: 5,
+    reconnectPeriod: 0,
+    connectTimeout: 10000,
     clientId: `verify-${client.deviceId}-${Date.now()}`,
   });
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error('connection timeout')), 10000);
-    mqttClient.once('connect', () => {
+    let settled = false;
+    const finish = (error) => {
+      if (settled) return;
+      settled = true;
       clearTimeout(timer);
-      resolve(mqttClient);
-    });
-    mqttClient.once('error', (error) => {
-      clearTimeout(timer);
-      reject(new Error(error.message));
-    });
+      mqttClient.removeListener('error', onError);
+      if (error) {
+        mqttClient.end(true);
+        reject(error);
+      } else {
+        resolve(mqttClient);
+      }
+    };
+    const onError = (error) => finish(new Error(error.message));
+    const timer = setTimeout(() => finish(new Error('connection timeout')), 10000);
+    mqttClient.once('connect', () => finish());
+    mqttClient.once('error', onError);
   });
 }
 
 function publish(client, topic) {
   return new Promise((resolve) => {
     client.publish(topic, JSON.stringify({ test: true }), { qos: 1 }, (error) => {
-      resolve(error ? { ok: false, detail: error.message } : { ok: true, detail: 'PUBACK' });
+      resolve(error
+        ? { ok: false, denied: isAuthorizationDenial(error.message), detail: error.message }
+        : { ok: true, denied: false, detail: 'PUBACK' });
     });
   });
+}
+
+function isAuthorizationDenial(message) {
+  return /not authorized|not authorised/i.test(message);
 }
 
 function subscribe(client, topic) {
   return new Promise((resolve) => {
     client.subscribe(topic, { qos: 1 }, (error, granted) => {
-      if (error) resolve({ ok: false, detail: error.message });
-      else resolve({
-        ok: granted?.some((item) => item.qos === 128) === false,
+      if (error) resolve({ ok: false, denied: isAuthorizationDenial(error.message), detail: error.message });
+      else {
+        const denied = !granted?.length || granted.some((item) => item.qos === 128);
+        resolve({
+        ok: !denied && granted.every((item) => item.qos !== 128),
+        denied,
         detail: granted?.map((item) => `qos=${item.qos}`).join(', ') || 'no grant',
-      });
+        });
+      }
     });
   });
 }
 
-async function runCase(identity, state, operation, target, expectedAllowed) {
+async function runCase(identity, state, operation, target, expectedAllowed, connectClient = connect) {
   let client;
   try {
-    client = await connect(identity, state);
+    client = await connectClient(identity, state);
     const result = operation === 'publish'
       ? await publish(client, target)
       : await subscribe(client, target);
-    const passed = result.ok === expectedAllowed;
-    return { passed, result: result.ok ? 'allowed' : 'rejected', detail: result.detail };
+    const passed = expectedAllowed ? result.ok : result.denied;
+    return {
+      passed,
+      result: result.ok ? 'allowed' : (result.denied ? 'rejected' : 'error'),
+      detail: result.detail,
+    };
   } catch (error) {
-    const passed = expectedAllowed === false;
-    return { passed, result: 'rejected', detail: error.message };
+    return { passed: false, result: 'error', detail: error.message };
   } finally {
     if (client) client.end(true);
   }
@@ -85,13 +108,13 @@ async function main() {
     const result = await runCase(identity, state, operation, target, expectedAllowed);
     results.push({ name, operation, target, expectedAllowed, ...result });
   }
-  const approved = results.every((result) => result.passed);
+  const passed = results.every((result) => result.passed);
   const report = [
-    '# Dynamic Security Spike Report',
+    '# Dynamic Security A/B ACL Matrix',
     '',
-    `- Resultado: **${approved ? 'Aprobado' : 'Fallido'}**`,
+    `- Resultado de esta matriz: **${passed ? 'PASS' : 'FAIL'} (${results.filter((result) => result.passed).length}/6)**`,
     `- Fecha: ${new Date().toISOString()}`,
-    '- ACL estático: activo durante la prueba',
+    '- Alcance: solo verifica aislamiento A/B; no clasifica el spike completo ni convivencia estática/rollback.',
     '',
     '| Caso | Operación | Topic | Esperado | Salida real | Estado |',
     '|---|---|---|---|---|---|',
@@ -99,17 +122,18 @@ async function main() {
     '',
     'Las contraseñas de A/B se generaron aleatoriamente y se conservaron únicamente en un archivo temporal fuera del repositorio.',
     '',
-    '## Migración mínima si el ACL estático bloquea clientes dinámicos',
-    '',
-    'No se aplica automáticamente. El paso previsto es mover el usuario backend al plugin dynamic-security, verificar la convivencia y retirar `password_file` y `acl_file` de `mosquitto.conf` solo con aprobación explícita y rollback disponible.',
   ].join('\n');
   fs.mkdirSync(path.dirname(reportPath), { recursive: true });
   fs.writeFileSync(reportPath, report + '\n');
   console.log(report);
-  if (!approved) process.exitCode = 1;
+  if (!passed) process.exitCode = 1;
 }
 
-main().catch((error) => {
-  console.error(error.message);
-  process.exitCode = 1;
-});
+if (require.main === module) {
+  main().catch((error) => {
+    console.error(error.message);
+    process.exitCode = 1;
+  });
+}
+
+module.exports = { isAuthorizationDenial, publish, subscribe, runCase };

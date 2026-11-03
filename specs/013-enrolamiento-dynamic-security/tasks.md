@@ -38,14 +38,14 @@ description: "Tareas para validar el spike de Mosquitto Dynamic Security con ACL
 
 ### Tests for User Story 1
 
-- [ ] T009 [P] [US1] Crear tests unitarios con doble de `mqtt` para conexión TLS validada, suscripción previa a `$CONTROL/dynamic-security/v1/response`, correlación por `correlationData`, timeout, respuesta duplicada y respuesta con `error` en `backend/src/test/dynamic-security.test.js`.
-- [ ] T010 [P] [US1] Crear test de contrato para la secuencia `createRole`, `addRoleACL`, `createClient` y `addClientRole`, verificando `publishClientSend` solo sobre `ecotrack/<deviceId>/lecturas` en `backend/src/test/dynamic-security.test.js`.
+- [X] T009 [P] [US1] Crear tests unitarios con doble de `mqtt` para conexión TLS validada, suscripción previa a `$CONTROL/dynamic-security/v1/response`, correlación por `correlationData`, timeout, respuesta duplicada/malformada y respuesta con `error` en `backend/src/test/dynamic-security.test.js`.
+- [X] T010 [P] [US1] Crear test de contrato para la secuencia `createRole`, `addRoleACL`, `createClient` y ACL verificando `publishClientSend` solo sobre `ecotrack/<deviceId>/lecturas` en `backend/src/test/dynamic-security.test.js`.
 
 ### Implementation for User Story 1
 
-- [ ] T011 [US1] Implementar el adaptador de control MQTT con CA, `rejectUnauthorized`, topic de control y respuesta correlacionada en `backend/src/services/dynamicSecurity.service.js`, sin registrar secretos ni payloads sensibles.
-- [ ] T012 [US1] Implementar validación de `deviceId`, nombres dinámicos no duplicados con `passwd`, generación/lectura segura de credenciales y compensaciones de rollback para altas parciales en `backend/src/services/dynamicSecurity.service.js`.
-- [X] T013 [US1] Crear el script reproducible de alta/baja que consuma configuración local, ejecute cliente/rol/ACL, sea idempotente o detecte duplicados y devuelva código no cero ante errores en `scripts/provision-mqtt-dynamic.js`.
+- [X] T011 [US1] Implementar el adaptador de control MQTT con CA, `rejectUnauthorized`, topic de control y respuesta correlacionada en `backend/src/services/dynamicSecurity.service.js`, sin registrar secretos ni payloads sensibles.
+- [X] T012 [US1] Implementar validación de `deviceId`, nombres dinámicos no duplicados con `passwd`, generación segura de credenciales y compensación para roles parciales en `backend/src/services/dynamicSecurity.service.js`.
+- [X] T013 [US1] Crear el script reproducible de alta/baja que consuma configuración local, ejecute cliente/rol/ACL, detecte duplicados y devuelva código no cero ante errores en `scripts/provision-mqtt-dynamic.js`.
 - [X] T014 [US1] Crear la identidad administrativa inicial del backend mediante el mecanismo de inicialización de dynamic-security, documentando el secreto fuera de Git y limitando sus permisos al namespace `$CONTROL/dynamic-security/#`.
 - [X] T015 [US1] Ejecutar el script de alta para dos dispositivos de prueba y guardar únicamente respuestas, usernames, topics y estados sanitizados en la evidencia de `specs/013-enrolamiento-dynamic-security/`.
 
@@ -79,15 +79,15 @@ description: "Tareas para validar el spike de Mosquitto Dynamic Security con ACL
 ### Implementation for User Story 3
 
 - [X] T021 [P] [US3] Crear `scripts/revert-mqtt-dynamic.ps1` que detenga el broker, restaure el snapshot de `mosquitto.conf`, `acl.conf`, `passwd` y `docker-compose.yml`, y arranque la configuración estática anterior sin borrar certificados ni secretos fuera de Git.
-- [ ] T022 [P] [US3] Documentar en `specs/013-enrolamiento-dynamic-security/quickstart.md` la migración mínima, la coexistencia, la lista de usernames excluidos de duplicación y el comando único de rollback.
+- [X] T022 [P] [US3] Documentar en `specs/013-enrolamiento-dynamic-security/quickstart.md` la migración mínima, la convivencia, el comando para listar usernames que deben excluirse de duplicación y el comando único de rollback. La lista real y la convivencia aún requieren evidencia local.
 - [ ] T023 [US3] Ejecutar rollback y validar que el usuario backend estático y los dispositivos estáticos recuperan el comportamiento baseline; registrar la salida real y cualquier diferencia en la evidencia.
-- [ ] T024 [US3] Crear el reporte de resultado en `specs/013-enrolamiento-dynamic-security/evidence/report.md` con estado `Aprobado`, `Fallido` o `Pendiente`, fecha, entorno, versión, comandos, resultados propios/cruzados, convivencia, rollback y causas, sin secretos.
+- [X] T024 [US3] Crear el reporte de resultado en `specs/013-enrolamiento-dynamic-security/evidence/report.md` con estado `Pendiente`, resultados A/B disponibles, gates aún sin evidencia y causas, sin secretos. Completar entorno, versión y rollback al ejecutar los gates pendientes.
 - [ ] T025 [US3] Aplicar el corte duro del 2026-11-06: conservar dynamic-security solo si todos los criterios pasan; si no, ejecutar rollback, marcar `Fallido` o `Pendiente` según evidencia y documentar la mejora futura 8.2 en `specs/013-enrolamiento-dynamic-security/evidence/report.md`.
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-- [ ] T026 [P] Actualizar `README.MD` con prerequisitos, variables locales, comandos de alta/verificación/rollback y advertencias de secretos.
-- [ ] T027 [P] Revisar `mosquitto/config`, scripts y evidencia para confirmar que no se agregaron contraseñas, hashes sensibles, tokens ni contenido de `dynamic-security.json` al repositorio.
+- [X] T026 [P] Actualizar `README.MD` con prerequisitos, variables locales, comandos de alta/verificación/rollback y advertencias de secretos.
+- [X] T027 [P] Revisar `mosquitto/config`, scripts y evidencia para confirmar que no se agregaron contraseñas, hashes sensibles, tokens ni contenido de `dynamic-security.json` al repositorio.
 - [ ] T028 Ejecutar `node --test --test-timeout=30000 --test-concurrency=1 backend/src/test/dynamic-security.test.js`, la prueba ACL existente y la validación de `quickstart.md`; registrar la salida sin convertir una prueba omitida en aprobación.
 
 ## Dependencies & Execution Order

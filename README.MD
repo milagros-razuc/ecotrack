@@ -118,6 +118,33 @@ docker run --rm -v ${PWD}/mosquitto/config:/mosquitto/config eclipse-mosquitto:2
 Los usuarios y ACL de prueba (`test-a` y `test-b`) no se agregan a `passwd` ni a
 `acl.conf` de producción.
 
+### Spike Dynamic Security (experimental)
+
+El spike de `specs/013-enrolamiento-dynamic-security/` habilita un mecanismo de
+provisioning dinámico separado de la guía estática anterior. No se debe usar como
+procedimiento de producción mientras el reporte figure `Pendiente`. El quickstart
+describe los requisitos, la generación de dos identidades de prueba, la matriz A/B
+y el rollback. La configuración local del admin y las credenciales de prueba deben
+quedar fuera de Git. El script rechaza usernames presentes en `passwd`, no rota una
+credencial existente ante errores y guarda las credenciales de ensayo en un archivo
+temporal con permisos restringidos.
+
+```bash
+node scripts/provision-mqtt-dynamic.js
+node scripts/verify-mqtt-dynamic-security.js
+```
+
+Para volver a la configuración estática, usá el comando de PowerShell del
+[quickstart](specs/013-enrolamiento-dynamic-security/quickstart.md):
+`.\scripts\revert-mqtt-dynamic.ps1`.
+
+La segunda orden registra únicamente el resultado de la matriz A/B en
+`specs/013-enrolamiento-dynamic-security/evidence/acl-ab.md`. Que esa matriz pase
+no significa que el spike completo esté aprobado: también hay que acreditar TLS,
+persistencia, convivencia con usuarios estáticos y rollback. Consultá el
+[quickstart del spike](specs/013-enrolamiento-dynamic-security/quickstart.md) antes
+de ejecutarlo.
+
 ### 4. Levantar los servicios
 
 ```bash
