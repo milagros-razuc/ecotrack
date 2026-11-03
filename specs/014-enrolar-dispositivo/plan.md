@@ -13,11 +13,15 @@ El firmware enviará únicamente `device_id` y `device_secret` por HTTPS a nginx
 creará el cliente/rol MQTT mediante el adaptador dynamic-security existente y
 devolverá las credenciales una sola vez. La transacción local y las operaciones
 MQTT tendrán compensaciones explícitas para evitar vínculos o identidades
-huérfanas. La misma CA embebida en el firmware firmará el certificado de nginx,
-cuyo SAN será el hostname `serverHost`.
+huérfanas. La compensación fallida se observará mediante un log sanitizado en
+stderr y requerirá resolución manual; no se agrega una cola de incidentes.
+La misma CA embebida en el firmware firmará el certificado de nginx, cuyo SAN
+será el hostname `serverHost`.
 
 La spec fue corregida: el código de alta y el token no forman parte del body del
 endpoint; pertenecen exclusivamente al flujo previo de reclamo del dashboard.
+El endpoint no usa JWT: el firmware se autentica con `device_id` y
+`device_secret`, y el reclamo previo aporta el `cliente_id`.
 
 ## Technical Context
 
@@ -65,14 +69,15 @@ rotación automática de credenciales.
 
 - **Modular Boundaries**: PASS. Ruta, servicio, persistencia, adaptador MQTT y
   proxy TLS se mantienen separados.
-- **Secure By Default**: PASS. El endpoint usa sesión/admin, rate limit, hash,
-  comparación constante, TLS verificado y secretos fuera de Git.
+- **Secure By Default**: PASS. El endpoint usa secreto de fábrica, rate limit,
+  hash, comparación constante, TLS verificado y secretos fuera de Git; la
+  sesión/admin se valida en el reclamo previo.
 - **Validated Data Contracts**: PASS. Se valida body exacto, estado reclamado,
   `device_id`, secreto, respuestas dynamic-security y SAN TLS.
 - **Testable Changes**: PASS. Se cubren doble MQTT, rollback, errores genéricos,
   rate limit y A/B.
-- **Reliable and Observable Operation**: PASS. Transacción/compensación, auditoría
-  sanitizada y migración repetible.
+- **Reliable and Observable Operation**: PASS. Transacción/compensación, log
+  sanitizado en stderr ante compensación fallida y migración repetible.
 - **Tenant Isolation**: PASS. `cliente_id` proviene de sesión/reclamo y las ACL
   se construyen por dispositivo.
 - **Controlled and Auditable Access**: PASS. Reclamo y enrolamiento requieren admin,

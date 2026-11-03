@@ -17,9 +17,12 @@ en el body. Los campos adicionales se rechazan con el mismo error genérico.
 ## Authentication and authorization
 
 - HTTPS is mandatory.
-- The firmware call is authenticated by `device_id` + factory secret.
+- The firmware call is authenticated by `device_id` + factory secret; it does
+  not use a dashboard JWT or session.
 - The device must already have `cliente_id` and `reclamado_en` from the dashboard
   claim flow.
+- Every exported `device_id` must first pass through `provision-device.js` to
+  create the pending dashboard row, then through the dashboard claim flow.
 - `cliente_id` is never trusted from request input.
 
 ## Success
@@ -31,7 +34,7 @@ Status `200` and exactly one response containing the MQTT credentials:
   "device_id": "ESP32-001",
   "mqtt_user": "ecotrack-esp32-001",
   "mqtt_pass": "<generated-once>",
-  "mqtt_host": "<broker-host>",
+  "mqtt_host": "<MQTT_PUBLIC_HOST>",
   "mqtt_port": 8883
 }
 ```
@@ -61,4 +64,5 @@ failures use the same public status and body:
 6. Return credentials once.
 
 Any failure triggers compensating deletion/revocation and returns the generic
-error. A failed compensation is logged as an incident without secrets.
+error. A failed compensation emits a sanitized stderr log without secrets and requires
+manual resolution; it is not persisted as a pending incident.

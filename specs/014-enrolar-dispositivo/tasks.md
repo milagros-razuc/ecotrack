@@ -12,6 +12,22 @@ description: "Tareas para implementar el enrolamiento seguro de dispositivos Eco
 
 **Scope**: El firmware envía únicamente `device_id` y `device_secret`; el reclamo con código y token ocurre previamente en el dashboard. No guardar secretos en el repositorio, logs, auditoría ni argumentos de línea de comandos. No declarar resultados sin salida real.
 
+**Remediación E3**: `removeDevice` debe compensar cliente y rol con intentos
+independientes, tolerando únicamente respuestas de entidad inexistente. El
+endpoint no usa JWT; `mqtt_host` se entrega desde `MQTT_PUBLIC_HOST`, separado
+de `MQTT_HOST=mosquitto`. Si la compensación falla, el contrato observable es
+un log sanitizado en stderr, no un incidente persistido.
+
+- [X] T051 [P] Añadir tests de `removeDevice` para cliente inexistente/rol existente,
+  ambos inexistentes y error real de dynamic-security.
+- [X] T052 Corregir `removeDevice` para ejecutar bajas independientes y propagar
+  errores reales; simplificar el catch redundante de `enrolamiento.service.js`.
+- [X] T053 [P] Documentar y cablear `MQTT_PUBLIC_HOST` sin fijar su valor, y
+  corregir la validación de `provision-device.js` para usar `\s`.
+- [X] T054 Actualizar spec/plan/quickstart/contracts con el flujo provision-device
+  seguido del reclamo dashboard, el origen de variables Compose y el contexto
+  host/contenedor de `mosquitto_ctrl`.
+
 ## Phase 1: Setup
 
 **Purpose**: Preparar contratos, secretos locales y cobertura de validación sin modificar firmware ni producción todavía.
@@ -67,7 +83,7 @@ description: "Tareas para implementar el enrolamiento seguro de dispositivos Eco
 
 - [ ] T017 Extraer la lógica común de `scripts/provision-mqtt-dynamic.js` a `backend/src/services/dynamicSecurity.service.js`, manteniendo CA validada, `rejectUnauthorized: true`, correlación, timeout y credenciales desde entorno local.
 - [X] T018 Implementar en `backend/src/services/dynamicSecurity.service.js` la secuencia determinista de rol/cliente con `publishClientSend ecotrack/<device_id>/lecturas allow`, `subscribePattern ecotrack/# deny` prioridad 0 y `subscribePattern ecotrack/<device_id>/# allow` prioridad 10.
-- [X] T019 Implementar compensación en `backend/src/services/enrolamiento.service.js` para borrar/revocar cliente y rol si falla el commit local; registrar solo un incidente sanitizado si la compensación no es confirmable.
+- [X] T019 Implementar compensación en `backend/src/services/enrolamiento.service.js` para borrar/revocar cliente y rol si falla el commit local; registrar solo un log sanitizado en stderr si la compensación no es confirmable.
 - [ ] T020 Rehacer `scripts/provision-mqtt-dynamic.js` como wrapper reproducible del servicio compartido, preservando alta repetible, baja y códigos de salida sin imprimir passwords ni payloads.
 - [X] T021 [US3] Ejecutar tests unitarios del adaptador y rollback, y verificar con salida real que una falla no deja credenciales, roles o vínculos huérfanos en el doble.
 

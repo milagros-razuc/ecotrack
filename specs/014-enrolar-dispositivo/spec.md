@@ -86,8 +86,8 @@ enrolamiento local, para no dejar dispositivos a medias ni credenciales huérfan
    local, **When** se ejecuta el rollback, **Then** se elimina o revoca la identidad
    creada y el dispositivo queda disponible para un intento válido posterior.
 3. **Given** un rollback incompleto o no confirmable, **When** finaliza la solicitud,
-   **Then** el dispositivo no se presenta como enrolado, el incidente queda
-   observable sin secretos y la operación requiere resolución explícita.
+   **Then** el dispositivo no se presenta como enrolado, se registra un log
+   sanitizado en stderr para resolución manual y la operación no se aprueba.
 
 ### User Story 4 - Aislar clientes A y B (Priority: P1)
 
@@ -129,14 +129,17 @@ o suscripción cruzada.
 - El rate limit se alcanza desde varias direcciones o sesiones para el mismo usuario.
 - Un secreto, token o credencial aparece en una excepción de una dependencia; debe
   sanitizarse antes de registrar el error.
-- La solicitud no usa HTTPS o carece de una sesión administrativa válida.
+- La solicitud no usa HTTPS, excede el límite o no contiene credenciales de
+  firmware válidas.
 
 ## Requirements
 
 ### Functional Requirements
 
 - **FR-001**: El sistema MUST exponer `POST /api/dispositivos/enrolar` únicamente
-  sobre HTTPS y exigir una sesión autenticada con permiso administrativo del cliente.
+  sobre HTTPS. El firmware se autentica con `device_id` y el secreto de fábrica;
+  la autorización administrativa ocurre antes, durante el reclamo del dashboard,
+  y no se exige una sesión JWT en esta llamada.
 - **FR-002**: La entrada del endpoint MUST aceptar únicamente `device_id` y
   `device_secret`, con validación de formato, presencia y tamaño antes de cualquier
   operación externa. El código de alta y el token no forman parte del body: se
@@ -168,9 +171,10 @@ o suscripción cruzada.
   un fallo de dynamic-security o de persistencia local, no debe dejar un vínculo
   activo a medias, un token consumido sin enrolamiento válido ni usuario o rol MQTT
   huérfano.
-- **FR-011**: El rollback MUST ser explícito, observable y seguro ante errores
-  parciales; si no puede confirmarse, el dispositivo no debe marcarse como
-  enrolado y el incidente debe quedar pendiente de resolución sin exponer secretos.
+- **FR-011**: El rollback MUST ser explícito y seguro ante errores parciales; si
+  no puede confirmarse, el dispositivo no debe marcarse como enrolado y debe
+  emitirse un log sanitizado en stderr que requiera resolución manual, sin
+  exponer secretos. Esta feature no crea una cola o tabla de incidentes.
 - **FR-012**: El sistema MUST conservar el contrato de lecturas y permitir que la
   identidad MQTT publique solo en `ecotrack/<device_id>/lecturas` y no pueda publicar
   ni suscribirse a topics de otro dispositivo.
@@ -183,9 +187,10 @@ o suscripción cruzada.
 - **FR-015**: Los errores y eventos de auditoría MUST conservar trazabilidad
   suficiente para diagnosticar el intento sin registrar secretos en claro ni
   identificadores sensibles completos.
-- **FR-016**: El endpoint MUST rechazar cualquier intento sin HTTPS, sin sesión
-  administrativa válida o fuera del límite de solicitudes, usando el mismo error
-  genérico cuando corresponda.
+- **FR-016**: El endpoint MUST rechazar cualquier intento sin HTTPS o fuera del
+  límite de solicitudes, usando el mismo error genérico cuando corresponda. La
+  sesión administrativa no forma parte de esta llamada y se valida en el reclamo
+  previo del dashboard.
 - **FR-017**: El firmware MUST validar el certificado del backend con la CA
   embebida, usando `serverHost` como hostname HTTPS en el puerto 443 y sin
   `setInsecure()` ni equivalentes.
@@ -238,9 +243,13 @@ o suscripción cruzada.
 - El código de alta y token se generan y consumen por el flujo administrativo
   existente del dashboard; el endpoint no recibe esos valores.
 - El usuario del dashboard es administrador del cliente que reclama el dispositivo;
-  el firmware no participa en el reclamo.
+  el firmware no participa en el reclamo. La llamada de enrolamiento no porta ni
+  valida un JWT de dashboard.
 - El hash del secreto de fábrica se registra durante el aprovisionamiento y se
   conserva fuera del firmware y del repositorio.
+- Si falla la compensación, la observabilidad se limita deliberadamente al log
+  sanitizado en stderr ya existente; no se agrega persistencia de incidentes en
+  esta feature porque no hay un consumidor operativo definido.
 - Dynamic-security ofrece operaciones de creación y revocación suficientes para
   compensar fallos parciales; si no puede garantizarse una operación, se documenta
   el incidente y no se marca el dispositivo como enrolado.

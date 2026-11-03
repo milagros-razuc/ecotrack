@@ -51,7 +51,7 @@ local. Si falla persistencia después de crear MQTT, borrar cliente y rol; si fa
 MQTT, hacer rollback SQL y no devolver credenciales.
 
 **Rationale**: Evita dos estados visibles: dispositivo reclamado sin identidad o
-identidad dinámica sin vínculo local. Un incidente de compensación fallida se
+identidad dinámica sin vínculo local. Una compensación fallida se
 registra sanitizado y queda pendiente, nunca se presenta como éxito.
 
 ## Decisión 5: HTTPS y certificados

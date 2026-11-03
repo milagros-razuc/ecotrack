@@ -32,11 +32,15 @@
 `factory_pending -> claimed -> mqtt_provisioned -> enrolled`.
 
 Un error de validación vuelve a `factory_pending` o conserva `claimed` sin
-credenciales entregadas. Un error de MQTT no puede avanzar a `mqtt_provisioned`;
-un error de persistencia dispara compensación y deja el incidente observable.
+credenciales entregadas. Un error de MQTT no puede avanzar a `mqtt_provisioned`; un error de persistencia
+dispara compensación y, si esta falla, deja un log sanitizado en stderr para
+resolución manual.
 
 ## Entrega
 
 La respuesta exitosa contiene `device_id`, `mqtt_user`, `mqtt_pass` y
-`mqtt_host`/`mqtt_port` solo una vez. No se persiste `mqtt_pass` recuperable ni se
-incluyen secretos en auditoría, logs o respuestas posteriores.
+`mqtt_host`/`mqtt_port` solo una vez. `mqtt_host` usa `MQTT_PUBLIC_HOST`, el
+hostname visible para la placa, y no el nombre interno de Compose `mosquitto`.
+No se persiste `mqtt_pass` recuperable ni se incluyen secretos en auditoría,
+logs o respuestas posteriores. Una compensación fallida solo deja un log
+sanitizado en stderr para resolución manual; no crea un incidente persistido.
