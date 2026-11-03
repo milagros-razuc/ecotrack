@@ -1,4 +1,5 @@
 import csv
+import hashlib
 import importlib.util
 import sys
 import subprocess
@@ -12,6 +13,7 @@ from scripts.provision_factory import (
     NvsGenerationError,
     _write_nvs_csv,
     _run_nvs_generator,
+    export_backend,
     generate_identity,
     provision,
     valid_server_host,
@@ -53,6 +55,39 @@ class ProvisionFactoryTest(unittest.TestCase):
             )
             self.assertNotIn("wifiPass", content)
             self.assertNotIn("mqttPass", content)
+
+    def test_export_backend_contains_only_device_id_and_secret_hash(self):
+        identity = FactoryIdentity(
+            "ET-EXPORT-XYZ9", "SoftApSecret", "s" * 64, "654321", "localhost"
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            export_path = Path(directory) / "backend.csv"
+            sql_path = Path(directory) / "backend.sql"
+            export_backend([identity], export_path, sql_path)
+
+            with export_path.open(newline="", encoding="utf-8") as handle:
+                rows = list(csv.DictReader(handle))
+            self.assertEqual(
+                rows,
+                [{
+                    "device_id": identity.device_id,
+                    "factory_secret_hash": hashlib.sha256(
+                        identity.device_secret.encode("utf-8")
+                    ).hexdigest(),
+                }],
+            )
+            exported = export_path.read_text(encoding="utf-8") + sql_path.read_text(
+                encoding="utf-8"
+            )
+            self.assertNotIn(identity.device_secret, exported)
+            self.assertNotIn(identity.setup_pin, exported)
+            self.assertNotIn(identity.softap_password, exported)
+            self.assertIn("ON CONFLICT (device_id) DO NOTHING", exported)
+
+    def test_export_backend_rejects_repo_path(self):
+        identity = generate_identity("localhost")
+        with self.assertRaisesRegex(ValueError, "fuera del repositorio"):
+            export_backend([identity], Path(__file__).resolve().parents[1] / "backend.csv")
 
     @patch("scripts.provision_factory.subprocess.run")
     def test_default_nvs_generator_uses_current_python_module(self, run):
