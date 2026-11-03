@@ -47,11 +47,20 @@ services:
       DYNSEC_ADMIN_PASS: ${DYNSEC_ADMIN_PASS}
     volumes:
       - ./mosquitto/config/certs/ecotrack-ca.crt:/run/secrets/ecotrack-ca.crt:ro
-    ports:
-      - "3000:3000"
     depends_on:
       postgres:
         condition: service_healthy
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "443:443"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+    depends_on:
+      - backend
     restart: unless-stopped
 
   frontend:
@@ -68,3 +77,4 @@ services:
 volumes:
   postgres_data:
   mosquitto_data:
+  caddy_data:

@@ -110,23 +110,27 @@ un log sanitizado en stderr, no un incidente persistido.
 
 **Checkpoint**: La tabla puede cargarse desde un export seguro y todas las categorías de rechazo tienen la misma respuesta pública.
 
-## Phase 6: User Story 4 — HTTPS 443 y certificado firmado por la CA (Priority: P1)
+## Phase 6: User Story 4 — HTTPS 443 con Caddy en desarrollo (Priority: P1)
 
-**Goal**: Exponer el endpoint en nginx 443 con SAN DNS igual a `serverHost`, sin exponer backend:3000 al exterior.
+**Goal**: Exponer el endpoint en Caddy 443 para desarrollo, con CA interna
+persistente y sin exponer backend:3000 al exterior.
 
 **Independent Test**: Emitir certificado fuera del repo, verificar cadena/SAN contra la CA embebida y ejecutar un request HTTPS al proxy.
 
 ### Tests for User Story 4
 
-- [ ] T029 [P] [US4] Crear test/script de certificado en `scripts/verify-backend-certificate.ps1` que valide issuer, cadena y `subjectAltName=DNS:<serverHost>` contra la CA de `codigo-esp32-mosquitto/ecotrack_ca.h`.
-- [ ] T030 [P] [US4] Añadir smoke test de Compose en `scripts/verify-enrollment-https.ps1` que confirme nginx en 443, proxy a backend:3000 y ausencia de publicación externa del puerto 3000.
+- [X] T029 [P] [US4] Documentar la exportación de la CA interna de Caddy y
+  verificarla con `curl.exe --cacert`, sin `-k`.
+- [X] T030 [P] [US4] Añadir test unitario que confirme `req.secure` con
+  `trust proxy` restringido a un salto y `X-Forwarded-Proto: https`.
 
 ### Implementation for User Story 4
 
-- [ ] T031 Crear `scripts/emit-backend-certificate.ps1` para emitir clave/CSR/certificado fuera del repo con SAN DNS igual a `serverHost`, usando la CA correspondiente a `codigo-esp32-mosquitto/ecotrack_ca.h` y sin imprimir material privado.
-- [ ] T032 [P] Crear `nginx/nginx.conf` para escuchar 443, montar certificados read-only y proxy solo `/api/dispositivos/enrolar` a `backend:3000`, con headers y timeouts definidos.
-- [ ] T033 [P] Añadir servicio nginx a `docker-compose.yml`, eliminar la publicación externa `3000:3000` del backend y montar claves/certificados desde una ruta local ignorada.
-- [ ] T034 Integrar y ejecutar la verificación TLS/proxy con Docker; registrar salida real de SAN, cadena, HTTP status y exposición de puertos en `specs/014-enrolar-dispositivo/evidence/`.
+- [X] T031 Crear `caddy/Caddyfile` con `tls internal` y proxy a `backend:3000`.
+- [X] T032 [P] Añadir servicio Caddy a `docker-compose.yml`, volumen nombrado
+  `caddy_data` y puerto 443; eliminar la publicación externa de 3000.
+- [ ] T033 Integrar y ejecutar la verificación TLS/proxy con Docker; registrar salida
+  real de CA, HTTP status y exposición de puertos en `specs/014-enrolar-dispositivo/evidence/`.
 
 **Checkpoint**: HTTPS 443 funciona con la CA del firmware y el puerto 3000 no está expuesto externamente.
 
@@ -163,8 +167,8 @@ un log sanitizado en stderr, no un incidente persistido.
 
 ## Phase 9: Polish & Cross-Cutting Concerns
 
-- [ ] T047 [P] Actualizar `README.MD` con el contrato del endpoint, export seguro, comandos de certificado, nginx 443, variables locales y advertencias de secretos.
-- [ ] T048 [P] Revisar `docker-compose.yml`, nginx, scripts, backend, firmware y documentación para confirmar que no se agregaron secretos, PINs, tokens completos, passwords MQTT ni claves privadas al repositorio.
+- [ ] T047 [P] Actualizar `README.MD` con el contrato del endpoint, export seguro, comandos de certificado, Caddy 443, variables locales y advertencias de secretos.
+- [ ] T048 [P] Revisar `docker-compose.yml`, Caddy, scripts, backend, firmware y documentación para confirmar que no se agregaron secretos, PINs, tokens completos, passwords MQTT ni claves privadas al repositorio.
 - [ ] T049 Ejecutar la suite focalizada de backend, tests de provisioning, validación de Compose, smoke HTTPS y tests/build de firmware disponibles; registrar cada salida real y fallos en `specs/014-enrolar-dispositivo/evidence/final-report.md`.
 - [ ] T050 Verificar que todas las tareas requeridas para funcionamiento del 2026-11-12 tienen evidencia real y que la presentación del 2026-11-13 no afirma resultados no ejecutados.
 
@@ -176,7 +180,7 @@ un log sanitizado en stderr, no un incidente persistido.
 2. **T008–T014**: endpoint y tests A/B con doble MQTT.
 3. **T022–T028**: export seguro de fábrica y rechazos uniformes.
 4. **T015–T021**: reutilización dynamic-security y rollback.
-5. **T029–T034**: nginx 443 y certificado firmado por la CA.
+5. **T029–T034**: Caddy 443 y CA interna de desarrollo.
 6. **T035–T041**: firmware, NVS, CA y backoff.
 7. **T042–T046**: prueba física y presentación.
 
@@ -208,7 +212,7 @@ un log sanitizado en stderr, no un incidente persistido.
 ### MVP first
 
 1. **MVP técnico**: T004–T021 — tabla, endpoint, doble MQTT, dynamic-security, ACL y rollback.
-2. **MVP integrable**: T022–T034 — export seguro, errores uniformes, nginx 443 y certificado.
+2. **MVP integrable**: T022–T034 — export seguro, errores uniformes, Caddy 443 y CA interna de desarrollo.
 3. **MVP de dispositivo**: T035–T041 — enrolamiento HTTPS, NVS, MQTT TLS y backoff.
 4. **Aceptación**: T042–T046 — evidencia física antes del 2026-11-12 y presentación del 2026-11-13.
 

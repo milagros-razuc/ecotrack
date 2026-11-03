@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- Docker Compose, PostgreSQL, Mosquitto and nginx available.
+- Docker Compose, PostgreSQL, Mosquitto and Caddy available.
 - Existing dashboard claim flow can claim a factory device with code + one-time
   token.
 - Factory export contains only `device_id` and `factory_secret_hash`.
@@ -38,27 +38,27 @@
 
 ## Issue HTTPS certificate
 
-Run the reproducible certificate script with the real `serverHost` and an output
-directory outside the repository. In the verification environment the host is
-`Milagros`; do not use `localhost`:
+For the development proxy, Caddy creates a local certificate for `localhost`.
+Start the services and export Caddy's persisted root CA outside the repository:
 
 ```powershell
-.\scripts\emit-backend-certificate.ps1 -ServerHost Milagros -OutputDir $env:USERPROFILE\ecotrack-certs
+docker compose up -d mosquitto backend caddy
+docker compose cp caddy:/data/caddy/pki/authorities/local/root.crt `
+  (Join-Path $env:TEMP 'ecotrack-caddy-root.crt')
 ```
 
-Verify the leaf certificate has `DNS:Milagros` and chains to the CA embedded in
-the firmware. The MQTT and HTTPS clients must connect using `Milagros`, not
-`localhost`, so hostname verification and SNI exercise the real SAN. Do not
-copy private keys into Git.
+Use the exported root CA with `curl.exe --cacert`; do not use `-k`. This
+development CA is separate from the firmware CA and is not suitable for the
+physical firmware flow.
 
 ## Start the proxy
 
 ```powershell
-docker compose up -d mosquitto backend nginx
+docker compose up -d mosquitto backend caddy
 ```
 
-Verify port 3000 is not published externally and nginx answers on 443 with the
-expected `DNS:Milagros` SAN. The backend Compose service must define
+Verify port 3000 is not published externally and Caddy answers on
+`https://localhost:443`. The backend Compose service must define
 `DYNSEC_CA_PATH=/run/secrets/ecotrack-ca.crt`; this is the CA consumed by the
 backend Dynamic Security client. If Dynamic Security fails during enrolment,
 the local transaction rolls back, `enrolled_at` remains NULL, and the service
@@ -129,6 +129,16 @@ Send exactly `device_id` and `device_secret` to:
 
 ```text
 https://<serverHost>/api/dispositivos/enrolar
+```
+
+For development, use:
+
+```powershell
+$body = '{"device_id":"<device-id>","device_secret":"<factory-secret>"}'
+curl.exe --cacert (Join-Path $env:TEMP 'ecotrack-caddy-root.crt') `
+  -H 'Content-Type: application/json' `
+  --data-raw $body `
+  https://localhost/api/dispositivos/enrolar
 ```
 
 The endpoint does not use a dashboard JWT. The dashboard administrator first

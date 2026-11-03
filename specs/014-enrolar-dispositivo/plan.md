@@ -8,15 +8,16 @@
 
 ## Summary
 
-El firmware enviará únicamente `device_id` y `device_secret` por HTTPS a nginx en
-443. El backend validará el hash de fábrica y el reclamo previo del dashboard,
+El firmware enviará únicamente `device_id` y `device_secret` por HTTPS a Caddy en
+443 durante el desarrollo. El backend validará el hash de fábrica y el reclamo previo del dashboard,
 creará el cliente/rol MQTT mediante el adaptador dynamic-security existente y
 devolverá las credenciales una sola vez. La transacción local y las operaciones
 MQTT tendrán compensaciones explícitas para evitar vínculos o identidades
 huérfanas. La compensación fallida se observará mediante un log sanitizado en
 stderr y requerirá resolución manual; no se agrega una cola de incidentes.
-La misma CA embebida en el firmware firmará el certificado de nginx, cuyo SAN
-será el hostname `serverHost`.
+En desarrollo Caddy usará una CA interna persistida en `caddy_data`; la CA
+embebida en el firmware y el SAN `serverHost` quedan reservados para la
+validación física/producción.
 
 La spec fue corregida: el código de alta y el token no forman parte del body del
 endpoint; pertenecen exclusivamente al flujo previo de reclamo del dashboard.
@@ -32,11 +33,11 @@ El endpoint no usa JWT: el firmware se autentica con `device_id` y
 -->
 
 **Language/Version**: Node.js existente (backend), SQL PostgreSQL, C++ Arduino/ESP32,
-nginx/OpenSSL para terminación TLS.
+Caddy para terminación TLS de desarrollo.
 
 **Primary Dependencies**: Express, `mqtt` 5.x ya instalado, `bcryptjs`/`crypto`,
 `express-rate-limit`, PostgreSQL, Docker Compose, Mosquitto dynamic-security,
-OpenSSL y nginx.
+Caddy y Docker Compose.
 
 **Storage**: PostgreSQL para dispositivos de fábrica, reclamos y estado de
 enrolamiento; dynamic-security.json en volumen Mosquitto; claves/certificados
@@ -117,12 +118,10 @@ backend/
     └── 015_device_enrollment.sql
 
 scripts/
-├── provision-mqtt-dynamic.js
-└── emit-backend-certificate.ps1
+└── provision-mqtt-dynamic.js
 
-nginx/
-├── nginx.conf
-└── certs/.gitkeep
+caddy/
+└── Caddyfile
 
 codigo-esp32-mosquitto/
 └── ecotrack_ca.h
@@ -135,8 +134,10 @@ ios/ or android/
 
 **Structure Decision**: El endpoint permanece en la ruta de dispositivos, la
 lógica de enrolamiento y compensación vive en servicios, y el adaptador MQTT
-reutiliza el contrato del script dynamic-security existente. nginx es un servicio
-de terminación TLS delante del backend interno; las claves no se montan desde Git.
+reutiliza el contrato del script dynamic-security existente. Caddy es un servicio
+de terminación TLS de desarrollo delante del backend interno; su CA local persiste
+en un volumen nombrado y no se montan secretos desde Git. Express confía en un
+solo salto de proxy porque el backend no publica el puerto 3000 al host.
 
 ## Complexity Tracking
 
@@ -145,5 +146,5 @@ de terminación TLS delante del backend interno; las claves no se montan desde G
 | Violation | Why Needed | Simpler Alternative Rejected Because |
 |-----------|------------|-------------------------------------|
 | [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
-| N/A | N/A | No se agrega un proyecto adicional; nginx es infraestructura del compose. |
+| N/A | N/A | No se agrega un proyecto adicional; Caddy es infraestructura del compose. |
 | [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |

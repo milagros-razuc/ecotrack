@@ -2,7 +2,9 @@
 
 ## Request
 
-`POST /api/dispositivos/enrolar` over HTTPS 443.
+`POST /api/dispositivos/enrolar` over HTTPS 443. In development, Caddy
+terminates TLS on `localhost:443` with its internal CA and proxies to the
+backend at `backend:3000` inside the Compose network.
 
 ```json
 {
@@ -66,3 +68,15 @@ failures use the same public status and body:
 Any failure triggers compensating deletion/revocation and returns the generic
 error. A failed compensation emits a sanitized stderr log without secrets and requires
 manual resolution; it is not persisted as a pending incident.
+
+## Development CA
+
+The Caddy root CA persists in the named `caddy_data` volume. After starting the
+stack, export it without printing it:
+
+```powershell
+docker compose cp caddy:/data/caddy/pki/authorities/local/root.crt `
+  (Join-Path $env:TEMP 'ecotrack-caddy-root.crt')
+```
+
+Use that file with `curl.exe --cacert`; do not use `-k`.

@@ -21,6 +21,14 @@ const { apiPublicaPorIp } = require('./middleware/rateLimiter');
 const { obtenerOrigenesPermitidos } = require('./config/cors');
 const app = express();
 
+// Solo Caddy se publica y reenvía un salto; el backend no publica 3000 al host.
+// El límite evita confiar en X-Forwarded-* enviado por clientes externos.
+function configureProxyTrust(application) {
+  application.set('trust proxy', 1);
+  return application;
+}
+
+configureProxyTrust(app);
 app.use(morgan('dev'));
 app.use(helmet());
 app.use(express.json());
@@ -58,3 +66,4 @@ app.get('/health', (req, res) => res.json({ ok: true }));
 app.use(errorHandler);
 
 module.exports = app;
+module.exports.configureProxyTrust = configureProxyTrust;
