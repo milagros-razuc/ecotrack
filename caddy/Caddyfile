@@ -1,4 +1,12 @@
 localhost {
     tls internal
-    reverse_proxy backend:3000
+
+    @backend path /api/* /socket.io/* /health
+    handle @backend {
+        reverse_proxy backend:3000
+    }
+
+    handle {
+        reverse_proxy frontend:80
+    }
 }

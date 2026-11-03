@@ -76,8 +76,10 @@ physical firmware flow.
 docker compose up -d mosquitto backend caddy
 ```
 
-Verify port 3000 is not published externally and Caddy answers on
-`https://localhost:443`. The backend Compose service must define
+Verify ports 3000 and 8080 are not published externally and Caddy answers on
+`https://localhost:443`. The dashboard and its API use the same HTTPS origin;
+the frontend uses relative `/api/*` URLs, so login cookies/tokens are not sent
+cross-origin. The backend Compose service must define
 `DYNSEC_CA_PATH=/run/secrets/ecotrack-ca.crt`; this is the CA consumed by the
 backend Dynamic Security client. If Dynamic Security fails during enrolment,
 the local transaction rolls back, `enrolled_at` remains NULL, and the service
@@ -85,6 +87,12 @@ attempts to delete the created Dynamic Security client and role. A failed
 compensation emits only a sanitized stderr log and requires manual resolution;
 it is not a persisted or dashboard-visible pending incident, and must not be
 reported as approved.
+
+To manually verify the login path without exposing credentials in the command
+line, first open `https://localhost/login.html` in a browser trusted with the
+exported Caddy CA, then submit the login form. The browser request must be
+`POST https://localhost/api/auth/login` and must not request
+`http://localhost:3000` or `http://localhost:8080`.
 
 ## MQTT CLI credentials without password arguments
 

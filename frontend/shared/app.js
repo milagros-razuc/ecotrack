@@ -1,5 +1,5 @@
 // ─── Config y sesión (comunes a todas las páginas) ───────────────────────
-const API = `http://${location.hostname}:3000`;
+const API = '';
 
 function leerDatoLocalStorage(key) {
   try {

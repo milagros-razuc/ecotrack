@@ -1,4 +1,4 @@
-const DEFAULT_CORS_ORIGIN = 'http://localhost:8080';
+const DEFAULT_CORS_ORIGIN = 'https://localhost,http://localhost:8080';
 
 function obtenerOrigenesPermitidos(value = process.env.CORS_ORIGIN) {
   const configuredOrigins = (value || DEFAULT_CORS_ORIGIN)

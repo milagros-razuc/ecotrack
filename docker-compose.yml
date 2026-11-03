@@ -45,6 +45,7 @@ services:
       DYNSEC_CA_PATH: /run/secrets/ecotrack-ca.crt
       DYNSEC_ADMIN_USER: ${DYNSEC_ADMIN_USER}
       DYNSEC_ADMIN_PASS: ${DYNSEC_ADMIN_PASS}
+      CORS_ORIGIN: ${CORS_ORIGIN:-https://localhost,http://localhost:8080}
     volumes:
       - ./mosquitto/config/certs/ecotrack-ca.crt:/run/secrets/ecotrack-ca.crt:ro
     depends_on:
@@ -61,13 +62,12 @@ services:
       - caddy_data:/data
     depends_on:
       - backend
+      - frontend
     restart: unless-stopped
 
   frontend:
     image: nginx:alpine
     container_name: ecotrack_frontend
-    ports:
-      - "8080:80"
     volumes:
       - ./frontend:/usr/share/nginx/html:ro
     depends_on:

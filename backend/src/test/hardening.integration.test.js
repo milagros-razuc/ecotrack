@@ -267,7 +267,10 @@ test('CORS normaliza orígenes y preserva clientes sin Origin', async () => {
     obtenerOrigenesPermitidos(' https://dashboard.example,https://api.example, https://dashboard.example '),
     ['https://dashboard.example', 'https://api.example']
   );
-  assert.deepStrictEqual(obtenerOrigenesPermitidos(''), ['http://localhost:8080']);
+  assert.deepStrictEqual(
+    obtenerOrigenesPermitidos(''),
+    ['https://localhost', 'http://localhost:8080'],
+  );
   assert.throws(
     () => obtenerOrigenesPermitidos('https://dashboard.example, *'),
     /no puede contener el comodín/

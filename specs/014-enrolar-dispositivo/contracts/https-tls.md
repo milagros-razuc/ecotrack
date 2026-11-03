@@ -2,6 +2,8 @@
 
 - Caddy listens on `443` and proxies `/api/dispositivos/enrolar` to
   `backend:3000`.
+- Caddy serves the frontend on `/` through the internal `frontend:80` service
+  and proxies `/api/*`, `/socket.io/*` and `/health` to `backend:3000`.
 - Backend port `3000` is internal to the Compose network for this endpoint and is
   not exposed publicly.
 - In development, Caddy uses `tls internal`; its root CA persists in the named
