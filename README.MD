@@ -194,6 +194,19 @@ La imagen NVS de fábrica debe generarse con el tamaño de la partición `0x5000
 python scripts\provision_factory.py --count 1 --output C:\ecotrack-factory --server-host broker.ecotrack.local --nvs-size 0x5000
 ```
 
+Para cargar en el backend la identidad de fábrica sin transferir el secreto ni el
+PIN, agregá `--export-backend`. El comando genera `backend.csv` dentro de la salida
+externa, con `device_id`, el hash del secreto y la fecha de generación:
+
+```powershell
+python scripts\provision_factory.py --count 1 --output C:\ecotrack-factory --server-host broker.ecotrack.local --nvs-size 0x5000 --export-backend
+```
+
+Aplicá [`backend/migrations/014_factory_devices.sql`](backend/migrations/014_factory_devices.sql)
+en PostgreSQL y cargá únicamente `backend.csv` en `dispositivos_fabrica`. El resto de
+la salida de fábrica contiene secretos operativos y debe conservarse fuera del
+repositorio con acceso restringido.
+
 Al compilar, registrá el tamaño de firmware y la capacidad de la partición de aplicación:
 
 `porcentaje usado = bytes del firmware / bytes disponibles del slot × 100`

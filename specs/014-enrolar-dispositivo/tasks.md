@@ -26,7 +26,7 @@ description: "Tareas para implementar el enrolamiento seguro de dispositivos Eco
 
 - [ ] T004 Revisar y consolidar la migración idempotente de `dispositivos_fabrica` en `backend/migrations/014_factory_devices.sql`, manteniendo `device_id VARCHAR(50) PRIMARY KEY`, `factory_secret_hash VARCHAR(64) UNIQUE NOT NULL`, `created_at` y `enrolled_at` nullable, sin secreto/PIN en claro.
 - [ ] T005 [P] Añadir a `backend/src/config/migrate.js` la aplicación repetible de la tabla de fábrica y los índices/constraints necesarios para bloquear dos enrolamientos concurrentes del mismo `device_id`.
-- [ ] T006 [P] Añadir schemas de request/response con body exacto `device_id` + `device_secret` en `backend/src/schemas.js`, rechazando `activation_code`, `codigo`, `token`, `cliente_id` y campos adicionales con el error genérico.
+- [X] T006 [P] Añadir schemas de request/response con body exacto `device_id` + `device_secret` en `backend/src/schemas.js`, rechazando `activation_code`, `codigo`, `token`, `cliente_id` y campos adicionales con el error genérico.
 - [ ] T007 Ejecutar la migración en una base de prueba y verificar con salida real que la tabla, hash, unicidad y nulabilidad de `enrolled_at` coinciden con `specs/014-enrolar-dispositivo/data-model.md`; no marcar la tarea si la base no está disponible.
 
 **Checkpoint**: La tabla de fábrica y los contratos de entrada están verificados antes de implementar el endpoint.
@@ -39,16 +39,16 @@ description: "Tareas para implementar el enrolamiento seguro de dispositivos Eco
 
 ### Tests for User Story 1
 
-- [ ] T008 [P] [US1] Crear tests unitarios del endpoint en `backend/src/test/enrolamiento-dispositivo.test.js` para body válido, campos extra, dispositivo desconocido, secreto inválido, dispositivo sin `cliente_id`, repetición y respuesta exitosa de entrega única.
-- [ ] T009 [P] [US1] Crear tests con doble de PostgreSQL/MQTT en `backend/src/test/enrolamiento-dispositivo.test.js` para cliente A y cliente B, verificando que `cliente_id` proviene del reclamo/estado persistido y nunca del body.
+- [X] T008 [P] [US1] Crear tests unitarios del endpoint en `backend/src/test/enrolamiento-dispositivo.test.js` para body válido, campos extra, dispositivo desconocido, secreto inválido, dispositivo sin `cliente_id`, repetición y respuesta exitosa de entrega única.
+- [X] T009 [P] [US1] Crear tests con doble de PostgreSQL/MQTT en `backend/src/test/enrolamiento-dispositivo.test.js` para cliente A y cliente B, verificando que `cliente_id` proviene del reclamo/estado persistido y nunca del body.
 
 ### Implementation for User Story 1
 
-- [ ] T010 Implementar la consulta transaccional y bloqueo por `device_id` en `backend/src/services/enrolamiento.service.js`, exigiendo `cliente_id` y `reclamado_en` y usando `crypto.timingSafeEqual` con buffers de igual longitud para comparar SHA-256.
-- [ ] T011 Implementar la ruta `POST /api/dispositivos/enrolar` en `backend/src/routes/dispositivos.js` con HTTPS requerido, body exacto, error genérico `No se pudo enrolar el dispositivo` y rate limiter específico.
-- [ ] T012 Integrar la ruta en `backend/src/app.js` sin exponer `cliente_id` desde request input, preservando el flujo existente de reclamo y el aislamiento por cliente.
-- [ ] T013 Implementar la respuesta única en `backend/src/services/enrolamiento.service.js`, generando credenciales MQTT aleatorias, devolviéndolas solo en el éxito inicial y marcando `enrolled_at` sin persistir el password recuperable.
-- [ ] T014 Ejecutar la suite focalizada `backend/src/test/enrolamiento-dispositivo.test.js` y registrar en `specs/014-enrolar-dispositivo/evidence/` la salida real sanitizada antes de marcar completadas las tareas de la historia.
+- [X] T010 Implementar la consulta transaccional y bloqueo por `device_id` en `backend/src/services/enrolamiento.service.js`, exigiendo `cliente_id` y `reclamado_en` y usando `crypto.timingSafeEqual` con buffers de igual longitud para comparar SHA-256.
+- [X] T011 Implementar la ruta `POST /api/dispositivos/enrolar` en `backend/src/routes/enrolamiento.js` con HTTPS requerido, body exacto, error genérico `No se pudo enrolar el dispositivo` y rate limiter específico.
+- [X] T012 Integrar la ruta en `backend/src/app.js` sin exponer `cliente_id` desde request input, preservando el flujo existente de reclamo y el aislamiento por cliente.
+- [X] T013 Implementar la respuesta única en `backend/src/services/enrolamiento.service.js`, generando credenciales MQTT aleatorias, devolviéndolas solo en el éxito inicial y marcando `enrolled_at` sin persistir el password recuperable.
+- [X] T014 Ejecutar la suite focalizada `backend/src/test/enrolamiento-dispositivo.test.js` y registrar en `specs/014-enrolar-dispositivo/evidence/` la salida real sanitizada antes de marcar completadas las tareas de la historia.
 
 **Checkpoint**: La validación local y la entrega única funcionan con cliente A/B en dobles, sin secretos en salida.
 
@@ -61,15 +61,15 @@ description: "Tareas para implementar el enrolamiento seguro de dispositivos Eco
 ### Tests for User Story 3
 
 - [ ] T015 [P] [US3] Extraer tests de respuestas correlacionadas, timeout, respuesta duplicada, error de autorización y desconexión del doble MQTT desde `scripts/provision-mqtt-dynamic.js` hacia `backend/src/test/dynamic-security.service.test.js`.
-- [ ] T016 [P] [US3] Añadir tests de rollback en `backend/src/test/enrolamiento-dispositivo.test.js` para fallo antes de crear cliente, fallo después de crear cliente/rol y fallo al persistir el vínculo local.
+- [X] T016 [P] [US3] Añadir tests de rollback en `backend/src/test/enrolamiento-dispositivo.test.js` para fallo antes de crear cliente, fallo después de crear cliente/rol y fallo al persistir el vínculo local.
 
 ### Implementation for User Story 3
 
 - [ ] T017 Extraer la lógica común de `scripts/provision-mqtt-dynamic.js` a `backend/src/services/dynamicSecurity.service.js`, manteniendo CA validada, `rejectUnauthorized: true`, correlación, timeout y credenciales desde entorno local.
-- [ ] T018 Implementar en `backend/src/services/dynamicSecurity.service.js` la secuencia determinista de rol/cliente con `publishClientSend ecotrack/<device_id>/lecturas allow`, `subscribePattern ecotrack/# deny` prioridad 0 y `subscribePattern ecotrack/<device_id>/# allow` prioridad 10.
-- [ ] T019 Implementar compensación en `backend/src/services/enrolamiento.service.js` para borrar/revocar cliente y rol si falla el commit local; registrar solo un incidente sanitizado si la compensación no es confirmable.
+- [X] T018 Implementar en `backend/src/services/dynamicSecurity.service.js` la secuencia determinista de rol/cliente con `publishClientSend ecotrack/<device_id>/lecturas allow`, `subscribePattern ecotrack/# deny` prioridad 0 y `subscribePattern ecotrack/<device_id>/# allow` prioridad 10.
+- [X] T019 Implementar compensación en `backend/src/services/enrolamiento.service.js` para borrar/revocar cliente y rol si falla el commit local; registrar solo un incidente sanitizado si la compensación no es confirmable.
 - [ ] T020 Rehacer `scripts/provision-mqtt-dynamic.js` como wrapper reproducible del servicio compartido, preservando alta repetible, baja y códigos de salida sin imprimir passwords ni payloads.
-- [ ] T021 [US3] Ejecutar tests unitarios del adaptador y rollback, y verificar con salida real que una falla no deja credenciales, roles o vínculos huérfanos en el doble.
+- [X] T021 [US3] Ejecutar tests unitarios del adaptador y rollback, y verificar con salida real que una falla no deja credenciales, roles o vínculos huérfanos en el doble.
 
 **Checkpoint**: Endpoint y script comparten exactamente la lógica de dynamic-security y el rollback está cubierto.
 
