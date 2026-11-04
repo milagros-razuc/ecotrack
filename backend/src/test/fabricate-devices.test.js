@@ -9,9 +9,13 @@ const repositoryRoot = path.resolve(__dirname, '../../..');
 const scriptPath = path.join(repositoryRoot, 'scripts', 'fabricate-devices.ps1');
 
 function runPowerShell(args, env = process.env) {
+  return runPowerShellFile(scriptPath, args, env);
+}
+
+function runPowerShellFile(filePath, args, env = process.env) {
   return spawnSync(
     'powershell.exe',
-    ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', scriptPath, ...args],
+    ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', filePath, ...args],
     { cwd: repositoryRoot, encoding: 'utf8', env },
   );
 }
@@ -60,10 +64,18 @@ if (command === 'docker') {
   }
   process.exit(0);
 }
+if (command === 'esptool') {
+  if (process.env.SHIM_ESPTOOL_FAIL === '1' &&
+      args.includes(process.env.SHIM_ESPTOOL_FAIL_STEP || '')) {
+    process.exit(7);
+  }
+  process.exit(0);
+}
 process.exit(0);
 `, 'utf8');
   fs.writeFileSync(path.join(root, 'python.cmd'), '@echo off\r\nnode "%~dp0shim.js" python %*\r\n');
   fs.writeFileSync(path.join(root, 'docker.cmd'), '@echo off\r\nnode "%~dp0shim.js" docker %*\r\n');
+  fs.writeFileSync(path.join(root, 'esptool.cmd'), '@echo off\r\nnode "%~dp0shim.js" esptool %*\r\n');
   return {
     root,
     logPath,
@@ -106,6 +118,15 @@ test('fabrication command declares required batch and output parameters', () => 
   assert.match(script, /--export-backend/);
 });
 
+function createFlashInputs() {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ecotrack-flash-inputs-'));
+  const firmware = path.join(root, 'firmware.bin');
+  const partitions = path.join(root, 'partitions.bin');
+  const nvs = path.join(root, 'device.nvs.bin');
+  for (const file of [firmware, partitions, nvs]) fs.writeFileSync(file, 'synthetic');
+  return { root, firmware, partitions, nvs };
+}
+
 test('fabrication command rejects repository output without creating secrets', () => {
   const result = runPowerShell([
     '-Count', '1',
@@ -134,9 +155,10 @@ test('fabrication command validates import count before provisioning tokens', ()
   assert.match(script, /conteo inesperado/);
 });
 
-test('phase 2 does not invoke flashing tools', () => {
+test('phase 3 uses write-flash without erase_flash', () => {
   const script = fs.readFileSync(scriptPath, 'utf8');
-  assert.doesNotMatch(script, /write-flash|erase_flash|flash_id/i);
+  assert.match(script, /write-flash/);
+  assert.doesNotMatch(script, /erase_flash|flash_id/i);
 });
 
 test('tests use synthetic values for token and PIN fixtures', () => {
@@ -258,6 +280,115 @@ test('behavior: synthetic PIN is not printed', () => {
       ], env);
       assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
       assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, /123456/);
+    } finally {
+      fs.rmSync(output, { recursive: true, force: true });
+    }
+  });
+});
+
+test('phase 3: flash calls preserve partition, app, then NVS order', () => {
+  withShimEnvironment({ importCount: 1 }, ({ env, logPath, root }) => {
+    const inputs = createFlashInputs();
+    const output = fs.mkdtempSync(path.join(os.tmpdir(), 'ecotrack-fabricate-output-'));
+    try {
+      const result = runPowerShell([
+        '-Count', '1',
+        '-ServerHost', 'localhost',
+        '-Output', output,
+        '-Firmware', inputs.firmware,
+        '-Partitions', inputs.partitions,
+        '-Nvs', inputs.nvs,
+        '-Port', 'COM7',
+        '-Esptool', path.join(root, 'esptool.cmd'),
+      ], env);
+      assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+      const calls = readShimCalls(logPath)
+        .filter((call) => call.command === 'esptool');
+      assert.deepEqual(calls.map((call) => call.args.slice(-2)), [
+        ['0x8000', inputs.partitions],
+        ['0x10000', inputs.firmware],
+        ['0x9000', inputs.nvs],
+      ]);
+    } finally {
+      fs.rmSync(output, { recursive: true, force: true });
+      fs.rmSync(inputs.root, { recursive: true, force: true });
+    }
+  });
+});
+
+test('phase 3: failed firmware prevents NVS write', () => {
+  withShimEnvironment({ importCount: 1 }, ({ env, logPath, root }) => {
+    env.SHIM_ESPTOOL_FAIL = '1';
+    env.SHIM_ESPTOOL_FAIL_STEP = '0x10000';
+    const inputs = createFlashInputs();
+    const output = fs.mkdtempSync(path.join(os.tmpdir(), 'ecotrack-fabricate-output-'));
+    try {
+      const result = runPowerShell([
+        '-Count', '1',
+        '-ServerHost', 'localhost',
+        '-Output', output,
+        '-Firmware', inputs.firmware,
+        '-Partitions', inputs.partitions,
+        '-Nvs', inputs.nvs,
+        '-Port', 'COM7',
+        '-Esptool', path.join(root, 'esptool.cmd'),
+      ], env);
+      assert.notStrictEqual(result.status, 0);
+      const calls = readShimCalls(logPath)
+        .filter((call) => call.command === 'esptool');
+      assert.equal(calls.some((call) => call.args.includes(inputs.nvs)), false);
+    } finally {
+      fs.rmSync(output, { recursive: true, force: true });
+      fs.rmSync(inputs.root, { recursive: true, force: true });
+    }
+  });
+});
+
+test('phase 3: multiple serial ports require explicit Port', () => {
+  withShimEnvironment({ importCount: 1 }, ({ env, logPath, root }) => {
+    const inputs = createFlashInputs();
+    const output = fs.mkdtempSync(path.join(os.tmpdir(), 'ecotrack-fabricate-output-'));
+    const wrapper = path.join(root, 'multiple-ports.ps1');
+    fs.writeFileSync(wrapper, [
+      'function Get-CimInstance {',
+      '  [pscustomobject]@{ DeviceID = "COM7" }',
+      '  [pscustomobject]@{ DeviceID = "COM8" }',
+      '}',
+      `& '${scriptPath}' @args`,
+      'exit $LASTEXITCODE',
+    ].join('\r\n'));
+    try {
+      const result = runPowerShellFile(wrapper, [
+        '-Count', '1',
+        '-ServerHost', 'localhost',
+        '-Output', output,
+        '-Firmware', inputs.firmware,
+        '-Partitions', inputs.partitions,
+        '-Nvs', inputs.nvs,
+        '-Esptool', path.join(root, 'esptool.cmd'),
+      ], env);
+      assert.notStrictEqual(result.status, 0);
+      assert.match(`${result.stdout}\n${result.stderr}`, /multiple|puertos/i);
+      assert.equal(readShimCalls(logPath).some((call) => call.command === 'esptool'), false);
+    } finally {
+      fs.rmSync(output, { recursive: true, force: true });
+      fs.rmSync(inputs.root, { recursive: true, force: true });
+    }
+  });
+});
+
+test('phase 3: missing flashing inputs abort before esptool', () => {
+  withShimEnvironment({ importCount: 1 }, ({ env, logPath, root }) => {
+    const output = fs.mkdtempSync(path.join(os.tmpdir(), 'ecotrack-fabricate-output-'));
+    try {
+      const result = runPowerShell([
+        '-Count', '1',
+        '-ServerHost', 'localhost',
+        '-Output', output,
+        '-Esptool', path.join(root, 'esptool.cmd'),
+      ], env);
+      assert.notStrictEqual(result.status, 0);
+      assert.equal(readShimCalls(logPath).some((call) => call.command === 'esptool'), false);
     } finally {
       fs.rmSync(output, { recursive: true, force: true });
     }

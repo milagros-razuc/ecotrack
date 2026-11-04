@@ -10,13 +10,28 @@ param(
     [Parameter(Mandatory = $false)]
     [string]$Firmware,
     [Parameter(Mandatory = $false)]
-    [string]$Partitions
+    [string]$Partitions,
+    [Parameter(Mandatory = $false)]
+    [string]$Nvs,
+    [Parameter(Mandatory = $false)]
+    [string]$Port,
+    [Parameter(Mandatory = $false)]
+    [string]$Esptool,
+    [Parameter(Mandatory = $false)]
+    [switch]$VerifyEnrollment,
+    [Parameter(Mandatory = $false)]
+    [ValidateRange(1, 86400)]
+    [int]$WaitSeconds = 60,
+    [Parameter(Mandatory = $false)]
+    [ValidateRange(1, 3600)]
+    [int]$PollSeconds = 5
 )
 
 $ErrorActionPreference = 'Stop'
+$script:FailureExitCode = 1
 trap {
     [Console]::Error.WriteLine($_.Exception.Message)
-    exit 1
+    exit $script:FailureExitCode
 }
 $repositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $outputPath = [System.IO.Path]::GetFullPath($Output)
@@ -38,8 +53,77 @@ function Invoke-External {
     )
     & $FilePath @Arguments *> $null
     if ($LASTEXITCODE -ne 0) {
-        throw "$FailureMessage (código de salida $LASTEXITCODE)."
+        throw "$FailureMessage (codigo de salida $LASTEXITCODE)."
     }
+}
+
+function Resolve-Esptool {
+    param([string]$Override)
+    if ($Override) {
+        if (-not (Test-Path -LiteralPath $Override -PathType Leaf)) {
+            throw 'Paso flasheo: falta esptool.'
+        }
+        return (Resolve-Path -LiteralPath $Override).Path
+    }
+    $root = Join-Path $env:LOCALAPPDATA 'Arduino15\packages\esp32\tools\esptool_py'
+    if (-not (Test-Path -LiteralPath $root -PathType Container)) {
+        throw 'Paso flasheo: falta esptool.'
+    }
+    $candidate = Get-ChildItem -LiteralPath $root -Directory |
+        Sort-Object LastWriteTime -Descending |
+        ForEach-Object { Join-Path $_.FullName 'esptool.exe' } |
+        Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } |
+        Select-Object -First 1
+    if (-not $candidate) {
+        throw 'Paso flasheo: falta esptool.'
+    }
+    return $candidate
+}
+
+function Resolve-SerialPort {
+    param([string]$ExplicitPort)
+    if ($ExplicitPort) {
+        return $ExplicitPort
+    }
+    $ports = @(Get-CimInstance Win32_SerialPort)
+    if ($ports.Count -eq 0) {
+        throw 'Paso flasheo: falta puerto serie.'
+    }
+    if ($ports.Count -gt 1) {
+        throw 'Paso flasheo: hay multiple puertos; indique -Port.'
+    }
+    return $ports[0].DeviceID
+}
+
+function Invoke-FlashWrite {
+    param(
+        [string]$Tool,
+        [string]$SerialPort,
+        [string]$Address,
+        [string]$Image,
+        [string]$StepName
+    )
+    & $Tool write-flash --port $SerialPort $Address $Image *> $null
+    if ($LASTEXITCODE -ne 0) {
+        throw "Paso ${StepName}: codigo de salida $LASTEXITCODE."
+    }
+}
+
+function Get-EnrollmentState {
+    param([string]$DeviceId)
+    $query = "const pool=require('./src/config/db'); pool.query('SELECT enrolled_at FROM dispositivos_fabrica WHERE device_id = `$1',[process.argv[1]]).then(r=>{console.log(r.rows[0]&&r.rows[0].enrolled_at?'enrolado':'pendiente');}).finally(()=>pool.end());"
+    $output = & docker compose exec -T backend node -e $query $DeviceId 2>$null
+    if ($LASTEXITCODE -ne 0) {
+        return 'error'
+    }
+    $state = ($output -join "`n")
+    if ($state -match '(?im)^\s*enrolado\s*$') {
+        return 'enrolado'
+    }
+    if ($state -match '(?im)^\s*pendiente\s*$') {
+        return 'pendiente'
+    }
+    return 'error'
 }
 
 if (-not (Test-OutsideRepository $outputPath)) {
@@ -61,6 +145,16 @@ if ($Firmware -and -not (Test-Path -LiteralPath $Firmware -PathType Leaf)) {
 }
 if ($Partitions -and -not (Test-Path -LiteralPath $Partitions -PathType Leaf)) {
     throw 'La tabla de particiones indicada no existe.'
+}
+$flashRequested = $Firmware -or $Partitions -or $Nvs -or $Port -or $Esptool -or $VerifyEnrollment
+if ($flashRequested) {
+    if (-not $Firmware) { throw 'Paso flasheo: falta -Firmware.' }
+    if (-not $Partitions) { throw 'Paso flasheo: falta -Partitions.' }
+    if (-not $Nvs -and $Count -ne 1) {
+        throw 'Paso flasheo: falta -Nvs para un lote de varios dispositivos.'
+    }
+    $esptoolPath = Resolve-Esptool -Override $Esptool
+    $serialPort = Resolve-SerialPort -ExplicitPort $Port
 }
 
 $factoryScript = Join-Path $repositoryRoot 'scripts\provision_factory.py'
@@ -100,7 +194,7 @@ try {
         $importOutput = & docker compose exec -T backend node scripts/import-factory-devices.js $containerCsv 2>&1
         $importExitCode = $LASTEXITCODE
         if ($importExitCode -ne 0) {
-            throw "Paso importación backend.csv falló (código de salida $importExitCode)."
+            throw "Paso importacion backend.csv fallo (codigo de salida $importExitCode)."
         }
         $importText = ($importOutput -join "`n")
         $match = [regex]::Match(
@@ -111,24 +205,24 @@ try {
         if (-not $match.Success -or
             [int]$match.Groups[1].Value -ne $Count -or
             [int]$match.Groups[2].Value -ne 0) {
-            throw "Paso importación backend.csv: conteo inesperado (código de salida $importExitCode)."
+            throw "Paso importacion backend.csv: conteo inesperado (codigo de salida $importExitCode)."
         }
     } finally {
         & docker compose exec -T backend rm -f $containerCsv *> $null
     }
 
-    # No se imprimen tokens; se guardan únicamente en el archivo local protegido.
+    # No se imprimen tokens; se guardan solo en el archivo local protegido.
     $tokenLines = [System.Collections.Generic.List[string]]::new()
     foreach ($row in $rows) {
         $tokenOutput = & docker compose exec -T backend node scripts/provision-device.js $row.device_id 2>&1
         $tokenExitCode = $LASTEXITCODE
         if ($tokenExitCode -ne 0) {
-            throw "Paso generación de token: código de salida $tokenExitCode."
+            throw "Paso generacion de token: codigo de salida $tokenExitCode."
         }
         $tokenText = ($tokenOutput -join "`n")
         $tokenMatch = [regex]::Match($tokenText, 'Token de reclamo:\s*(\S+)')
         if (-not $tokenMatch.Success) {
-            throw "Paso generación de token: formato inválido (código de salida $tokenExitCode)."
+            throw "Paso generacion de token: formato invalido (codigo de salida $tokenExitCode)."
         }
         $tokenLines.Add("$($row.device_id)=$($tokenMatch.Groups[1].Value)")
         $labelPath = Join-Path $outputPath "$($row.device_id).label.txt"
@@ -148,6 +242,43 @@ try {
     if (($acl -join "`n") -notmatch [regex]::Escape($currentUser)) {
         throw 'No se pudo verificar el ACL del archivo de tokens.'
     }
+
+    if ($flashRequested) {
+        foreach ($row in $rows) {
+            $nvsImage = if ($Nvs) { $Nvs } else { Join-Path $outputPath $row.nvs_image }
+            if (-not (Test-Path -LiteralPath $nvsImage -PathType Leaf)) {
+                throw 'Paso flasheo: falta NVS.'
+            }
+            Invoke-FlashWrite -Tool $esptoolPath -SerialPort $serialPort `
+                -Address '0x8000' -Image $Partitions -StepName 'particiones'
+            Invoke-FlashWrite -Tool $esptoolPath -SerialPort $serialPort `
+                -Address '0x10000' -Image $Firmware -StepName 'firmware'
+            Invoke-FlashWrite -Tool $esptoolPath -SerialPort $serialPort `
+                -Address '0x9000' -Image $nvsImage -StepName 'NVS'
+        }
+    }
+
+    if ($VerifyEnrollment) {
+        $deadline = (Get-Date).AddSeconds($WaitSeconds)
+        foreach ($row in $rows) {
+            $state = 'pendiente'
+            while ((Get-Date) -lt $deadline) {
+                $state = Get-EnrollmentState -DeviceId $row.device_id
+                if ($state -eq 'enrolado' -or $state -eq 'error') {
+                    break
+                }
+                Start-Sleep -Seconds $PollSeconds
+            }
+            if ($state -eq 'error') {
+                $script:FailureExitCode = 3
+                throw 'Paso verificacion de enrolamiento: codigo de salida 1.'
+            }
+            if ($state -ne 'enrolado') {
+                $script:FailureExitCode = 2
+                throw 'Paso verificacion de enrolamiento: codigo de salida 2.'
+            }
+        }
+    }
 } catch {
     if (Test-Path -LiteralPath $tokenFile) {
         Remove-Item -LiteralPath $tokenFile -Force -ErrorAction SilentlyContinue
@@ -155,5 +286,5 @@ try {
     throw
 }
 
-Write-Output "Fabricación completada: $Count dispositivo(s)."
+Write-Output "Fabricacion completada: $Count dispositivo(s)."
 Write-Output "Tokens guardados fuera del repositorio con ACL restringido."
