@@ -367,15 +367,22 @@ test('US2: el cliente histórico conserva el historial después de transferir el
     [fixture.seed.clients.b.id, fixture.seed.devices.a]
   );
 
-  const originalClient = await fetch(`${baseUrl}/api/alertas/${alertaId}/acciones`, {
-    headers: { Authorization: fixture.signToken(fixture.seed.users.a) },
-  });
-  const newClient = await fetch(`${baseUrl}/api/alertas/${alertaId}/acciones`, {
-    headers: { Authorization: fixture.signToken(fixture.seed.users.b) },
-  });
-  assert.strictEqual(originalClient.status, 200);
-  assert.strictEqual((await originalClient.json()).data.length, 1);
-  assert.strictEqual(newClient.status, 404);
+  try {
+    const originalClient = await fetch(`${baseUrl}/api/alertas/${alertaId}/acciones`, {
+      headers: { Authorization: fixture.signToken(fixture.seed.users.a) },
+    });
+    const newClient = await fetch(`${baseUrl}/api/alertas/${alertaId}/acciones`, {
+      headers: { Authorization: fixture.signToken(fixture.seed.users.b) },
+    });
+    assert.strictEqual(originalClient.status, 200);
+    assert.strictEqual((await originalClient.json()).data.length, 1);
+    assert.strictEqual(newClient.status, 404);
+  } finally {
+    await fixture.pool.query(
+      'UPDATE dispositivos SET cliente_id = $1 WHERE codigo = $2',
+      [fixture.seed.clients.a.id, fixture.seed.devices.a]
+    );
+  }
 });
 
 test('US2: una alerta antigua sin acciones devuelve un historial vacío', async () => {

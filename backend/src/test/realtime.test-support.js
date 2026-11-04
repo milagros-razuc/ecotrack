@@ -127,6 +127,9 @@ async function cleanupDatabase(pool, seed) {
   await pool.query('DELETE FROM umbrales WHERE dispositivo_codigo = ANY($1::text[])', [deviceCodes]);
   await pool.query('DELETE FROM dispositivos WHERE codigo = ANY($1::text[])', [deviceCodes]);
   await pool.query('DELETE FROM usuarios WHERE id = ANY($1::int[])', [[seed.users.a.id, seed.users.b.id]]);
+  await pool.query('DELETE FROM auditoria WHERE cliente_id = ANY($1::int[])', [
+    [seed.clients.a.id, seed.clients.b.id],
+  ]);
   await pool.query('DELETE FROM clientes WHERE id = ANY($1::int[])', [[seed.clients.a.id, seed.clients.b.id]]);
 }
 
