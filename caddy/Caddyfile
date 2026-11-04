@@ -1,3 +1,6 @@
+{
+    default_sni {$PUBLIC_HOST}
+}
 (app_proxy) {
     @backend path /api/* /socket.io/* /health
     handle @backend {
