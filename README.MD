@@ -23,7 +23,7 @@ ESP32 (DHT11 + LDR)
        │
        ├──► PostgreSQL (almacenamiento)
        │
-       └──► Caddy HTTPS (puerto 443)
+       └──► Caddy HTTPS (única entrada pública, puerto 443)
                 │
                 ▼
          Frontend (nginx, red interna)
@@ -42,102 +42,72 @@ ESP32 (DHT11 + LDR)
 
 ---
 
-## Instalación y configuración
+## Instalar desde cero
 
 ### 1. Clonar el repositorio
 
-```bash
+```powershell
 git clone https://github.com/TU_USUARIO/ecotrack.git
 cd ecotrack
 ```
 
-### 2. Configurar variables de entorno
+### 2. Crear los archivos `.env`
 
-Copiá los archivos de ejemplo y completá con tus valores:
-
-```bash
-cp .env.example .env
-cp backend/.env.example backend/.env
-```
-
-Editá `.env` con las credenciales de Postgres y `backend/.env` con todos los parámetros de conexión, más:
-
-```
-JWT_SECRET=un_secreto_largo_y_random
-
-ADMIN_USER=admin
-ADMIN_PASS=tu_password_admin
-ADMIN_NOMBRE=Administrador
-
-# Usuario común de prueba, creado por única vez si no existe (para validar
-# las restricciones de rol con un segundo perfil real)
-TEST_USER=operario1
-TEST_USER_PASS=tu_password_operario
-TEST_USER_NOMBRE=Usuario de Prueba
-```
-
-### 3. Generar certificados y contraseñas de Mosquitto
-
-El canal operativo usa MQTTS en el puerto `8883`; el listener MQTT sin cifrado en `1883`
-está cerrado. Generá una CA y un certificado del broker con SAN para el nombre del
-servicio `mosquitto` y la IP con la que se conecta el ESP32:
+El repositorio no contiene un `.env.example` en la raíz. El único ejemplo verificado es
+[`backend/.env.example`](backend/.env.example), que lista PostgreSQL, `MQTT_PUBLIC_HOST`,
+credenciales de Dynamic Security, `PORT`, `JWT_SECRET`, usuarios iniciales y
+`CORS_ORIGIN`. Creá la configuración local sin pegar secretos en el repositorio:
 
 ```powershell
-.\scripts\generate-mqtt-certs.ps1 -HostIp <ip-del-host>
+Copy-Item backend\.env.example backend\.env
 ```
 
-El certificado del broker (`broker.crt`), las claves privadas y el archivo `passwd` no
-forman parte del repositorio. La CA pública se distribuye para validar el broker, pero la
-CA y sus claves privadas deben conservarse también en un respaldo seguro fuera del
-repositorio.
+Además, creá el `.env` de la raíz con las variables que consume
+[`docker-compose.yml`](docker-compose.yml), incluyendo `MQTT_PUBLIC_HOST` y las
+credenciales de PostgreSQL/Dynamic Security. `PUBLIC_HOST` es el nombre de entorno que
+Caddy recibe desde `MQTT_PUBLIC_HOST`; el host debe ser el nombre o la IP real del
+servidor, no un ejemplo como `broker.ecotrack.local`.
 
-Antes de levantar Docker hay que crear manualmente el archivo de contraseñas del broker
-con `mosquitto_passwd`:
+### 3. Preparar certificados del broker
 
-```bash
-# Usuario del backend (lectura)
-docker run --rm -v ${PWD}/mosquitto/config:/mosquitto/config eclipse-mosquitto:2 mosquitto_passwd -c /mosquitto/config/passwd backend
+La CA y el certificado del broker no se generan desde archivos versionados completos.
+Generá los certificados locales con el host que usará el ESP32:
 
-# Usuario del ESP32 (escritura)
-docker run --rm -v ${PWD}/mosquitto/config:/mosquitto/config eclipse-mosquitto:2 mosquitto_passwd /mosquitto/config/passwd esp32-001
+```powershell
+.\scripts\generate-mqtt-certs.ps1 -HostIp <IP-o-host-del-servidor>
 ```
 
-Las contraseñas ingresadas deben coincidir con las variables locales del backend y del
-sketch. El alta de cada dispositivo requiere agregar su usuario y tópico propio en
-`mosquitto/config/acl.conf`, agregar su usuario al `passwd` con `mosquitto_passwd` y
-reiniciar el broker. No se debe modificar el usuario ni la entrada de `esp32-001` para
-probar otros dispositivos.
+El script genera la CA del broker, `broker.crt` y sus claves bajo
+`mosquitto\config\certs`; copia la CA pública a `codigo-esp32-mosquitto\certs`. Las
+claves privadas y el certificado del broker están ignorados por Git. Reservá la IP del
+servidor en el router: queda grabada en el NVS y el certificado del broker se emite para
+esa IP.
 
-Para la prueba de ACL se usa un archivo separado del entorno de producción:
+### 4. Preparar la CA de enrolamiento y levantar Docker
 
-```bash
-docker run --rm -v ${PWD}/mosquitto/config:/mosquitto/config eclipse-mosquitto:2 mosquitto_passwd -c /mosquitto/config/passwd.test test-a
-docker run --rm -v ${PWD}/mosquitto/config:/mosquitto/config eclipse-mosquitto:2 mosquitto_passwd /mosquitto/config/passwd.test test-b
+La CA de Caddy es distinta de la CA del broker. Extraé la raíz de Caddy y usala para
+generar localmente `codigo-esp32-mosquitto\enroll_ca.h` a partir de
+`enroll_ca.h.example`:
+
+```powershell
+docker compose cp caddy:/data/caddy/pki/authorities/local/root.crt .\caddy-root.crt
 ```
 
-Los usuarios y ACL de prueba (`test-a` y `test-b`) no se agregan a `passwd` ni a
-`acl.conf` de producción.
+No agregues `enroll_ca.h` al repositorio: está ignorado por Git. Luego iniciá los
+servicios:
 
-### 4. Levantar los servicios
-
-```bash
-docker-compose up --build
+```powershell
+docker compose up --build
 ```
 
-Primera vez tarda unos minutos mientras descarga las imágenes. Cuando veas esto, todo está listo:
+Caddy publica únicamente `443`. El backend (`3000`) y el frontend (`8080` o `80`
+interno) no son puertos de acceso del usuario.
 
-```
-ecotrack_backend | Conectado a Mosquitto
-ecotrack_backend | Suscrito a ecotrack/+/lecturas
-ecotrack_backend | Base de datos lista
-ecotrack_backend | Usuario admin creado: admin (rol: admin)
-ecotrack_backend | Usuario de prueba creado: operario1 (rol: comun)
-ecotrack_backend | Backend EcoTrack corriendo en puerto 3000
-```
+### 5. Firewall y acceso
 
-Los dos últimos mensajes de usuario solo aparecen la primera vez que se levanta la base (la migración es idempotente: en los siguientes arranques no vuelve a crearlos).
-
-### 5. Acceder al sistema
+En Windows, permití `443` y `8883` únicamente para el perfil **Private**. El dashboard se
+abre en `https://localhost` o `https://<IP del servidor>`. Caddy enruta `/api/*`,
+`/socket.io/*` y `/health` al backend; el resto se sirve desde nginx.
 
 | Servicio | URL |
 |---|---|
@@ -188,24 +158,58 @@ seleccioná el esquema equivalente desde **Herramientas > Partition Scheme**. El
 exige reflashear por USB; después cargá la imagen NVS de fábrica, porque el borrado de
 flash puede eliminar la configuración anterior.
 
-La imagen NVS de fábrica debe generarse con el tamaño de la partición `0x5000`:
+## Fabricar y enrolar un dispositivo
 
-```powershell
-python scripts\provision_factory.py --count 1 --output C:\ecotrack-factory --server-host broker.ecotrack.local --nvs-size 0x5000
-```
+El flujo es por dispositivo y la carpeta de salida debe estar fuera del repositorio.
+Reemplazá `<host>` por el host o IP estable del servidor:
 
-Para cargar en el backend la identidad de fábrica sin transferir el secreto ni el
-PIN, agregá `--export-backend`. El comando genera `backend.csv` dentro de la salida
-externa, con `device_id`, el hash del secreto y la fecha de generación:
+1. Generá la identidad y el NVS:
 
-```powershell
-python scripts\provision_factory.py --count 1 --output C:\ecotrack-factory --server-host broker.ecotrack.local --nvs-size 0x5000 --export-backend
-```
+   ```powershell
+   python scripts\provision_factory.py --count 1 --output <carpeta-fuera-del-repo> --server-host <host> --nvs-size 0x5000 --export-backend
+   ```
 
-Aplicá [`backend/migrations/014_factory_devices.sql`](backend/migrations/014_factory_devices.sql)
-en PostgreSQL y cargá únicamente `backend.csv` en `dispositivos_fabrica`. El resto de
-la salida de fábrica contiene secretos operativos y debe conservarse fuera del
-repositorio con acceso restringido.
+   La salida contiene `backend.csv`, `<id>.nvs.bin`, `<id>.label.txt` y `factory.csv`.
+   Conservá los archivos de fábrica fuera del repositorio y no expongas sus secretos.
+2. Copiá `backend.csv` al contenedor backend, importalo con el único argumento
+   permitido (una ruta fuera del repositorio) y eliminá el CSV temporal:
+
+   ```powershell
+   docker cp <carpeta-fuera-del-repo>\backend.csv ecotrack_backend:/tmp/backend.csv
+   docker compose exec backend node scripts/import-factory-devices.js /tmp/backend.csv
+   docker compose exec backend rm /tmp/backend.csv
+   ```
+
+   La importación acepta un solo argumento y exige que la ruta esté fuera del
+   repositorio. Usa `dispositivos_fabrica`; su estado de enrolamiento está en
+   `enrolled_at`.
+3. Generá el token de reclamo una sola vez:
+
+   ```powershell
+   docker compose exec backend node scripts/provision-device.js <id>
+   ```
+
+   Guardá el token en un medio seguro: no se puede recuperar desde la base.
+4. En Arduino IDE, seleccioná **Erase All Flash Before Sketch Upload: Disabled** y
+   cargá el firmware.
+5. Después del firmware, escribí el NVS en `0x9000` con tamaño `0x5000` usando
+   `<id>.nvs.bin`.
+6. Encendé el ESP32. Abrirá `EcoTrack-Setup-<sufijo>` y el portal estará en
+   `http://192.168.4.1/`. Ingresá el PIN de 6 dígitos; después de cinco intentos
+   fallidos queda bloqueado. El dispositivo sincroniza NTP y llama a
+   `POST /api/dispositivos/enrolar`. Mientras no esté reclamado recibe el `409`
+   genérico y reintenta con backoff.
+7. En el dashboard, como admin, reclamá el dispositivo pegando el token. En el
+   siguiente reintento el backend crea el rol, tres ACL y el cliente de Dynamic
+   Security, y devuelve las credenciales MQTT. El ESP32 las guarda en NVS y no vuelve
+   a enrolar después de reiniciar.
+
+Al compilar, registrá el tamaño de firmware y la capacidad de la partición de aplicación:
+
+`porcentaje usado = bytes del firmware / bytes disponibles del slot × 100`
+
+La salida de compilación debe conservarse junto con la evidencia de instalación. Esta
+feature prepara el layout para OTA futuro, pero no implementa OTA.
 
 Al compilar, registrá el tamaño de firmware y la capacidad de la partición de aplicación:
 
@@ -263,26 +267,21 @@ El login usa JWT (`jsonwebtoken`) con contraseñas hasheadas por `bcrypt`. Cada 
 
 ### Aprovisionamiento y reclamo seguro
 
-Un dispositivo nuevo solo puede ser reclamado con un token de un solo uso que
-genera el operador desde `backend/`:
+Un dispositivo nuevo se aprovisiona con un token de un solo uso desde `backend/`:
 
 ```powershell
-node scripts/provision-device.js --codigo DISPOSITIVO-001
-node scripts/provision-device.js --rotate DISPOSITIVO-001
+node scripts/provision-device.js <id>
 ```
 
 - El token se imprime **una sola vez**. En la base solo se guarda su hash
   SHA-256 (64 caracteres), por lo que no se puede recuperar.
-- `--rotate` genera un token nuevo e invalida el anterior. Solo funciona si el
-  dispositivo **no tiene dueño**.
-- Los dispositivos que ya tenían dueño antes de esta función (por ejemplo
-  `ESP32-001`) no reciben token.
+- La rotación de token y los dispositivos existentes deben seguir el procedimiento
+  operativo definido para cada entorno; no se deben inventar tokens ni secretos.
 
-Un administrador reclama el dispositivo desde `POST /api/dispositivos` enviando
-`codigo`, `token` y, opcionalmente, `nombre` y `ubicacion`. El reclamo es
-atómico. Todos los rechazos (código inexistente, dispositivo con dueño, token
-inválido, ausente o ya usado) responden `409` con el mismo error genérico:
-`No se pudo reclamar el dispositivo`.
+El administrador reclama desde `https://<host>` pegando el token. El reclamo es
+atómico. El endpoint de enrolamiento del ESP32 es `POST /api/dispositivos/enrolar`;
+todos los rechazos (incluido un dispositivo aún no reclamado) responden `409` con el
+mismo error genérico: `No se pudo enrolar el dispositivo`.
 
 La baja (`DELETE /api/dispositivos/:codigo`) responde `204` sin cuerpo. Deja el
 dispositivo sin dueño, inactivo, sin nombre, ubicación ni umbrales, y sin token
@@ -314,11 +313,61 @@ Topic MQTT: `ecotrack/ESP32-001/lecturas`. El backend valida el payload contra u
 
 ---
 
+## Certificados y CA
+
+EcoTrack usa dos CA distintas:
+
+- **CA de Caddy:** valida HTTPS para el enrolamiento. La raíz se extrae de
+  `caddy:/data/caddy/pki/authorities/local/root.crt` y se embebe localmente en
+  `codigo-esp32-mosquitto\enroll_ca.h` como `kEnrollCa`. Ese archivo está ignorado
+  por Git. Si se pierde el volumen `caddy_data`, Caddy crea una CA nueva: hay que
+  volver a extraerla, re-embebirla y re-flashear el firmware.
+- **CA del broker:** es `kEcotrackCa`, en
+  `codigo-esp32-mosquitto\ecotrack_ca.h`, y corresponde a la CA que firma el
+  certificado MQTT. El certificado público del broker también se copia a
+  `codigo-esp32-mosquitto\certs\ecotrack-ca.crt`.
+
+No mezcles estas CA ni uses `setInsecure()`. Las claves privadas, los certificados
+locales del broker y los secretos quedan fuera del repositorio.
+
+## Problemas conocidos
+
+- **SNI al conectar por IP:** `caddy/Caddyfile` define `default_sni {$PUBLIC_HOST}`.
+  Sin ese bloque, clientes sin SNI (curl/Schannel, Node o ESP32) reciben una alerta
+  TLS interna. Con él, Node puede validar la CA de Caddy y el SAN incluye la IP.
+- **Node 18:** el `node --test` del contenedor no admite `--test-timeout` ni
+  `--test-concurrency`; por eso `npm test` falla allí. Desde el host, Node >= 20
+  ejecuta correctamente esos flags.
+- **Pruebas de integración:** usan `TEST_DATABASE_URL` y solo aceptan bases
+  `hardening_*` o `*_test`. `reclamo-dispositivo` lee `../frontend/index.html`;
+  dentro del contenedor falla por esa ruta y desde el host pasa.
+- **Perfiles de Windows:** las reglas de firewall para `443` y `8883` deben limitarse
+  al perfil **Private**. No las abras para todos los perfiles.
+- **Backoff:** un dispositivo no reclamado recibe el `409` genérico y reintenta con
+  backoff; no es necesario intervenir el firmware durante ese estado.
+
+## Pendientes confirmados como pendientes
+
+Estos puntos no se presentan como implementados:
+
+- endpoint de reseteo de credenciales (no hay spec);
+- E6;
+- auditoría del reclamo;
+- pruebas `mqtt-acl` y `mqtt-tls` con Docker en el host;
+- tests 12 y 14 de trazabilidad-alertas;
+- informe de dónde está la clave de la CA del proyecto;
+- pasaje a producción: dominio, certificado público y SAN del broker.
+
+---
+
 ## Modelo de datos
 
 ```sql
 dispositivos
   id, codigo (único), nombre, ubicacion, activo, creado_en, ultima_conexion
+
+dispositivos_fabrica
+  device_id, factory_secret_hash, created_at, enrolled_at
 
 lecturas
   id, dispositivo_codigo (FK), temperatura, humedad, luminosidad, timestamp
@@ -360,12 +409,11 @@ Desde ahí, cualquier usuario admin puede crear, editar o eliminar cuentas desde
 
 ## Estructura del proyecto
 
-```{
+```
 ecotrack/
 ├── docker-compose.yml
-├── .env.example
 ├── .gitignore
-├── README.md
+├── README.MD
 ├── backend/
 │   ├── .env.example
 │   ├── Dockerfile
@@ -425,7 +473,7 @@ ecotrack/
         ├── common.css
         ├── tailwind-config.js
         └── ecotrack-logo.png
-```}
+```
 
 ---
 
