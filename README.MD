@@ -154,9 +154,9 @@ estándar Minimal SPIFFS: NVS en `0x9000` (`0x5000`), `otadata` en `0xE000`
 (`0x2000`), dos slots de aplicación (`app0` y `app1`) de `0x1E0000` y
 `littlefs` en `0x3D0000` (`0x20000`). Como este repositorio usa Arduino IDE y no
 PlatformIO, copiá el archivo al directorio `tools/partitions` del paquete ESP32 instalado y
-seleccioná el esquema equivalente desde **Herramientas > Partition Scheme**. El cambio
-exige reflashear por USB; después cargá la imagen NVS de fábrica, porque el borrado de
-flash puede eliminar la configuración anterior.
+seleccioná siempre **Minimal SPIFFS (1.9MB APP with OTA/128KB SPIFFS)** desde
+**Herramientas > Partition Scheme**. Este esquema es fijo para todos los lotes: la tabla
+no se cambia por OTA. El máximo de programa verificado es `1.966.080` bytes.
 
 ## Fabricar y enrolar un dispositivo
 
@@ -189,17 +189,23 @@ Reemplazá `<host>` por el host o IP estable del servidor:
    docker compose exec backend node scripts/provision-device.js <id>
    ```
 
-   Guardá el token en un medio seguro: no se puede recuperar desde la base.
-4. En Arduino IDE, seleccioná **Erase All Flash Before Sketch Upload: Disabled** y
-   cargá el firmware.
-5. Después del firmware, escribí el NVS en `0x9000` con tamaño `0x5000` usando
+   Guardá el token en un medio seguro: no se puede recuperar desde la base. Los tokens
+   de reclamo no se pegan en chats ni tickets.
+4. En Arduino IDE, seleccioná **Minimal SPIFFS (1.9MB APP with OTA/128KB SPIFFS)** y
+   **Erase All Flash Before Sketch Upload: Disabled**; un borrado total elimina el NVS
+   de fábrica. Cargá el firmware.
+5. Si se usa flasheo por línea de comandos, el ejecutable real es
+   `%LOCALAPPDATA%\Arduino15\packages\esp32\tools\esptool_py\<versión>\esptool.exe`
+   (versión verificada: 5.3.0), con sintaxis `write-flash`. En este entorno
+   `python -m esptool` no funciona.
+6. Después del firmware, escribí el NVS en `0x9000` con tamaño `0x5000` usando
    `<id>.nvs.bin`.
-6. Encendé el ESP32. Abrirá `EcoTrack-Setup-<sufijo>` y el portal estará en
+7. Encendé el ESP32. Abrirá `EcoTrack-Setup-<sufijo>` y el portal estará en
    `http://192.168.4.1/`. Ingresá el PIN de 6 dígitos; después de cinco intentos
    fallidos queda bloqueado. El dispositivo sincroniza NTP y llama a
    `POST /api/dispositivos/enrolar`. Mientras no esté reclamado recibe el `409`
    genérico y reintenta con backoff.
-7. En el dashboard, como admin, reclamá el dispositivo pegando el token. En el
+8. En el dashboard, como admin, reclamá el dispositivo pegando el token. En el
    siguiente reintento el backend crea el rol, tres ACL y el cliente de Dynamic
    Security, y devuelve las credenciales MQTT. El ESP32 las guarda en NVS y no vuelve
    a enrolar después de reiniciar.
@@ -211,12 +217,10 @@ Al compilar, registrá el tamaño de firmware y la capacidad de la partición de
 La salida de compilación debe conservarse junto con la evidencia de instalación. Esta
 feature prepara el layout para OTA futuro, pero no implementa OTA.
 
-Al compilar, registrá el tamaño de firmware y la capacidad de la partición de aplicación:
-
-`porcentaje usado = bytes del firmware / bytes disponibles del slot × 100`
-
-La salida de compilación debe conservarse junto con la evidencia de instalación. Esta
-feature prepara el layout para OTA futuro, pero no implementa OTA.
+La verificación de `flash_id` y de la tabla de particiones decodificada, incluyendo la
+confirmación de NVS en `0x9000` con tamaño `0x5000`, está pendiente. También está
+pendiente la automatización descrita en la spec
+[`015-automatizar-fabricacion-dispositivos`](specs/015-automatizar-fabricacion-dispositivos/spec.md).
 
 **Estado actual de RF02:** el sketch permite ajustar el intervalo al compilar mediante `INTERVALO_CAPTURA_MS` en `esp32Secret.h` o con el build flag `-DINTERVALO_CAPTURA_MS=5000`; por defecto usa 10 segundos. Esto no implementa aún la configuración desde el dashboard ni la confirmación del valor aplicado por dispositivo. Ese flujo está planificado en R4 y depende del cierre de autenticación MQTT en R3 ([roadmap](ROADMAP.md)).
 
