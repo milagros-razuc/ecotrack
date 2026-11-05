@@ -3,10 +3,10 @@ const { spawnSync } = require('node:child_process');
 const test = require('node:test');
 const { Pool } = require('pg');
 
-const {
-  createResetCredencialesService,
-  ERROR_RESET_CREDENCIALES,
-} = require('../services/resetCredenciales.service');
+const DATABASE_ENV_KEYS = ['DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASS'];
+const originalDatabaseEnvironment = Object.fromEntries(
+  DATABASE_ENV_KEYS.map((key) => [key, process.env[key]]),
+);
 
 function databaseFromEnvironment() {
   const connectionString = process.env.TEST_DATABASE_URL;
@@ -32,6 +32,20 @@ function databaseFromEnvironment() {
     },
   };
 }
+
+const database = databaseFromEnvironment();
+if (database) {
+  process.env.DB_HOST = database.env.DB_HOST;
+  process.env.DB_PORT = database.env.DB_PORT;
+  process.env.DB_NAME = database.env.DB_NAME;
+  process.env.DB_USER = database.env.DB_USER;
+  process.env.DB_PASS = database.env.DB_PASS;
+}
+
+const {
+  createResetCredencialesService,
+  ERROR_RESET_CREDENCIALES,
+} = require('../services/resetCredenciales.service');
 
 function migrateTestDatabase(database) {
   const result = spawnSync(
@@ -66,14 +80,12 @@ function poolThatFailsResetUpdate(pool) {
 }
 
 test('reset hace rollback real cuando falla UPDATE después de Dynamic Security', async (context) => {
-  if (!process.env.TEST_DATABASE_URL) {
+  if (!database) {
     context.skip('Saltado: TEST_DATABASE_URL no está definida; se requiere una base PostgreSQL *_test');
     return;
   }
 
-  const database = databaseFromEnvironment();
-  migrateTestDatabase(database);
-  const pool = new Pool({ connectionString: database.connectionString });
+  let pool;
   const suffix = `${Date.now()}_${Math.random().toString(16).slice(2, 8)}`;
   const clientName = `reset_integration_${suffix}`;
   const deviceId = `RESET-INTEGRATION-${suffix}`;
@@ -86,6 +98,8 @@ test('reset hace rollback real cuando falla UPDATE después de Dynamic Security'
   };
 
   try {
+    migrateTestDatabase(database);
+    pool = new Pool({ connectionString: database.connectionString });
     const { rows: clients } = await pool.query(
       'INSERT INTO clientes (nombre) VALUES ($1) RETURNING id',
       [clientName],
@@ -126,9 +140,18 @@ test('reset hace rollback real cuando falla UPDATE después de Dynamic Security'
     );
     assert.ok(after.rows[0].enrolled_at);
   } finally {
-    await pool.query('DELETE FROM dispositivos_fabrica WHERE device_id = $1', [deviceId]);
-    await pool.query('DELETE FROM dispositivos WHERE codigo = $1', [deviceId]);
-    await pool.query('DELETE FROM clientes WHERE nombre = $1', [clientName]);
-    await pool.end();
+    if (pool) {
+      try {
+        await pool.query('DELETE FROM dispositivos_fabrica WHERE device_id = $1', [deviceId]);
+        await pool.query('DELETE FROM dispositivos WHERE codigo = $1', [deviceId]);
+        await pool.query('DELETE FROM clientes WHERE nombre = $1', [clientName]);
+      } finally {
+        await pool.end();
+      }
+    }
+    for (const key of DATABASE_ENV_KEYS) {
+      if (originalDatabaseEnvironment[key] === undefined) delete process.env[key];
+      else process.env[key] = originalDatabaseEnvironment[key];
+    }
   }
 });
