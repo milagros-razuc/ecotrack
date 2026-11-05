@@ -4,6 +4,10 @@ const auditoriaService = require('../services/auditoria.service');
 const validar = require('../middleware/validar');
 const verificarRol = require('../middleware/rol');
 const { dispositivoSchema } = require('../schemas');
+const {
+  ERROR_RESET_CREDENCIALES,
+  resetear: resetearCredencialesPorDefecto,
+} = require('../services/resetCredenciales.service');
 
 const router = express.Router();
 
@@ -61,6 +65,26 @@ router.post('/', verificarRol('admin'), rechazarTokenAusente, validar(dispositiv
   }
 });
 
+function resetCredencialesHandler(resetearCredenciales) {
+  return async (req, res, next) => {
+    try {
+      const resultado = await resetearCredenciales({
+        deviceId: req.params.codigo,
+        clienteId: req.clienteId,
+      });
+      return res.json({ ok: true, ...resultado });
+    } catch (err) {
+      if (err?.message === ERROR_RESET_CREDENCIALES) {
+        return res.status(409).json({ error: ERROR_RESET_CREDENCIALES });
+      }
+      return next(err);
+    }
+  };
+}
+
+router.post('/:codigo/reset-credenciales', verificarRol('admin'),
+  resetCredencialesHandler(resetearCredencialesPorDefecto));
+
 router.delete('/:codigo', verificarRol('admin'), async (req, res, next) => {
   try {
     const eliminado = await dispositivosService.eliminar(req.params.codigo, req.clienteId);
@@ -85,3 +109,11 @@ router.delete('/:codigo', verificarRol('admin'), async (req, res, next) => {
 });
 
 module.exports = router;
+module.exports.createResetCredencialesRouter = function createResetCredencialesRouter({
+  resetearCredenciales = resetearCredencialesPorDefecto,
+} = {}) {
+  const resetRouter = express.Router();
+  resetRouter.post('/:codigo/reset-credenciales', verificarRol('admin'),
+    resetCredencialesHandler(resetearCredenciales));
+  return resetRouter;
+};

@@ -203,6 +203,7 @@ function createDynamicSecurityService({ connect = createMqttClient, request = re
 module.exports = {
   createDynamicSecurityService,
   identityFor,
+  requestCommand,
   CONTROL_TOPIC,
   RESPONSE_TOPIC,
 };
