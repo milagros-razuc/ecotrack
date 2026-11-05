@@ -162,6 +162,9 @@ test('ACL MQTT: permite el tópico propio y descarta el tópico de otro disposit
     await new Promise((resolve, reject) => {
       backend.subscribe('ecotrack/+/lecturas', (error) => (error ? reject(error) : resolve()));
     });
+    await new Promise((resolve, reject) => {
+      backend.subscribe('ecotrack/+/firmware', (error) => (error ? reject(error) : resolve()));
+    });
 
     const ownPayload = JSON.stringify({
       temperatura: 21.1,
@@ -176,6 +179,10 @@ test('ACL MQTT: permite el tópico propio y descarta el tópico de otro disposit
       testId: `cross-${Date.now()}`,
     });
 
+    await publish(deviceA, 'ecotrack/TEST-B/lecturas', crossPayload);
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    assert.deepEqual(received, []);
+
     const ownMessage = waitForEvent(backend, 'message');
     await publish(deviceA, 'ecotrack/TEST-A/lecturas', ownPayload);
     await ownMessage;
@@ -184,12 +191,25 @@ test('ACL MQTT: permite el tópico propio y descarta el tópico de otro disposit
       payload: ownPayload,
     }]);
 
-    await publish(deviceA, 'ecotrack/TEST-B/lecturas', crossPayload);
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    const ownFirmwarePayload = JSON.stringify({ version: '1.2.3', testId: `firmware-own-${Date.now()}` });
+    await publish(deviceA, 'ecotrack/TEST-B/firmware', JSON.stringify({
+      version: '9.9.9',
+      testId: `firmware-cross-${Date.now()}`,
+    }));
+    await new Promise((resolve) => setTimeout(resolve, 500));
     assert.deepStrictEqual(received, [{
       topic: 'ecotrack/TEST-A/lecturas',
       payload: ownPayload,
     }]);
+
+    const ownFirmwareMessage = waitForEvent(backend, 'message');
+    await publish(deviceA, 'ecotrack/TEST-A/firmware', ownFirmwarePayload);
+    await ownFirmwareMessage;
+    assert.deepStrictEqual(received, [
+      { topic: 'ecotrack/TEST-A/lecturas', payload: ownPayload },
+      { topic: 'ecotrack/TEST-A/firmware', payload: ownFirmwarePayload },
+    ]);
+
   } finally {
     if (backend) backend.off('message', onMessage);
     await Promise.all([closeClient(backend), closeClient(deviceA), closeClient(deviceB)]);

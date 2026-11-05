@@ -4,7 +4,7 @@ const dispositivosService = require('../services/dispositivos.service');
 const lecturasService = require('../services/lecturas.service');
 const umbralesService = require('../services/umbrales.service');
 const alertasService = require('../services/alertas.service');
-const { lecturaMqttSchema } = require('../schemas');
+const { lecturaMqttSchema, firmwareVersionMqttSchema } = require('../schemas');
 const { clientRoom } = require('../realtime/socketRegistry');
 
 async function evaluarUmbral(io, dispositivoCodigo, variable, valor, clienteId) {
@@ -52,8 +52,11 @@ function iniciarMQTT(io) {
 
   mqttClient.on('connect', () => {
     console.log('Conectado a Mosquitto');
-    mqttClient.subscribe('ecotrack/+/lecturas', (err) => {
-      if (!err) console.log('Suscrito a ecotrack/+/lecturas');
+    mqttClient.subscribe('ecotrack/+/lecturas', (lecturasError) => {
+      if (lecturasError) return;
+      mqttClient.subscribe('ecotrack/+/firmware', (firmwareError) => {
+        if (!firmwareError) console.log('Suscrito a tópicos de lecturas y firmware');
+      });
     });
   });
 
@@ -71,6 +74,30 @@ function iniciarMQTT(io) {
 async function procesarMensaje(io, topic, message, recibidaEn = new Date()) {
   try {
       const dispositivoCodigo = topic.split('/')[1];
+
+      if (topic.split('/').length === 3 && topic.endsWith('/firmware')) {
+        let firmwareData;
+        try {
+          firmwareData = JSON.parse(message.toString());
+        } catch (err) {
+          console.error(`Reporte de firmware descartado de ${dispositivoCodigo}: payload inválido`);
+          return;
+        }
+        const resultadoFirmware = firmwareVersionMqttSchema.safeParse(firmwareData);
+        if (!resultadoFirmware.success) {
+          console.error(`Reporte de firmware descartado de ${dispositivoCodigo}: versión inválida`);
+          return;
+        }
+        const guardado = await dispositivosService.guardarReporteFirmware({
+          dispositivoCodigo,
+          version: resultadoFirmware.data.version,
+          reportadaEn: recibidaEn instanceof Date ? recibidaEn : new Date(recibidaEn),
+        });
+        if (!guardado) {
+          console.error(`Reporte de firmware descartado de ${dispositivoCodigo}: dispositivo inexistente`);
+        }
+        return;
+      }
 
       let dataCruda;
       try {

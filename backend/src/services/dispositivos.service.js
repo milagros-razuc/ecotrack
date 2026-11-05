@@ -120,17 +120,41 @@ async function obtenerContextoLectura(codigo) {
   return result.rows[0] || null;
 }
 
+async function guardarReporteFirmware({ dispositivoCodigo, version, reportadaEn = new Date() }) {
+  const result = await pool.query(
+    `UPDATE dispositivos
+     SET firmware_version = $2, firmware_reported_at = $3
+     WHERE codigo = $1 AND activo = true
+     RETURNING codigo`,
+    [dispositivoCodigo, version, reportadaEn]
+  );
+  return result.rowCount > 0;
+}
+
+function formatearVersionFirmware(dispositivo) {
+  return {
+    ...dispositivo,
+    firmware_version: dispositivo.firmware_version || 'desconocida',
+    firmware_reported_at: dispositivo.firmware_reported_at || null,
+  };
+}
+
 async function listar(clienteId) {
   const result = await pool.query(
-    'SELECT * FROM dispositivos WHERE activo = true AND cliente_id = $1 ORDER BY creado_en DESC',
+    `SELECT id, codigo, nombre, ubicacion, activo, creado_en, ultima_conexion,
+            cliente_id, reclamado_en, firmware_version, firmware_reported_at
+     FROM dispositivos
+     WHERE activo = true AND cliente_id = $1
+     ORDER BY creado_en DESC`,
     [clienteId]
   );
-  return result.rows;
+  return result.rows.map(formatearVersionFirmware);
 }
 
 async function listarConEstado(clienteId) {
   const result = await pool.query(
-    `SELECT *,
+    `SELECT id, codigo, nombre, ubicacion, activo, creado_en, ultima_conexion,
+      cliente_id, reclamado_en, firmware_version, firmware_reported_at,
       CASE
         WHEN ultima_conexion IS NULL THEN 'nunca_conectado'
         WHEN ultima_conexion > NOW() - INTERVAL '2 minutes' THEN 'online'
@@ -141,7 +165,11 @@ async function listarConEstado(clienteId) {
     ORDER BY ultima_conexion DESC NULLS LAST`,
     [clienteId]
   );
-  return result.rows;
+  return result.rows.map(formatearVersionFirmware);
+}
+
+async function listarVersionesPorCliente(clienteId) {
+  return listar(clienteId);
 }
 
 // Reclama un dispositivo previamente aprovisionado para el cliente autenticado.
@@ -234,4 +262,7 @@ module.exports = {
   estaActivo,
   obtenerClienteId,
   obtenerContextoLectura,
+  guardarReporteFirmware,
+  formatearVersionFirmware,
+  listarVersionesPorCliente,
 };

@@ -83,6 +83,26 @@ test('requestCommand convierte error dynsec real en rechazo sin devolver su deta
   );
 });
 
+test('provisionDevice agrega permiso de publicación para el reporte de firmware propio', async () => {
+  const commands = [];
+  const dynamic = createService(async (_client, command) => {
+    commands.push(command);
+    return {};
+  });
+
+  await dynamic.provisionDevice({
+    deviceId: 'DEVICE-A',
+    password: 'synthetic-password',
+  });
+
+  assert.ok(commands.some((command) =>
+    command.command === 'addRoleACL'
+    && command.acltype === 'publishClientSend'
+    && command.topic === 'ecotrack/DEVICE-A/firmware'
+    && command.allow === true
+  ));
+});
+
 test('removeDevice borra el rol si el cliente ya no existe', async () => {
   const commands = [];
   const dynamic = createService(async (_client, command) => {

@@ -88,6 +88,10 @@ const lecturaMqttSchema = z.object({
   ts: z.number().int().nonnegative().optional(),
 });
 
+const firmwareVersionMqttSchema = z.object({
+  version: z.string().regex(/^\d+\.\d+\.\d+$/, 'versión debe usar SemVer MAJOR.MINOR.PATCH'),
+}).passthrough();
+
 // Para POST /api/usuarios (alta de usuario, CU09 — RF16)
 const crearUsuarioSchema = z.object({
   username: z.string().min(3, 'El username debe tener al menos 3 caracteres'),
@@ -125,6 +129,7 @@ module.exports = {
   crearUsuarioSchema,
   actualizarUsuarioSchema,
   lecturaMqttSchema,
+  firmwareVersionMqttSchema,
   actualizarPerfilSchema,
   crearApiKeySchema,
   rangoFechasLecturasSchema,

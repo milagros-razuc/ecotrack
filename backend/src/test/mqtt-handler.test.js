@@ -119,7 +119,7 @@ function fakeIo() {
   };
 }
 
-test('CP-RF04 iniciarMQTT se suscribe a ecotrack/+/lecturas con cliente falso', () => {
+test('CP-RF04 iniciarMQTT se suscribe a lecturas y reportes de firmware con cliente falso', () => {
   process.env.MQTT_CA_PATH = path.resolve(__dirname, '../../package.json');
   process.env.MQTT_HOST = 'fake-host';
   process.env.MQTT_PORT = '8883';
@@ -127,7 +127,7 @@ test('CP-RF04 iniciarMQTT se suscribe a ecotrack/+/lecturas con cliente falso', 
   iniciarMQTT(fakeIo());
   mqttHandlers.connect();
 
-  assert.deepEqual(subscriptions, ['ecotrack/+/lecturas']);
+  assert.deepEqual(subscriptions, ['ecotrack/+/lecturas', 'ecotrack/+/firmware']);
   assert.equal(typeof mqttHandlers.message, 'function');
   assert.equal(typeof mqttHandlers.connect, 'function');
 });

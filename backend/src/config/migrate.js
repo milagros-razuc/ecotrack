@@ -139,6 +139,11 @@ async function inicializarDB() {
     ALTER TABLE dispositivos ADD COLUMN IF NOT EXISTS reclamado_en TIMESTAMPTZ
   `);
   await pool.query(`
+    ALTER TABLE dispositivos
+      ADD COLUMN IF NOT EXISTS firmware_version VARCHAR(50),
+      ADD COLUMN IF NOT EXISTS firmware_reported_at TIMESTAMPTZ
+  `);
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS dispositivos_fabrica (
       device_id VARCHAR(50) PRIMARY KEY,
       factory_secret_hash VARCHAR(64) NOT NULL UNIQUE,
