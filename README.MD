@@ -47,7 +47,7 @@ ESP32 (DHT11 + LDR)
 ### 1. Clonar el repositorio
 
 ```powershell
-git clone https://github.com/TU_USUARIO/ecotrack.git
+git clone https://github.com/milagros-razuc/ecotrack.git
 cd ecotrack
 ```
 
@@ -217,9 +217,9 @@ Al compilar, registrá el tamaño de firmware y la capacidad de la partición de
 La salida de compilación debe conservarse junto con la evidencia de instalación. Esta
 feature prepara el layout para OTA futuro, pero no implementa OTA.
 
-La verificación de `flash_id` y de la tabla de particiones decodificada, incluyendo la
-confirmación de NVS en `0x9000` con tamaño `0x5000`, está pendiente. También está
-pendiente la automatización descrita en la spec
+La verificación manual de `flash_id` y de la tabla de particiones decodificada,
+incluyendo la confirmación de NVS en `0x9000` con tamaño `0x5000`, todavía no está
+automatizada. También está pendiente la automatización descrita en la spec
 [`015-automatizar-fabricacion-dispositivos`](specs/015-automatizar-fabricacion-dispositivos/spec.md).
 
 **Estado actual de RF02:** el sketch permite ajustar el intervalo al compilar mediante `INTERVALO_CAPTURA_MS` en `esp32Secret.h` o con el build flag `-DINTERVALO_CAPTURA_MS=5000`; por defecto usa 10 segundos. Esto no implementa aún la configuración desde el dashboard ni la confirmación del valor aplicado por dispositivo. Ese flujo está planificado en R4 y depende del cierre de autenticación MQTT en R3 ([roadmap](ROADMAP.md)).
@@ -234,7 +234,7 @@ pendiente la automatización descrita en la spec
 
 ## Autenticación y roles
 
-El login usa JWT (`jsonwebtoken`) con contraseñas hasheadas por `bcrypt`. Cada token incluye el `rol` del usuario (`admin` o `comun`), que el middleware `verificarRol('admin')` usa para restringir los endpoints de administración. Un usuario común puede loguearse, ver el dashboard, histórico y auditoría, y gestionar el estado de las alertas — pero no puede dar de alta/baja dispositivos, tocar umbrales, ni gestionar otros usuarios. El frontend refleja esto mismo del lado del cliente (oculta o deshabilita esas acciones), aunque la restricción real siempre la aplica el backend.
+El login usa JWT (`jsonwebtoken`) con contraseñas hasheadas por `bcryptjs`. Cada token incluye el `rol` del usuario (`admin` o `comun`), que el middleware `verificarRol('admin')` usa para restringir los endpoints de administración. Un usuario común puede loguearse, ver el dashboard e histórico, pero no puede consultar el registro administrativo, dar de alta/baja dispositivos, tocar umbrales, gestionar API keys ni gestionar otros usuarios. Puede cambiar el estado de las alertas y consultar sus datos. El frontend refleja esto mismo del lado del cliente (oculta o deshabilita esas acciones), aunque la restricción real siempre la aplica el backend.
 
 ---
 
@@ -246,10 +246,12 @@ El login usa JWT (`jsonwebtoken`) con contraseñas hasheadas por `bcrypt`. Cada 
 | GET | `/api/auth/me` | Datos del perfil propio | Autenticado |
 | PATCH | `/api/auth/me` | Editar el nombre del perfil propio | Autenticado |
 | POST | `/api/auth/change-password` | Cambiar la contraseña propia | Autenticado |
+| POST | `/api/dispositivos/enrolar` | Enrolamiento HTTPS del firmware y entrega de credenciales MQTT | Secreto de fábrica |
 | GET | `/api/dispositivos` | Lista los dispositivos activos | Autenticado |
 | GET | `/api/dispositivos/estado` | Lista con estado online/offline/nunca conectado | Autenticado |
-| POST | `/api/dispositivos` | Alta o modificación de un dispositivo | Admin |
+| POST | `/api/dispositivos` | Reclama un dispositivo aprovisionado usando un token de un solo uso | Admin |
 | DELETE | `/api/dispositivos/:codigo` | Baja: libera el dispositivo (sin dueño, inactivo, token revocado) y responde 204 | Admin |
+| POST | `/api/dispositivos/:codigo/reset-credenciales` | Revoca las credenciales MQTT y solicita nuevas al próximo enrolamiento | Admin |
 | GET | `/api/lecturas` | Últimas lecturas (`dispositivo`, `limite`) | Autenticado |
 | GET | `/api/lecturas/ultima` | Última lectura por cada dispositivo | Autenticado |
 | GET | `/api/lecturas/agregado` | Series agregadas para el histórico (`dispositivo`, `periodo=dia\|semana\|mes`) | Autenticado |
@@ -257,7 +259,9 @@ El login usa JWT (`jsonwebtoken`) con contraseñas hasheadas por `bcrypt`. Cada 
 | POST | `/api/umbrales` | Crea o actualiza un umbral | Admin |
 | GET | `/api/alertas` | Lista paginada y filtrable (`estado`, `dispositivo`, `variable`, `fechaDesde`, `fechaHasta`) | Autenticado |
 | GET | `/api/alertas/distribucion` | Cantidad de alertas por variable | Autenticado |
-| PATCH | `/api/alertas/:id` | Cambia el estado de una alerta, con comentario opcional | Autenticado |
+| GET | `/api/alertas/:id/historial` | Historial inmutable de acciones de una alerta | Autenticado |
+| GET | `/api/alertas/:id/acciones` | Alias del historial de acciones de una alerta | Autenticado |
+| PATCH | `/api/alertas/:id` | Cambia el estado de una alerta y registra un comentario obligatorio | Autenticado |
 | GET, POST | `/api/api-keys` | Listar y crear claves para el cliente; la clave nueva se muestra una sola vez | Admin |
 | DELETE | `/api/api-keys/:id` | Revocar una clave del cliente | Admin |
 | GET | `/api/public/dispositivos` | Listar dispositivos asociados a la API key | API key (`X-Api-Key`) |
@@ -267,6 +271,7 @@ El login usa JWT (`jsonwebtoken`) con contraseñas hasheadas por `bcrypt`. Cada 
 | POST | `/api/usuarios` | Alta de usuario | Admin |
 | PATCH | `/api/usuarios/:id` | Modifica nombre y/o rol | Admin |
 | DELETE | `/api/usuarios/:id` | Elimina un usuario | Admin |
+| GET | `/api/auditoria` | Registro administrativo y acciones de alertas | Admin |
 | GET | `/health` | Healthcheck del backend | Público |
 
 ### Aprovisionamiento y reclamo seguro
@@ -301,7 +306,7 @@ curl.exe --cacert "$env:TEMP\ecotrack-caddy-root.crt" `
   -d '{"username":"admin","password":"tu_pass"}'
 ```
 
-El resto de los endpoints protegidos esperan el token crudo (sin el prefijo `Bearer `) en el header `Authorization`.
+El resto de los endpoints protegidos esperan `Authorization: Bearer <JWT>`.
 
 ### Ejemplo de payload del ESP32
 
@@ -309,11 +314,31 @@ El resto de los endpoints protegidos esperan el token crudo (sin el prefijo `Bea
 {
   "temperatura": 23.4,
   "humedad": 47.0,
-  "luminosidad": 65
+  "luminosidad": 65,
+  "ts": 1730000000
 }
 ```
 
-Topic MQTT: `ecotrack/ESP32-001/lecturas`. El backend valida el payload contra un esquema Zod antes de guardarlo (rangos físicos amplios, solo para descartar basura de sensor/transmisión, no para reemplazar los umbrales configurables).
+Topic MQTT: `ecotrack/ESP32-001/lecturas`. `ts` es un timestamp Unix opcional: el firmware lo incluye cuando la hora NTP es válida y lo omite si todavía no pudo sincronizarla. El backend valida el payload contra un esquema Zod antes de guardarlo, rechaza timestamps fuera de una ventana de 24 horas hacia atrás/1 minuto hacia adelante y conserva la fecha de captura. Las lecturas con más de 5 minutos de atraso se guardan, pero no generan eventos de tiempo real ni alertas retroactivas.
+
+### Tiempo real y límites
+
+El backend expone Socket.IO sobre el mismo HTTPS público. El cliente se autentica con el JWT
+en el handshake y se incorpora a la sala de su cliente; los eventos no se emiten a otros
+clientes. Se publican:
+
+- `lectura`: lectura aceptada y no diferida.
+- `alerta`: alerta nueva generada por un umbral.
+- `alerta-accion`: cambio de estado o acción registrada sobre una alerta.
+
+La API pública requiere `X-Api-Key`, es de solo lectura y aplica dos límites: 300 solicitudes
+por IP cada 5 minutos y 100 por cliente resuelto por la API key cada 5 minutos. El login aplica límites
+separados por combinación IP-usuario, IP y usuario. El enrolamiento limita los intentos a
+10 por dispositivo/IP cada 15 minutos y responde `409` cuando se supera el límite.
+
+Cada lectura fuera del rango configurado genera una alerta independiente; no hay
+consolidación ni cooldown anti-spam en el motor actual. `notificaciones_activas = false`
+desactiva la evaluación/generación de alertas para ese umbral.
 
 ---
 
@@ -354,9 +379,7 @@ locales del broker y los secretos quedan fuera del repositorio.
 
 Estos puntos no se presentan como implementados:
 
-- endpoint de reseteo de credenciales (no hay spec);
 - E6;
-- auditoría del reclamo;
 - pruebas `mqtt-acl` y `mqtt-tls` con Docker en el host;
 - tests 12 y 14 de trazabilidad-alertas;
 - informe de dónde está la clave de la CA del proyecto;
@@ -368,16 +391,15 @@ Estos puntos no se presentan como implementados:
 
 ```sql
 dispositivos
-  id, codigo (único), nombre, ubicacion, activo, creado_en, ultima_conexion
-
-dispositivos_fabrica
-  device_id, factory_secret_hash, created_at, enrolled_at
+  id, codigo (único), cliente_id (FK), nombre, ubicacion, activo, creado_en,
+  ultima_conexion, token_reclamo_hash, reclamado_en
 
 lecturas
-  id, dispositivo_codigo (FK), temperatura, humedad, luminosidad, timestamp
+  id, dispositivo_codigo (FK), cliente_id (FK), temperatura, humedad, luminosidad, timestamp
+  -- particionada mensualmente por timestamp
 
 alertas
-  id, dispositivo_codigo, variable, valor, umbral_min, umbral_max,
+  id, dispositivo_codigo, cliente_id (FK), variable, valor, umbral_min, umbral_max,
   estado (pendiente|atendida), comentario, timestamp
 
 umbrales
@@ -390,9 +412,26 @@ usuarios
 
 clientes
   id, nombre (único), activo, creado_en
+
+auditoria
+  id, cliente_id, usuario_id, usuario_username, accion, entidad, entidad_id,
+  detalle, timestamp
+
+alerta_acciones
+  id, alerta_id, cliente_id, usuario_id, usuario_username, accion, detalle, timestamp
+
+api_keys
+  id, cliente_id, nombre, clave_hash, prefijo, activa, creado_por, creado_en,
+  ultimo_uso, revocada_en
+
+dispositivos_fabrica
+  device_id, factory_secret_hash, created_at, enrolled_at
+
+dispositivos_fabrica
+  device_id, factory_secret_hash, created_at, enrolled_at
 ```
 
-> El modelo multi-cliente está cerrado: `clientes` y `cliente_id` filtran cada query de `dispositivos`, `lecturas`, `umbrales`, `alertas` (vía JOIN, ya que `alertas` no tiene `cliente_id` propio) y `usuarios`. El JWT lleva `clienteId`, y el middleware `extraerCliente` rechaza con 401 cualquier token viejo sin ese campo, en vez de dejarlo pasar sin aislamiento. Único punto abierto: el tópico MQTT sigue siendo `ecotrack/<codigo>/lecturas` sin `cliente_id`, por lo que el código de dispositivo se mantiene único a nivel global (no por cliente) — ver la nota de diseño en `dispositivos.service.js`.
+> El modelo multi-cliente está cerrado: `clientes` y `cliente_id` filtran cada query de `dispositivos`, `lecturas`, `umbrales`, `alertas` y `usuarios`. `cliente_id` se copia en cada lectura y alerta al momento de insertarla, por lo que transferir o liberar un dispositivo no cambia el dueño de su histórico (RNF18). El JWT lleva `clienteId`, y el middleware `extraerCliente` rechaza con 401 cualquier token viejo sin ese campo. Único punto abierto: el tópico MQTT sigue siendo `ecotrack/<codigo>/lecturas` sin `cliente_id`, por lo que el código de dispositivo se mantiene único a nivel global.
 
 > `dispositivos.activo` implementa la baja lógica: un dispositivo dado de baja no se borra (para no perder su histórico de lecturas/alertas ni romper la FK). Queda sin dueño, inactivo y sin token válido, deja de listarse y sus mensajes MQTT se descartan sin guardarse hasta que un operador lo vuelva a aprovisionar con `--rotate` y un administrador lo reclame.
 
@@ -408,6 +447,9 @@ Se crean automáticamente la primera vez que se levanta la base, con las credenc
 | `TEST_USER` (por defecto `operario1`) | comun | `TEST_USER_PASS` |
 
 Desde ahí, cualquier usuario admin puede crear, editar o eliminar cuentas desde la pantalla de Usuarios (o vía `POST /api/usuarios`).
+La migración crea un cliente inicial (`CLIENTE_DEFAULT_NOMBRE`); actualmente no existe un
+endpoint de alta o administración de organizaciones, por lo que los clientes se gestionan
+operativamente mediante la base de datos.
 
 ---
 
@@ -418,17 +460,24 @@ ecotrack/
 ├── docker-compose.yml
 ├── .gitignore
 ├── README.MD
+├── codigo-esp32-mosquitto/
+├── caddy/
+├── docs/
+├── specs/
+├── .specify/
+├── scripts/
 ├── backend/
 │   ├── .env.example
 │   ├── Dockerfile
 │   ├── package.json
 │   ├── index.js
+│   ├── scripts/
 │   └── src/
 │       ├── app.js
-│       ├── migrate.js
-│       ├── schemas.js
 │       ├── config/
-│       │   └── db.js
+│       │   ├── db.js
+│       │   └── migrate.js
+│       ├── schemas.js
 │       ├── middleware/
 │       │   ├── auth.js
 │       │   ├── rol.js
@@ -436,13 +485,18 @@ ecotrack/
 │       │   └── errorHandler.js
 │       ├── mqtt/
 │       │   └── client.js
+│       ├── realtime/
+│       │   └── socketRegistry.js
 │       ├── routes/
 │       │   ├── auth.js
 │       │   ├── dispositivos.js
 │       │   ├── lecturas.js
 │       │   ├── umbrales.js
 │       │   ├── alertas.js
-│       │   └── usuarios.js
+│       │   ├── usuarios.js
+│       │   ├── auditoria.js
+│       │   ├── apiKeys.routes.js
+│       │   └── public.routes.js
 │       ├── services/
 │       │   ├── auth.service.js
 │       │   ├── dispositivos.service.js
@@ -451,7 +505,7 @@ ecotrack/
 │       │   ├── alertas.service.js
 │       │   └── usuarios.service.js
 │       └── test/
-│           └── usuarios.service.test.js
+│           └── *.test.js
 ├── mosquitto/
 │   ├── Dockerfile
 │   └── config/
@@ -479,13 +533,18 @@ ecotrack/
         └── ecotrack-logo.png
 ```
 
+También forman parte del repositorio [`codigo-esp32-mosquitto`](codigo-esp32-mosquitto),
+[`docs`](docs), [`specs`](specs), [`.specify`](.specify) y [`scripts`](scripts). Las
+`specs` documentan el trabajo de cada feature; no todas las tareas listadas allí representan
+funcionalidad pendiente del código actual.
+
 ---
 
 ## Trabajo futuro
 
 - [x] Modelo multi-cliente (RF18/RNF05): tabla `clientes`, `cliente_id` en `usuarios` y `dispositivos`, con aislamiento de datos completo — DB, middleware `extraerCliente`, filtro por `cliente_id` en los 5 services y las 5 rutas. El frontend no necesitó cambios: el filtro viaja en el token de forma transparente
 - [x] Portal web temporal de configuración WiFi por SoftAP (RF15/RI13); el aprovisionamiento de fábrica guarda identidad por dispositivo en NVS. La aceptación física y de rendimiento sigue pendiente (R10).
-- [x] API pública de solo lectura con API key (RF19/RI20); queda pendiente decidir el contrato de estado de dispositivos y completar la cobertura de claves inválidas/revocadas y aislamiento (R8).
+- [x] API pública de solo lectura con API key (RF19/RI20), gestión administrativa de claves, revocación, aislamiento por cliente y rate limiting.
 - [ ] Alinear el rate limit del login con RNF21: hoy el código permite 5 intentos por combinación IP/usuario y 30 por IP cada 15 minutos; el requisito define 5 por IP. La API pública sí aplica 100 por clave y 300 por IP cada 5 minutos.
 - [ ] Recuperación de contraseña por email
 - [ ] Sensores mejorados: DHT22 + BH1750
@@ -500,7 +559,7 @@ ecotrack/
 |---|---|
 | Hardware | NodeMCU ESP32S, DHT11, LDR |
 | Comunicación | MQTT (Eclipse Mosquitto) |
-| Backend | Node.js, Express, pg, JWT, bcrypt, Zod |
+| Backend | Node.js, Express, pg, JWT, bcryptjs, Zod, Socket.IO |
 | Base de datos | PostgreSQL 15 |
 | Frontend | HTML, Tailwind CSS, Chart.js |
 | Infraestructura | Docker, Docker Compose, nginx |
