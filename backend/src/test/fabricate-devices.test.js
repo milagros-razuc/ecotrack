@@ -65,8 +65,16 @@ if (command === 'docker') {
   process.exit(0);
 }
 if (command === 'esptool') {
+  if (process.env.SHIM_REQUIRE_ESPTOOL_V5 === '1' &&
+      (args[0] !== '--port' || args[2] !== 'write-flash')) {
+    process.stderr.write("No such option '--port'\\n");
+    process.exit(2);
+  }
   if (process.env.SHIM_ESPTOOL_FAIL === '1' &&
       args.includes(process.env.SHIM_ESPTOOL_FAIL_STEP || '')) {
+    if (process.env.SHIM_ESPTOOL_FAIL_OUTPUT) {
+      process.stderr.write(process.env.SHIM_ESPTOOL_FAIL_OUTPUT);
+    }
     process.exit(7);
   }
   process.exit(0);
@@ -316,10 +324,36 @@ test('phase 3: flash calls preserve partition, app, then NVS order', () => {
   });
 });
 
+test('phase 3: esptool v5 receives global options before write-flash', () => {
+  withShimEnvironment({ importCount: 1 }, ({ env, root }) => {
+    env.SHIM_REQUIRE_ESPTOOL_V5 = '1';
+    const inputs = createFlashInputs();
+    const output = fs.mkdtempSync(path.join(os.tmpdir(), 'ecotrack-fabricate-output-'));
+    try {
+      const result = runPowerShell([
+        '-Count', '1',
+        '-ServerHost', 'localhost',
+        '-Output', output,
+        '-Firmware', inputs.firmware,
+        '-Partitions', inputs.partitions,
+        '-Nvs', inputs.nvs,
+        '-Port', 'COM7',
+        '-Esptool', path.join(root, 'esptool.cmd'),
+      ], env);
+      assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    } finally {
+      fs.rmSync(output, { recursive: true, force: true });
+      fs.rmSync(inputs.root, { recursive: true, force: true });
+    }
+  });
+});
+
 test('phase 3: failed firmware prevents NVS write', () => {
   withShimEnvironment({ importCount: 1 }, ({ env, logPath, root }) => {
     env.SHIM_ESPTOOL_FAIL = '1';
     env.SHIM_ESPTOOL_FAIL_STEP = '0x10000';
+    env.SHIM_ESPTOOL_FAIL_OUTPUT =
+      'flash failed: synthetic diagnostic\nToken de reclamo: synthetic-token\nPIN: 123456\n';
     const inputs = createFlashInputs();
     const output = fs.mkdtempSync(path.join(os.tmpdir(), 'ecotrack-fabricate-output-'));
     try {
@@ -334,6 +368,8 @@ test('phase 3: failed firmware prevents NVS write', () => {
         '-Esptool', path.join(root, 'esptool.cmd'),
       ], env);
       assert.notStrictEqual(result.status, 0);
+      assert.match(`${result.stdout}\n${result.stderr}`, /flash failed: synthetic diagnostic/);
+      assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, /synthetic-token|123456/);
       const calls = readShimCalls(logPath)
         .filter((call) => call.command === 'esptool');
       assert.equal(calls.some((call) => call.args.includes(inputs.nvs)), false);

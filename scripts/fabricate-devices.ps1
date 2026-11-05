@@ -103,8 +103,16 @@ function Invoke-FlashWrite {
         [string]$Image,
         [string]$StepName
     )
-    & $Tool write-flash --port $SerialPort $Address $Image *> $null
+    $toolOutput = @(& $Tool --port $SerialPort write-flash $Address $Image 2>&1)
     if ($LASTEXITCODE -ne 0) {
+        $safeTail = @(
+            $toolOutput |
+                ForEach-Object { "$_" -replace '(?i)((?:token(?: de reclamo)?|pin|secret|password)\s*[:=]\s*)\S+', '$1[REDACTED]' } |
+                Select-Object -Last 8
+        ) -join "`n"
+        if ($safeTail) {
+            throw "Paso ${StepName}: codigo de salida $LASTEXITCODE. Ultimas lineas de esptool:`n$safeTail"
+        }
         throw "Paso ${StepName}: codigo de salida $LASTEXITCODE."
     }
 }
