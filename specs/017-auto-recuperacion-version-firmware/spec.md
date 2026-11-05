@@ -29,7 +29,7 @@ DNS/TLS fallido y broker no disponible para verificar que no se borran credencia
 1. **Given** un dispositivo con credenciales MQTT persistidas, **When** recibe el
    primer hasta N-1 rechazos inequívocos de autenticación consecutivos, separados por
    al menos 30 segundos y recibidos como CONNACK de autenticación rechazada, **Then**
-   no borra credenciales y conserva el contador persistente o de sesión definido.
+   no borra credenciales y conserva el contador en NVS, incluso si se reinicia.
 2. **Given** N rechazos consecutivos de autenticación, **When** ocurre el rechazo N,
    **Then** borra únicamente `mqtt_user` y `mqtt_pass` y marca el estado operativo
    MQTT como no enrolado, sin borrar otros datos de NVS.
@@ -80,8 +80,8 @@ autenticado o malformado y verificar que no modifica esos datos.
   consecutivo se reinicia y no se alcanza el umbral por eventos no consecutivos.
 - El broker responde un código que no permite distinguir autenticación de conectividad:
   el dispositivo debe tratarlo como no concluyente y no borrar credenciales.
-- El dispositivo reinicia antes de alcanzar N rechazos: el comportamiento del contador
-  debe ser determinista y estar cubierto por tests.
+- El dispositivo reinicia antes de alcanzar N rechazos: el contador persistido en NVS
+  se recupera y el comportamiento debe ser determinista y estar cubierto por tests.
 - El enrolamiento posterior devuelve error, timeout o respuesta inválida.
 - El reporte de versión llega repetido: debe ser idempotente y actualizar solo la fecha
   según la política definida.
@@ -108,11 +108,16 @@ autenticado o malformado y verificar que no modifica esos datos.
 
 ### Functional Requirements
 
-- **FR-001**: El firmware MUST usar un umbral fijo de **3 rechazos inequívocos de
-  autenticación MQTT consecutivos** para activar la recuperación automática.
+- **FR-001**: El firmware MUST usar un umbral fijo de **N = 3 rechazos inequívocos de
+  autenticación MQTT consecutivos** para borrar las credenciales operativas y activar
+  la recuperación automática. Este parámetro MUST tener una constante propia,
+  `MQTT_AUTH_REJECT_THRESHOLD`, distinta de la constante
+  `MQTT_REENROLL_MAX_PER_HOUR` que limita los re-enrolamientos.
 - **FR-002**: El firmware MUST reiniciar el contador ante una conexión MQTT exitosa y
   MUST reiniciarlo o invalidarlo ante cualquier evento no concluyente que no sea un
   rechazo de autenticación confirmado.
+- **FR-002a**: El firmware MUST establecer `mqtt_auth_reject_count` en `0` después
+  de una conexión MQTT exitosa y después de un re-enrolamiento exitoso.
 - **FR-003**: El firmware MUST distinguir rechazo de credenciales de Wi-Fi ausente,
   broker caído, timeout, DNS fallido y fallo de negociación TLS; estos últimos MUST
   no borrar credenciales.
@@ -121,6 +126,12 @@ autenticado o malformado y verificar que no modifica esos datos.
   caído, Wi-Fi caído y códigos no concluyentes no cuentan.
 - **FR-005**: Entre dos rechazos contables debe transcurrir un mínimo de **30
   segundos**; los eventos anteriores al intervalo mínimo no incrementan el contador.
+- **FR-005a**: `mqtt_reenroll_window_start` y el intervalo mínimo de 30 segundos
+  MUST calcularse exclusivamente con hora real expresada como epoch, sincronizada
+  mediante NTP; el firmware no debe usar `millis()` ni otro reloj monotónico como
+  sustituto. Si no existe hora NTP válida, el firmware MUST no contar rechazos ni
+  iniciar re-enrolamientos, no debe borrar credenciales y MUST reintentar la
+  sincronización de hora.
 - **FR-006**: Al alcanzar el umbral, el firmware MUST borrar únicamente `mqtt_user`
   y `mqtt_pass` del NVS y establecer el estado operativo MQTT como no enrolado.
   MUST conservar `device_id`, `device_secret`, identidad de fábrica, PIN, SSID,
@@ -130,15 +141,29 @@ autenticado o malformado y verificar que no modifica esos datos.
   el contrato HTTPS existente usando el mismo secreto de fábrica y sin generar token
   de reclamo nuevo.
 - **FR-008**: Después de una invalidación, el firmware MUST limitar los intentos de
-  re-enrolamiento a **3 por hora**, con backoff de 90, 180 y 360 segundos entre
-  intentos; al alcanzar el límite debe esperar la siguiente ventana horaria.
+  re-enrolamiento a un máximo de **3 por hora**, con backoff de 90, 180 y 360
+  segundos entre intentos; al alcanzar el límite debe esperar la siguiente ventana
+  horaria. Este máximo es independiente de N=3 y MUST usar la constante
+  `MQTT_REENROLL_MAX_PER_HOUR`, no `MQTT_AUTH_REJECT_THRESHOLD`.
+- **FR-008a**: El firmware MUST persistir en NVS, con claves propias y separadas de
+  la identidad y del secreto de fábrica, el contador de rechazos consecutivos bajo
+  la clave `mqtt_auth_reject_count` y el contador de re-enrolamientos de la ventana
+  bajo la clave `mqtt_reenroll_hour_count`. MUST persistir también el inicio de la
+  ventana bajo `mqtt_reenroll_window_start`. Estos valores MUST persistir
+  exclusivamente en NVS y sobrevivir a reinicios.
+- **FR-008b**: Al reiniciar, el firmware MUST recuperar esos valores desde NVS,
+  descartar la ventana horaria si ya expiró y conservar `device_id`,
+  `device_secret` y toda la identidad de fábrica sin modificarlos.
 - **FR-009**: El firmware MUST aplicar el límite y backoff sin imprimir credenciales,
   secretos, tokens ni contraseñas.
 - **FR-010**: El firmware MUST declarar una constante de versión única, no vacía y
   validable, incluida en cada binario distribuido.
-- **FR-011**: El reporte de versión MUST viajar por un mecanismo autenticado y asociado
-  a la identidad del dispositivo; no se aceptará un campo de body HTTP público como
-  fuente confiable de identidad o autorización.
+- **FR-011**: El reporte de versión MUST viajar por MQTT mediante la sesión operativa
+  autenticada del dispositivo, en un tópico cuyo `device_id` sea tomado del tópico
+  autenticado y no de un campo libre del payload. El backend MUST derivar y verificar
+  la identidad a partir de las credenciales MQTT autenticadas y del `device_id` del
+  tópico; no se aceptará un campo de body HTTP público como fuente confiable de
+  identidad o autorización.
 - **FR-012**: El backend MUST aceptar el reporte únicamente cuando la identidad
   autenticada corresponde al dueño del `device_id` reportado; un dispositivo no
   puede reportar ni modificar la versión de otro dispositivo o cliente.
@@ -167,13 +192,17 @@ autenticado o malformado y verificar que no modifica esos datos.
   vuelva a invocar el endpoint de enrolamiento existente después de invalidar sus
   credenciales MQTT. No se deben cambiar tokens, autorización, criterios de reclamo
   ni los tests existentes de esos flujos.
-- **FR-022**: Los tests MUST cubrir el umbral exacto de 3 CONNACK rechazados, el
-  intervalo mínimo de 30 segundos, el reinicio del contador, la no eliminación ante
-  fallos de conectividad, la lista exacta de datos borrados/conservados, el límite de
-  3 re-enrolamientos por hora, el backoff y el re-enrolamiento sin token nuevo.
-- **FR-023**: Los tests del reporte MUST cubrir autenticación, autorización del dueño
-  del `device_id`, aislamiento entre clientes, validación de versión, persistencia de
-  fecha, valor "desconocida" y compatibilidad con firmware que no reporta.
+- **FR-022**: Los tests MUST cubrir el umbral exacto de N=3 CONNACK rechazados, el
+  intervalo mínimo de 30 segundos, la persistencia en NVS de
+  `mqtt_auth_reject_count`, `mqtt_reenroll_hour_count` y
+  `mqtt_reenroll_window_start` a través de reinicios, la no modificación de
+  identidad ni secreto de fábrica, la no eliminación ante fallos de conectividad,
+  la lista exacta de datos borrados/conservados, el límite de 3 re-enrolamientos por
+  hora, el backoff y el re-enrolamiento sin token nuevo.
+- **FR-023**: Los tests del reporte MQTT MUST cubrir autenticación, extracción del
+  `device_id` desde el tópico autenticado, autorización del dueño, aislamiento entre
+  clientes, validación de versión, persistencia de fecha, valor "desconocida" y
+  compatibilidad con firmware que no reporta.
 - **FR-024**: Debe existir una prueba extremo a extremo que ejecute el reset de
   credenciales de la spec 016, provoque los rechazos MQTT correspondientes en un
   dispositivo con el firmware nuevo y compruebe que el equipo borra solo las
@@ -207,6 +236,9 @@ autenticado o malformado y verificar que no modifica esos datos.
   cliente.
 - **Credenciales operativas MQTT**: usuario, contraseña, host y marca de enrolamiento
   persistidos en NVS; no incluyen la identidad ni el secreto de fábrica.
+- **Contadores de recuperación**: `mqtt_auth_reject_count`,
+  `mqtt_reenroll_hour_count` y `mqtt_reenroll_window_start`, persistidos en NVS
+  como claves independientes de la identidad y del secreto de fábrica.
 
 ## Success Criteria
 
@@ -238,8 +270,9 @@ autenticado o malformado y verificar que no modifica esos datos.
   fallo de transporte o conectividad.
 - El endpoint de enrolamiento existente continúa aceptando el mismo `device_secret`
   para un dispositivo reclamado con `enrolled_at` nulo.
-- El reporte autenticado reutilizará la sesión MQTT operativa o un mecanismo equivalente
-  ya autenticado; no se abrirá un canal HTTP anónimo de confianza.
+- El reporte de versión usará la sesión MQTT operativa autenticada; el `device_id`
+  confiable será el del tópico autorizado, no un valor declarado libremente en el
+  payload.
 - Los dispositivos con firmware anterior no reportarán versión y aparecerán como
   “sin reporte”.
 - El OTA de diciembre se realizará de forma gradual, conservando el binario anterior

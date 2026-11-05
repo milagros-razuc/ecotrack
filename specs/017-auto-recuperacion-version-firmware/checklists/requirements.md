@@ -13,13 +13,23 @@
 
 ## Requirement Completeness
 
-- [x] El umbral exacto de tres rechazos está definido.
+- [x] El umbral exacto N=3 de rechazos está definido.
+- [x] N=3 para borrar credenciales y el máximo de 3 re-enrolamientos por hora son
+  parámetros distintos, con constantes distintas.
 - [x] Se distinguen autenticación rechazada y fallos de conectividad.
 - [x] Solo cuentan CONNACK de autenticación y se exige un intervalo mínimo de 30 segundos.
+- [x] El intervalo y `mqtt_reenroll_window_start` usan epoch sincronizado por NTP;
+  sin hora válida no se cuentan rechazos, no se re-enrola ni se borran credenciales,
+  y se reintenta la sincronización.
+- [x] `mqtt_auth_reject_count` se reinicia tras conexión MQTT y re-enrolamiento
+  exitosos.
 - [x] Se enumera exactamente qué se borra y qué se conserva en NVS.
 - [x] Se limita el re-enrolamiento a tres intentos por hora con backoff definido.
+- [x] Los contadores y el inicio de ventana tienen claves NVS propias, sobreviven a
+  reinicios y no modifican identidad ni secreto de fábrica.
 - [x] Se define el comportamiento ante reinicio, reintento y backoff.
-- [x] Se define el reporte autenticado y el almacenamiento de versión/fecha.
+- [x] Se define el reporte MQTT autenticado, con `device_id` tomado del tópico, y el
+  almacenamiento de versión/fecha.
 - [x] Se exige que el reporte corresponda al dispositivo autenticado dueño del `device_id`.
 - [x] Se cubren aislamiento por cliente y ausencia de secretos.
 - [x] Firmware viejo se muestra como "desconocida" sin error.
@@ -36,5 +46,5 @@
 
 ## Notes
 
-- La ejecución real de tests y la elección final del mecanismo autenticado de reporte
-  quedan para las fases de plan e implementación.
+- La ejecución real de tests queda para las fases de plan e implementación; el
+  mecanismo de reporte ya está definido como MQTT autenticado.
