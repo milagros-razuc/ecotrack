@@ -15,9 +15,15 @@
 
 - [x] El umbral exacto de tres rechazos está definido.
 - [x] Se distinguen autenticación rechazada y fallos de conectividad.
+- [x] Solo cuentan CONNACK de autenticación y se exige un intervalo mínimo de 30 segundos.
+- [x] Se enumera exactamente qué se borra y qué se conserva en NVS.
+- [x] Se limita el re-enrolamiento a tres intentos por hora con backoff definido.
 - [x] Se define el comportamiento ante reinicio, reintento y backoff.
 - [x] Se define el reporte autenticado y el almacenamiento de versión/fecha.
+- [x] Se exige que el reporte corresponda al dispositivo autenticado dueño del `device_id`.
 - [x] Se cubren aislamiento por cliente y ausencia de secretos.
+- [x] Firmware viejo se muestra como "desconocida" sin error.
+- [x] Se cubre la prueba extremo a extremo con el reset de la spec 016.
 - [x] Se cubre compatibilidad con firmware antiguo y OTA gradual.
 - [x] Se incluyen trazabilidad con RF/RNF/RI existentes.
 

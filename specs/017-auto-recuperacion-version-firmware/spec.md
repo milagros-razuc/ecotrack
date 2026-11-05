@@ -27,11 +27,12 @@ DNS/TLS fallido y broker no disponible para verificar que no se borran credencia
 **Acceptance Scenarios**:
 
 1. **Given** un dispositivo con credenciales MQTT persistidas, **When** recibe el
-   primer hasta N-1 rechazos inequívocos de autenticación consecutivos, **Then** no
-   borra credenciales y conserva el contador persistente o de sesión definido.
+   primer hasta N-1 rechazos inequívocos de autenticación consecutivos, separados por
+   al menos 30 segundos y recibidos como CONNACK de autenticación rechazada, **Then**
+   no borra credenciales y conserva el contador persistente o de sesión definido.
 2. **Given** N rechazos consecutivos de autenticación, **When** ocurre el rechazo N,
-   **Then** borra únicamente usuario, contraseña, host/estado operativo y la marca
-   de enrolamiento necesarias para forzar un nuevo enrolamiento.
+   **Then** borra únicamente `mqtt_user` y `mqtt_pass` y marca el estado operativo
+   MQTT como no enrolado, sin borrar otros datos de NVS.
 3. **Given** broker caído, Wi-Fi ausente, timeout, DNS fallido o error TLS de
    conectividad, **When** el dispositivo no puede establecer la conexión, **Then**
    no clasifica el evento como rechazo de credenciales ni borra NVS.
@@ -40,7 +41,7 @@ DNS/TLS fallido y broker no disponible para verificar que no se borran credencia
    existente, sin pedir un token de reclamo nuevo.
 5. **Given** que el re-enrolamiento falla, **When** el dispositivo reintenta, **Then**
    conserva identidad de fábrica, secreto de fábrica y Wi-Fi, y aplica backoff sin
-   imprimir ni exponer secretos.
+   imprimir ni exponer secretos; no realiza más de 3 re-enrolamientos por hora.
 
 ### User Story 2 - Identificar la versión desplegada (Priority: P1)
 
@@ -59,7 +60,8 @@ autenticado o malformado y verificar que no modifica esos datos.
 
 1. **Given** un dispositivo autenticado por su canal operativo, **When** reporta la
    constante de versión, **Then** el backend actualiza `firmware_version` y la fecha
-   del último reporte asociadas al dispositivo correcto.
+   del último reporte asociadas al dispositivo correcto, únicamente si la identidad
+   autenticada es la dueña de ese `device_id`.
 2. **Given** un mensaje de lectura válido sin reporte de versión, **When** llega al
    backend, **Then** la lectura sigue siendo compatible y no se inventa ni sobrescribe
    una versión.
@@ -87,8 +89,20 @@ autenticado o malformado y verificar que no modifica esos datos.
   reseteado y pendiente de enrolamiento, o dado de baja.
 - Un usuario intenta consultar o alterar datos de un dispositivo de otro cliente.
 - El firmware antiguo no reporta versión: el backend debe mostrar ausencia de reporte,
-  no una versión inventada.
+  como **"desconocida"**, sin errores ni modificación de otros datos.
 - El OTA deja dispositivos en versiones mixtas durante el despliegue de diciembre.
+- Dos rechazos de autenticación ocurren con menos de 30 segundos entre sí: el segundo
+  no incrementa el contador de recuperación.
+- Un CONNACK de autenticación rechazada llega después de un timeout, DNS, TLS o Wi-Fi
+  caído: no cuenta como una secuencia válida hasta que se obtengan nuevos CONNACK
+  inequívocos con el intervalo mínimo.
+- Se alcanza el límite horario de re-enrolamientos: el dispositivo conserva la
+  identidad de fábrica y espera la siguiente ventana sin generar un bucle.
+- Un dispositivo autenticado intenta reportar la versión de otro `device_id`: el
+  backend rechaza el reporte y no actualiza ningún dispositivo.
+- El reset de credenciales de la spec 016 ocurre mientras el equipo está operativo:
+  el equipo actualizado debe detectar los rechazos, recuperarse y completar el
+  re-enrolamiento sin un token de reclamo nuevo.
 
 ## Requirements
 
@@ -102,49 +116,70 @@ autenticado o malformado y verificar que no modifica esos datos.
 - **FR-003**: El firmware MUST distinguir rechazo de credenciales de Wi-Fi ausente,
   broker caído, timeout, DNS fallido y fallo de negociación TLS; estos últimos MUST
   no borrar credenciales.
-- **FR-004**: Al alcanzar el umbral, el firmware MUST borrar solo las credenciales
-  MQTT operativas y su marca de enrolamiento; MUST conservar `device_id`, `device_secret`,
-  identidad de fábrica, Wi-Fi, servidor de enrolamiento y certificados CA.
-- **FR-005**: Después de la invalidación, el firmware MUST volver a enrolarse mediante
+- **FR-004**: Solo deben contar como rechazos para el umbral los CONNACK MQTT que
+  indiquen inequívocamente rechazo de autenticación. Timeouts, DNS, TLS, broker
+  caído, Wi-Fi caído y códigos no concluyentes no cuentan.
+- **FR-005**: Entre dos rechazos contables debe transcurrir un mínimo de **30
+  segundos**; los eventos anteriores al intervalo mínimo no incrementan el contador.
+- **FR-006**: Al alcanzar el umbral, el firmware MUST borrar únicamente `mqtt_user`
+  y `mqtt_pass` del NVS y establecer el estado operativo MQTT como no enrolado.
+  MUST conservar `device_id`, `device_secret`, identidad de fábrica, PIN, SSID,
+  contraseña Wi-Fi, servidor de enrolamiento y certificados CA. No debe borrar,
+  modificar ni regenerar esos datos conservados.
+- **FR-007**: Después de la invalidación, el firmware MUST volver a enrolarse mediante
   el contrato HTTPS existente usando el mismo secreto de fábrica y sin generar token
   de reclamo nuevo.
-- **FR-006**: El firmware MUST aplicar backoff y límites de reintento al nuevo
-  enrolamiento, sin imprimir credenciales, secretos, tokens ni contraseñas.
-- **FR-007**: El firmware MUST declarar una constante de versión única, no vacía y
+- **FR-008**: Después de una invalidación, el firmware MUST limitar los intentos de
+  re-enrolamiento a **3 por hora**, con backoff de 90, 180 y 360 segundos entre
+  intentos; al alcanzar el límite debe esperar la siguiente ventana horaria.
+- **FR-009**: El firmware MUST aplicar el límite y backoff sin imprimir credenciales,
+  secretos, tokens ni contraseñas.
+- **FR-010**: El firmware MUST declarar una constante de versión única, no vacía y
   validable, incluida en cada binario distribuido.
-- **FR-008**: El reporte de versión MUST viajar por un mecanismo autenticado y asociado
+- **FR-011**: El reporte de versión MUST viajar por un mecanismo autenticado y asociado
   a la identidad del dispositivo; no se aceptará un campo de body HTTP público como
   fuente confiable de identidad o autorización.
-- **FR-009**: El backend MUST persistir `firmware_version` y la fecha del último
+- **FR-012**: El backend MUST aceptar el reporte únicamente cuando la identidad
+  autenticada corresponde al dueño del `device_id` reportado; un dispositivo no
+  puede reportar ni modificar la versión de otro dispositivo o cliente.
+- **FR-013**: El backend MUST persistir `firmware_version` y la fecha del último
   reporte para cada dispositivo, sin almacenar secretos nuevos.
-- **FR-010**: El backend MUST validar versión, identidad del dispositivo, cliente
+- **FR-014**: El backend MUST validar versión, identidad del dispositivo, cliente
   asociado y formato antes de actualizar la persistencia.
-- **FR-011**: El listado administrativo MUST mostrar versión, fecha de último reporte
+- **FR-015**: El listado administrativo MUST mostrar versión, fecha de último reporte
   y estados fabricado, reclamado, enrolado y online/offline, con aislamiento por
   `cliente_id`.
-- **FR-012**: El backend MUST ocultar tokens de reclamo, secretos de fábrica,
+- **FR-016**: Cuando no exista reporte de versión, el listado MUST mostrar exactamente
+  **"desconocida"**, sin generar error ni alterar `firmware_version` o su fecha.
+- **FR-017**: El backend MUST ocultar tokens de reclamo, secretos de fábrica,
   contraseñas MQTT, credenciales Dynamic Security, hashes y cualquier secreto en
   respuestas, logs y errores.
-- **FR-013**: El contrato de lecturas MQTT existente MUST seguir siendo compatible
+- **FR-018**: El contrato de lecturas MQTT existente MUST seguir siendo compatible
   con firmware que no reporta versión; el reporte no debe ser obligatorio para
   procesar lecturas.
-- **FR-014**: La migración MUST conservar el NVS en `0x9000` con tamaño `0x5000`,
+- **FR-019**: La migración MUST conservar el NVS en `0x9000` con tamaño `0x5000`,
   no modificar `partitions.csv` ni cambiar el esquema de partición.
-- **FR-015**: La comunicación TLS MUST conservar validación de certificado; queda
+- **FR-020**: La comunicación TLS MUST conservar validación de certificado; queda
   prohibido usar `setInsecure`, desactivar `rejectUnauthorized` o introducir
   excepciones equivalentes.
-- **FR-016**: La implementación MUST mantener sin cambios el contrato de reclamo y
+- **FR-021**: La implementación MUST mantener sin cambios el contrato de reclamo y
   enrolamiento, salvo los ajustes estrictamente necesarios para que el firmware
   vuelva a invocar el endpoint de enrolamiento existente después de invalidar sus
   credenciales MQTT. No se deben cambiar tokens, autorización, criterios de reclamo
   ni los tests existentes de esos flujos.
-- **FR-017**: Los tests MUST cubrir el umbral exacto de 3 rechazos, el reinicio del
-  contador, la no eliminación ante fallos de conectividad, la preservación de NVS y
-  el re-enrolamiento sin token nuevo.
-- **FR-018**: Los tests del reporte MUST cubrir autenticación, aislamiento entre
-  clientes, validación de versión, persistencia de fecha y compatibilidad con
-  firmware que no reporta.
-- **FR-019**: El despliegue OTA de diciembre MUST poder identificar binarios por
+- **FR-022**: Los tests MUST cubrir el umbral exacto de 3 CONNACK rechazados, el
+  intervalo mínimo de 30 segundos, el reinicio del contador, la no eliminación ante
+  fallos de conectividad, la lista exacta de datos borrados/conservados, el límite de
+  3 re-enrolamientos por hora, el backoff y el re-enrolamiento sin token nuevo.
+- **FR-023**: Los tests del reporte MUST cubrir autenticación, autorización del dueño
+  del `device_id`, aislamiento entre clientes, validación de versión, persistencia de
+  fecha, valor "desconocida" y compatibilidad con firmware que no reporta.
+- **FR-024**: Debe existir una prueba extremo a extremo que ejecute el reset de
+  credenciales de la spec 016, provoque los rechazos MQTT correspondientes en un
+  dispositivo con el firmware nuevo y compruebe que el equipo borra solo las
+  credenciales operativas, vuelve a enrolarse mediante HTTPS sin token nuevo y queda
+  operativo con nuevas credenciales.
+- **FR-025**: El despliegue OTA de diciembre MUST poder identificar binarios por
   versión, mantener compatibilidad con dispositivos antiguos y permitir rollout
   gradual con observación de versiones reportadas y rollback del binario sin cambiar
   particiones.
