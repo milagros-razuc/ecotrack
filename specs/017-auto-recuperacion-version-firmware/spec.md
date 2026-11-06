@@ -62,7 +62,7 @@ autenticado o malformado y verificar que no modifica esos datos.
    constante de versión, **Then** el backend actualiza `firmware_version` y la fecha
    del último reporte asociadas al dispositivo correcto, únicamente si la identidad
    autenticada es la dueña de ese `device_id`.
-2. **Given** un mensaje de lectura válido sin reporte de versión, **When** llega al
+2. **Given** un mensaje de lectura válido sin el campo opcional `fw`, **When** llega al
    backend, **Then** la lectura sigue siendo compatible y no se inventa ni sobrescribe
    una versión.
 3. **Given** un intento de reportar versión usando un body HTTP público o una
@@ -88,14 +88,17 @@ autenticado o malformado y verificar que no modifica esos datos.
 - El dispositivo está fabricado pero nunca reclamado, reclamado pero nunca enrolado,
   reseteado y pendiente de enrolamiento, o dado de baja.
 - Un usuario intenta consultar o alterar datos de un dispositivo de otro cliente.
-- El firmware antiguo no reporta versión: el backend debe mostrar ausencia de reporte,
-  como **"desconocida"**, sin errores ni modificación de otros datos.
+- El firmware antiguo no reporta versión: el backend debe mostrar
+  **"desconocida"**, sin errores ni modificación de otros datos.
 - El OTA deja dispositivos en versiones mixtas durante el despliegue de diciembre.
 - Dos rechazos de autenticación ocurren con menos de 30 segundos entre sí: el segundo
   no incrementa el contador de recuperación.
 - Un CONNACK de autenticación rechazada llega después de un timeout, DNS, TLS o Wi-Fi
   caído: no cuenta como una secuencia válida hasta que se obtengan nuevos CONNACK
   inequívocos con el intervalo mínimo.
+- Un evento no concluyente reinicia el contador de rechazos consecutivos; una red
+  inestable puede impedir que se alcance el umbral mientras intercale eventos no
+  concluyentes entre rechazos, por lo que no debe provocar el borrado automático.
 - Se alcanza el límite horario de re-enrolamientos: el dispositivo conserva la
   identidad de fábrica y espera la siguiente ventana sin generar un bucle.
 - Un dispositivo autenticado intenta reportar la versión de otro `device_id`: el
@@ -114,8 +117,8 @@ autenticado o malformado y verificar que no modifica esos datos.
   `MQTT_AUTH_REJECT_THRESHOLD`, distinta de la constante
   `MQTT_REENROLL_MAX_PER_HOUR` que limita los re-enrolamientos.
 - **FR-002**: El firmware MUST reiniciar el contador ante una conexión MQTT exitosa y
-  MUST reiniciarlo o invalidarlo ante cualquier evento no concluyente que no sea un
-  rechazo de autenticación confirmado.
+  MUST establecerlo en `0` ante cualquier evento no concluyente que no sea un rechazo
+  de autenticación confirmado.
 - **FR-002a**: El firmware MUST establecer `mqtt_auth_reject_count` en `0` después
   de una conexión MQTT exitosa y después de un re-enrolamiento exitoso.
 - **FR-003**: El firmware MUST distinguir rechazo de credenciales de Wi-Fi ausente,
@@ -158,12 +161,16 @@ autenticado o malformado y verificar que no modifica esos datos.
   secretos, tokens ni contraseñas.
 - **FR-010**: El firmware MUST declarar una constante de versión única, no vacía y
   validable, incluida en cada binario distribuido.
-- **FR-011**: El reporte de versión MUST viajar por MQTT mediante la sesión operativa
-  autenticada del dispositivo, en un tópico cuyo `device_id` sea tomado del tópico
-  autenticado y no de un campo libre del payload. El backend MUST derivar y verificar
-  la identidad a partir de las credenciales MQTT autenticadas y del `device_id` del
-  tópico; no se aceptará un campo de body HTTP público como fuente confiable de
-  identidad o autorización.
+- **FR-011**: El reporte de versión MUST viajar dentro del mensaje de lectura MQTT
+  mediante la sesión operativa autenticada del dispositivo, como campo opcional
+  `fw`. El `device_id` MUST salir del tópico autenticado de lecturas y no de un
+  campo libre del payload. El backend MUST derivar y verificar la identidad a partir
+  de las credenciales MQTT autenticadas y del `device_id` del tópico; no se aceptará
+  un campo de body HTTP público como fuente confiable de identidad o autorización.
+  `lecturaMqttSchema` MUST aceptar `fw` ausente y, cuando esté presente, exigir una
+  cadena de entre 1 y 50 caracteres con formato SemVer
+  `MAJOR.MINOR.PATCH` (`^\d+\.\d+\.\d+$`); el campo no debe ser obligatorio para
+  persistir la lectura.
 - **FR-012**: El backend MUST aceptar el reporte únicamente cuando la identidad
   autenticada corresponde al dueño del `device_id` reportado; un dispositivo no
   puede reportar ni modificar la versión de otro dispositivo o cliente.
@@ -180,8 +187,9 @@ autenticado o malformado y verificar que no modifica esos datos.
   contraseñas MQTT, credenciales Dynamic Security, hashes y cualquier secreto en
   respuestas, logs y errores.
 - **FR-018**: El contrato de lecturas MQTT existente MUST seguir siendo compatible
-  con firmware que no reporta versión; el reporte no debe ser obligatorio para
-  procesar lecturas.
+  con firmware que no reporta versión: `fw` es opcional, su ausencia no invalida ni
+  impide procesar la lectura, y no debe existir un tópico separado de reporte de
+  firmware.
 - **FR-019**: La migración MUST conservar el NVS en `0x9000` con tamaño `0x5000`,
   no modificar `partitions.csv` ni cambiar el esquema de partición.
 - **FR-020**: La comunicación TLS MUST conservar validación de certificado; queda
@@ -200,9 +208,9 @@ autenticado o malformado y verificar que no modifica esos datos.
   la lista exacta de datos borrados/conservados, el límite de 3 re-enrolamientos por
   hora, el backoff y el re-enrolamiento sin token nuevo.
 - **FR-023**: Los tests del reporte MQTT MUST cubrir autenticación, extracción del
-  `device_id` desde el tópico autenticado, autorización del dueño, aislamiento entre
-  clientes, validación de versión, persistencia de fecha, valor "desconocida" y
-  compatibilidad con firmware que no reporta.
+  `device_id` desde el tópico autenticado de lecturas, autorización del dueño,
+  aislamiento entre clientes, validación de `fw` (longitud y formato), persistencia
+  de fecha, valor "desconocida" y compatibilidad con firmware que no reporta.
 - **FR-024**: Debe existir una prueba extremo a extremo que ejecute el reset de
   credenciales de la spec 016, provoque los rechazos MQTT correspondientes en un
   dispositivo con el firmware nuevo y compruebe que el equipo borra solo las
@@ -220,7 +228,7 @@ autenticado o malformado y verificar que no modifica esos datos.
 - El despliegue debe ser gradual, manteniendo el binario anterior como rollback y
   midiendo reportes de versión antes de avanzar de lote.
 - Los dispositivos antiguos seguirán operativos aunque no reporten versión; el panel
-  debe distinguir “sin reporte” de una versión conocida.
+  debe mostrar **"desconocida"** en lugar de una versión conocida.
 - La recuperación automática solo estará disponible después de instalar el binario
   nuevo; antes de eso, un reset de credenciales puede seguir requiriendo intervención
   manual sobre NVS.
@@ -240,6 +248,23 @@ autenticado o malformado y verificar que no modifica esos datos.
   `mqtt_reenroll_hour_count` y `mqtt_reenroll_window_start`, persistidos en NVS
   como claves independientes de la identidad y del secreto de fábrica.
 
+## Plan de tests y verificación
+
+Los tests de persistencia y aislamiento deben ejecutarse primero contra la base
+`ecotrack_test`, nunca contra la base de desarrollo o producción. La verificación en
+placa debe registrar el código y motivo del CONNACK observado en Mosquitto; no se
+considera válida una conclusión basada solo en la configuración esperada.
+
+| ID | Resultado real | Estado |
+|---|---|---|
+| T-001 — Aplicar la migración y verificar `firmware_version` y `firmware_reported_at` en `ecotrack_test` | No ejecutado | Pendiente |
+| T-002 — Reportar `fw` en una lectura autenticada y verificar versión y fecha persistidas en `ecotrack_test` | No ejecutado | Pendiente |
+| T-003 — Verificar aislamiento: un cliente no puede leer ni modificar versión o fecha de otro cliente en `ecotrack_test` | No ejecutado | Pendiente |
+| T-004 — Verificar `fw` ausente, longitud máxima de 50 caracteres y rechazo de formato no SemVer | No ejecutado | Pendiente |
+| T-005 — En placa, ejecutar el reset de credenciales de la spec 016, conectar el cliente borrado contra Mosquitto y registrar el CONNACK real de autenticación rechazada | No ejecutado | Pendiente |
+| T-006 — Verificar que un timeout, DNS, TLS, Wi-Fi o CONNACK no concluyente reinicia el contador y no borra credenciales; repetir una secuencia intercalada en red inestable | No ejecutado | Pendiente |
+| T-007 — Verificar en placa el umbral exacto, el re-enrolamiento HTTPS sin token nuevo y la operación con nuevas credenciales | No ejecutado | Pendiente |
+
 ## Success Criteria
 
 ### Measurable Outcomes
@@ -258,8 +283,8 @@ autenticado o malformado y verificar que no modifica esos datos.
 - **SC-005**: El 100% de las respuestas administrativas omite secretos, tokens,
   contraseñas y hashes sensibles.
 - **SC-006**: Durante el OTA de diciembre, el despliegue puede avanzar por etapas y
-  mostrar qué dispositivos siguen sin reportar versión nueva, sin cambiar el esquema
-  de partición.
+  mostrar qué dispositivos continúan con versión **"desconocida"** o con una versión
+  anterior, sin cambiar el esquema de partición.
 
 ## Assumptions
 
@@ -274,7 +299,7 @@ autenticado o malformado y verificar que no modifica esos datos.
   confiable será el del tópico autorizado, no un valor declarado libremente en el
   payload.
 - Los dispositivos con firmware anterior no reportarán versión y aparecerán como
-  “sin reporte”.
+  **"desconocida"**.
 - El OTA de diciembre se realizará de forma gradual, conservando el binario anterior
   como rollback y sin cambios de particiones.
 
