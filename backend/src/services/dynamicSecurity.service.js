@@ -147,13 +147,6 @@ function createDynamicSecurityService({ connect = createMqttClient, request = re
       {
         command: 'addRoleACL',
         rolename: identity.roleName,
-        acltype: 'publishClientSend',
-        topic: `ecotrack/${deviceId}/firmware`,
-        allow: true,
-      },
-      {
-        command: 'addRoleACL',
-        rolename: identity.roleName,
         acltype: 'subscribePattern',
         topic: 'ecotrack/#',
         allow: false,

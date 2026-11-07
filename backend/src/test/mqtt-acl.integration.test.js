@@ -162,14 +162,11 @@ test('ACL MQTT: permite el tópico propio y descarta el tópico de otro disposit
     await new Promise((resolve, reject) => {
       backend.subscribe('ecotrack/+/lecturas', (error) => (error ? reject(error) : resolve()));
     });
-    await new Promise((resolve, reject) => {
-      backend.subscribe('ecotrack/+/firmware', (error) => (error ? reject(error) : resolve()));
-    });
-
     const ownPayload = JSON.stringify({
       temperatura: 21.1,
       humedad: 45,
       luminosidad: 61,
+      fw: '1.2.3',
       testId: `own-${Date.now()}`,
     });
     const crossPayload = JSON.stringify({
@@ -190,25 +187,6 @@ test('ACL MQTT: permite el tópico propio y descarta el tópico de otro disposit
       topic: 'ecotrack/TEST-A/lecturas',
       payload: ownPayload,
     }]);
-
-    const ownFirmwarePayload = JSON.stringify({ version: '1.2.3', testId: `firmware-own-${Date.now()}` });
-    await publish(deviceA, 'ecotrack/TEST-B/firmware', JSON.stringify({
-      version: '9.9.9',
-      testId: `firmware-cross-${Date.now()}`,
-    }));
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    assert.deepStrictEqual(received, [{
-      topic: 'ecotrack/TEST-A/lecturas',
-      payload: ownPayload,
-    }]);
-
-    const ownFirmwareMessage = waitForEvent(backend, 'message');
-    await publish(deviceA, 'ecotrack/TEST-A/firmware', ownFirmwarePayload);
-    await ownFirmwareMessage;
-    assert.deepStrictEqual(received, [
-      { topic: 'ecotrack/TEST-A/lecturas', payload: ownPayload },
-      { topic: 'ecotrack/TEST-A/firmware', payload: ownFirmwarePayload },
-    ]);
 
   } finally {
     if (backend) backend.off('message', onMessage);
