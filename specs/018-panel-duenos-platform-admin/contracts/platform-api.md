@@ -22,6 +22,9 @@ Query validada:
 - `estado` opcional: `fabricado`, `reclamado_sin_enrolar`, `enrolado`.
 - `firmware` opcional.
 - `pagina` y `limite`, con máximo documentado y aplicado.
+- `PLATFORM_LAST_READING_WINDOW_DAYS` es configuración del servidor: entero
+  positivo, con tope máximo configurado; si falta, vale 30. Un valor inválido
+  impide arrancar o activar el panel con un error explícito de configuración.
 
 Cada dispositivo devuelve únicamente:
 `codigo`, `cliente`, `nombre`, `estado`, `firmware_version`,
@@ -29,7 +32,10 @@ Cada dispositivo devuelve únicamente:
 `enrolled_at` y `online/offline`.
 
 `ultima_lectura` es `lecturas.timestamp`; `ultima_conexion` es
-`dispositivos.ultima_conexion`. La ausencia se expresa como `null`.
+`dispositivos.ultima_conexion`. Cuando no existe lectura dentro de la ventana,
+`ultima_lectura` es `null` y la interfaz debe mostrar exactamente
+“sin lectura reciente (últimos N días)”, sustituyendo N por el valor efectivo de
+`PLATFORM_LAST_READING_WINDOW_DAYS`; nunca debe mostrar “nunca”.
 
 ## POST `/api/plataforma/dispositivos/:codigo/reset-credenciales`
 
