@@ -43,15 +43,21 @@
 
 - `dispositivo_codigo`: dispositivo asociado.
 - `timestamp`: instante de captura; fuente de “última lectura”.
-- Consulta: una fila por dispositivo, ordenada por `timestamp DESC LIMIT 1`,
-  acotada por la clave del dispositivo y compatible con particiones.
+- Índice: `(dispositivo_codigo, timestamp DESC)`.
+- Consulta: después de paginar dispositivos, `LEFT JOIN LATERAL` por dispositivo
+  con `WHERE timestamp >= NOW() - (ventana_días * INTERVAL '1 day')`,
+  `ORDER BY timestamp DESC LIMIT 1`. La ventana por defecto es de 30 días y es
+  configurable.
+- Si no hay lectura dentro de la ventana, `ultima_lectura` es explícitamente
+  `null` y la interfaz muestra “sin lectura reciente (últimos 30 días)”.
 
 ## Auditoría
 
 - `cliente_id`: cliente operativo del dispositivo afectado; satisface
   `auditoria_cliente_id_fkey`.
 - `usuario_id`: actor interno cuando corresponda.
-- `actor_tipo`: columna explícita; `platform_admin` identifica una acción global.
+- `actor_tipo`: columna explícita `VARCHAR(30) NOT NULL DEFAULT 'tenant'`;
+  `platform_admin` identifica una acción global.
 - El servicio de auditoría enmascara `usuario_id`, username, email y nombre en las
   respuestas tenant cuando `actor_tipo = platform_admin`.
 - `accion`, `entidad`, `entidad_id`, `detalle`, `timestamp`.
@@ -63,7 +69,8 @@
 
 - La migración agrega `clientes.es_plataforma BOOLEAN NOT NULL DEFAULT false` de
   forma segura y repetible.
-- La migración agrega `auditoria.actor_tipo` de forma segura y repetible.
+- La migración agrega `auditoria.actor_tipo VARCHAR(30) NOT NULL DEFAULT 'tenant'`
+  de forma segura y repetible.
 - El seed local encuentra la fila `es_plataforma = true`, la crea si no existe y
   garantiza que el usuario `platform_admin` apunte a ella sin duplicar registros.
 - Los listados y filtros excluyen por `es_plataforma`, nunca por `nombre`.

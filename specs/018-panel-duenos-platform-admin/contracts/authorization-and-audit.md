@@ -33,6 +33,21 @@ Para un reset originado en plataforma:
 
 - Los endpoints `/api/plataforma/...` tienen un limitador independiente de los
   limitadores tenant.
-- Valor: máximo 10 solicitudes por 15 minutos por identidad/IP del panel.
+- El reset usa máximo 10 solicitudes por 15 minutos por identidad/IP del panel.
+- Las lecturas del panel usan un límite independiente más alto, con valor por
+  defecto de 300 solicitudes por 15 minutos por identidad/IP.
+- Ambos valores y sus ventanas son configurables por entorno:
+  `PLATFORM_RESET_RATE_LIMIT_MAX`, `PLATFORM_RESET_RATE_LIMIT_WINDOW_MS`,
+  `PLATFORM_READ_RATE_LIMIT_MAX` y `PLATFORM_READ_RATE_LIMIT_WINDOW_MS`.
+- Cada limitador mantiene su propio contador; consumir el límite de lecturas no
+  consume el contador de reset y viceversa.
 - Al superar el límite se responde con el error de rate limit existente, sin
   indicar datos del dispositivo ni del cliente.
+
+## Última lectura
+
+- La ventana por defecto es de 30 días, configurable mediante
+  `PLATFORM_LAST_READING_WINDOW_DAYS`.
+- El contrato de interfaz debe mostrar “sin lectura reciente (últimos 30 días)”
+  cuando la consulta no encuentre una lectura en la ventana. La versión mostrada
+  debe reflejar el valor configurado si se modifica la ventana.

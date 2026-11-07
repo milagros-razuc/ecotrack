@@ -2,19 +2,23 @@
 
 ## Decisión: última lectura mediante consulta acotada por dispositivo
 
-La lista global debe obtener la última lectura con una consulta correlacionada que
-aplique una ventana temporal explícita y use `ROW_NUMBER() OVER (PARTITION BY
-dispositivo_codigo ORDER BY timestamp DESC)`. La consulta debe limitarse a la
-ventana operativa definida para el panel y devolver `ultima_lectura = null` cuando
-no haya ninguna lectura en esa ventana. Debe usar la relación indexable por
-`dispositivo_codigo` y no agregar una lectura global sin límites que recorra todas
-las particiones mensuales. Si el esquema vigente no ofrece un índice compatible,
-la migración debe crearlo de forma segura.
+La lista global debe obtener la última lectura mediante `LEFT JOIN LATERAL`,
+calculado únicamente para los dispositivos de la página ya paginada. La subconsulta
+debe incluir `timestamp >= NOW() - ($1 * INTERVAL '1 day')` en su `WHERE`, usar
+`ORDER BY timestamp DESC LIMIT 1` y devolver `ultima_lectura = null` si no existe
+lectura dentro de la ventana. La ventana por defecto es de 30 días y se configura
+con `PLATFORM_LAST_READING_WINDOW_DAYS`.
+
+La consulta debe usar el índice compuesto
+`(dispositivo_codigo, timestamp DESC)` y no agregar una lectura global sin límites
+que recorra todas las particiones mensuales. Si el esquema vigente no ofrece ese
+índice compatible, la migración debe crearlo de forma segura.
 
 **Rationale**: `lecturas` está particionada por tiempo y el panel necesita una lectura
-por dispositivo. La ventana evita consultar histórico indefinido y la función de
-ventana selecciona una sola fila por dispositivo sin perder la semántica de captura.
-La ausencia de lectura debe devolver explícitamente `null`, no inventar una fecha.
+por dispositivo. Paginar primero y ejecutar el `LATERAL` después evita calcular
+lecturas para filas que no se mostrarán. La condición temporal en `WHERE` permite
+limitar el trabajo y la ausencia debe devolver explícitamente `null`, no inventar
+una fecha.
 
 **Alternatives considered**:
 - Reutilizar `ultima_conexion`: rechazado porque representa recepción MQTT, no captura.
@@ -23,8 +27,9 @@ La ausencia de lectura debe devolver explícitamente `null`, no inventar una fec
 - Persistir otra columna derivada en `dispositivos`: no se agrega en esta feature
   porque duplicaría el dato y requeriría mantenerlo al insertar lecturas.
 
-La ventana temporal y la forma de consulta deben quedar cubiertas por una prueba
-que demuestre el valor `null` cuando el dispositivo no tiene lecturas dentro de ella.
+La ventana de 30 días, su configuración y la forma de consulta deben quedar
+cubiertas por pruebas que demuestren el valor `null` cuando el dispositivo no tiene
+lecturas dentro de ella.
 
 ## Decisión: JOIN de fabricación por `dispositivos.codigo = dispositivos_fabrica.device_id`
 
@@ -63,9 +68,10 @@ sin email, username ni nombre del usuario global.
 afectado conserva la trazabilidad tenant. El actor debe seguir siendo distinguible
 para auditoría interna sin exponer datos personales al cliente.
 
-La migración de auditoría debe agregar `actor_tipo` de forma repetible, y el servicio
-de auditoría debe aplicar el enmascarado antes de construir respuestas visibles al
-cliente, no confiar en que el frontend o el SQL de cada vista lo haga.
+La migración de auditoría debe agregar `actor_tipo VARCHAR(30) NOT NULL DEFAULT
+'tenant'` de forma repetible. El servicio de auditoría debe aplicar el enmascarado
+antes de construir respuestas visibles al cliente, no confiar en que el frontend o
+el SQL de cada vista lo haga.
 
 ## Decisión: endpoint separado del reset de la spec 016
 
@@ -90,8 +96,12 @@ rutas `/api/dispositivos`, `/api/dispositivos/estado` y
 `/api/dispositivos/:codigo/reset-credenciales` usando un `platform_admin`, y
 verificar que no recibe permisos de administrador tenant.
 
-El panel y el reset deben tener un rate limit propio de 10 solicitudes por 15 minutos
-por identidad/IP del panel.
+El reset tiene un rate limit propio de 10 solicitudes por 15 minutos por
+identidad/IP del panel, configurable con
+`PLATFORM_RESET_RATE_LIMIT_MAX` y `PLATFORM_RESET_RATE_LIMIT_WINDOW_MS`. Las
+lecturas del panel tienen un límite independiente más alto, configurable con
+`PLATFORM_READ_RATE_LIMIT_MAX` y `PLATFORM_READ_RATE_LIMIT_WINDOW_MS`; ambos
+limitadores mantienen contadores propios y no comparten el contador tenant.
 
 La validación final incluye una prueba manual con una placa real (una placa ESP32
 enrolada): reset desde el
