@@ -138,64 +138,73 @@ confirmar que ninguna respuesta contiene campos secretos.
 - **FR-005**: El sistema MUST permitir paginar el listado y filtrarlo por cliente,
   estado de ciclo de vida y versión de firmware, con valores y límites máximos
   validados.
-- **FR-006**: El sistema MUST derivar de forma única y testeada los estados
+- **FR-006**: El cliente especial “plataforma” MUST excluirse también cuando se
+  utilice el filtro `cliente_id` del listado: no debe aparecer como resultado,
+  opción de filtro operativo ni conteo. Ningún chequeo de rol existente MUST
+  conceder a `platform_admin` los permisos de `admin`; T2 MUST probar al
+  `platform_admin` contra las rutas de cliente y confirmar que no obtiene ni
+  permisos administrativos ni acceso fuera de las rutas explícitas del panel.
+- **FR-007**: El sistema MUST derivar de forma única y testeada los estados
   `fabricado` (sin reclamo), `reclamado sin enrolar` y `enrolado`.
-- **FR-007**: El sistema MUST calcular online/offline y última lectura usando la
-  misma lógica observable por el recurso existente de estado de dispositivos.
-- **FR-008**: Todo recurso del panel MUST exigir autenticación válida y el rol
+- **FR-008**: El sistema MUST calcular online/offline usando la misma lógica
+  observable por el recurso existente de estado de dispositivos.
+- **FR-009**: Todo recurso del panel MUST exigir autenticación válida y el rol
   `platform_admin`; sin autenticación debe responder 401 y con otro rol debe
   responder 403. La autorización del panel MUST usar un middleware propio que
   no dependa de `extraerCliente`, porque el usuario global no se autoriza por
   el cliente especial.
-- **FR-009**: La autorización de un `platform_admin` MUST permitir la vista global
+- **FR-010**: La autorización de un `platform_admin` MUST permitir la vista global
   únicamente en los recursos del panel y no alterar el aislamiento aplicado a
   usuarios de clientes en rutas existentes.
-- **FR-010**: El panel MUST exponer recursos bajo `/api/plataforma/...` y su reset
+- **FR-011**: El panel MUST exponer recursos bajo `/api/plataforma/...` y su reset
   MUST delegar en el servicio de la spec 016. No se ampliará directamente
   `/api/dispositivos/:codigo/reset-credenciales`: ese endpoint está montado bajo
   el middleware de cliente y su contrato actual es para administradores de un
   cliente; separar el recurso evita mezclar autorización global con aislamiento
   operativo y mantiene explícita la superficie de plataforma.
-- **FR-011**: El servicio reutilizado de la spec 016 MUST recibir el identificador
+- **FR-012**: El servicio reutilizado de la spec 016 MUST recibir el identificador
   del dispositivo y el `cliente_id` afectado como argumentos explícitos; MUST
   verificarse que no lea `req.clienteId` ni ningún objeto HTTP internamente.
-- **FR-012**: El sistema MUST rechazar cualquier `cliente_id` enviado en el cuerpo
+- **FR-013**: El sistema MUST rechazar cualquier `cliente_id` enviado en el cuerpo
   de una solicitud de reset y determinar el dispositivo objetivo exclusivamente
   por su identificador de ruta.
-- **FR-013**: El panel MUST conservar los resultados idempotentes `reset` y
+- **FR-014**: El panel MUST conservar los resultados idempotentes `reset` y
   `already_reset` del servicio de la spec 016, sin duplicar la lógica de Dynamic
   Security.
-- **FR-014**: Tras un reset exitoso, el dispositivo MUST quedar reclamado sin enrolar
+- **FR-015**: Tras un reset exitoso, el dispositivo MUST quedar reclamado sin enrolar
   y conservar su fecha de reclamo; el fallo MUST comunicarse de forma genérica sin
   presentar un estado exitoso.
-- **FR-015**: Cada reset iniciado desde el panel MUST generar un registro de
+- **FR-016**: Cada reset iniciado desde el panel MUST generar un registro de
   auditoría con el `cliente_id` del dispositivo afectado, el actor, fecha,
   dispositivo y resultado, sin secretos, hashes, tokens, contraseñas ni
   credenciales MQTT. El actor `platform_admin` no determina el `cliente_id` de
   auditoría: se registra el cliente operativo dueño del dispositivo para
   satisfacer la FK `auditoria_cliente_id_fkey` y conservar trazabilidad
   multi-cliente.
-- **FR-016**: El endpoint de reset del panel MUST estar sujeto a rate limit y los
+- **FR-017**: La auditoría visible para el cliente MUST mostrar el actor de un
+  reset originado en el panel como `Administración de la plataforma`, sin
+  exponer el email, username o nombre del `platform_admin`.
+- **FR-018**: El endpoint de reset del panel MUST estar sujeto a rate limit y los
   errores de un dispositivo inexistente o no elegible MUST no revelar su existencia.
-- **FR-017**: Las respuestas del panel MUST omitir cualquier campo secreto o hash,
+- **FR-019**: Las respuestas del panel MUST omitir cualquier campo secreto o hash,
   incluso si existe en las entidades persistidas, y un test MUST detectar una
   violación de esa lista blanca.
-- **FR-018**: La interfaz MUST ofrecer una ruta separada del panel global en el mismo
+- **FR-020**: La interfaz MUST ofrecer una ruta separada del panel global en el mismo
   origen, mostrarla solo a `platform_admin`, presentar filtros y estados, y exigir
   confirmación explícita antes del reset.
-- **FR-019**: La interfaz MUST mostrar un resultado genérico del reset y no detalles
+- **FR-021**: La interfaz MUST mostrar un resultado genérico del reset y no detalles
   internos de credenciales, broker, hashes o errores de persistencia.
-- **FR-020**: La funcionalidad MUST incluir pruebas de autorización, aislamiento,
+- **FR-022**: La funcionalidad MUST incluir pruebas de autorización, aislamiento,
   lista blanca, estados, reset idempotente, auditoría, paginación, filtros, límites
   y visibilidad condicionada del panel.
-- **FR-021**: Las solicitudes del panel MUST enviar el JWT crudo en el header
+- **FR-023**: Las solicitudes del panel MUST enviar el JWT crudo en el header
   `Authorization`, sin el prefijo `Bearer`, de acuerdo con el middleware actual.
-- **FR-022**: El campo “última lectura” del panel MUST representar el timestamp de
+- **FR-024**: El campo “última lectura” del panel MUST representar el timestamp de
   captura más reciente en `lecturas.timestamp`, mientras que “última conexión”
   MUST representar la recepción MQTT más reciente (`dispositivos.ultima_conexion`).
   Ambos campos deben mostrarse por separado; una lectura diferida no puede
   reemplazar la última conexión.
-- **FR-023**: Las pruebas de integración MUST reutilizar las guardas existentes
+- **FR-025**: Las pruebas de integración MUST reutilizar las guardas existentes
   para `TEST_DATABASE_URL` y su aislamiento. No se agregará una guarda nueva ni
   se aceptará ejecutar accidentalmente contra la base de desarrollo.
 
@@ -271,9 +280,11 @@ confirmar que ninguna respuesta contiene campos secretos.
   las pruebas carece de secretos, hashes, tokens, contraseñas y credenciales MQTT.
 - **SC-006**: Un usuario de cliente no puede observar datos de otro cliente mediante
   ninguna ruta existente o nueva en la suite de regresión de aislamiento.
-- **SC-007**: Al menos el 90% de los usuarios de prueba con rol `platform_admin`
-  completa el flujo de consultar un dispositivo y confirmar un reset sin asistencia,
-  y ningún usuario de otro rol ve el panel.
+- **SC-007**: En la suite de autorización, el 100% de las solicitudes de un
+  `platform_admin` a rutas de cliente recibe únicamente el resultado permitido
+  por su rol (sin permisos de `admin`), mientras que el 100% de sus solicitudes
+  a `/api/plataforma/...` autorizadas devuelve datos globales sin incluir el
+  cliente especial “plataforma”.
 
 ## Assumptions
 
