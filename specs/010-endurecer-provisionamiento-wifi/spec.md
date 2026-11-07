@@ -4,7 +4,9 @@
 
 **Created**: 2026-10-31
 
-**Status**: Draft - Spec 1A scope revision
+**Status**: Historical baseline; portal security behavior superseded by [spec 019](../019-portal-softap-wpa2/spec.md)
+
+**Supersession**: The open SoftAP + PIN behavior in User Story 2 and FR-005A/FR-005B is no longer current. Use spec 019 for the current WPA2 SoftAP flow with the shared public code `EcoTrack.123` and no PIN. Other requirements remain historical context for feature 010.
 
 **Input**: User description: "Endurecer el aprovisionamiento WiFi del dispositivo EcoTrack: identidad de fábrica por dispositivo y portal de configuración temporal."
 

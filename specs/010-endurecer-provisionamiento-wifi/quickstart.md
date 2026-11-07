@@ -20,7 +20,7 @@ python scripts\provision_factory.py --count 2 --output C:\ecotrack-factory --ser
 Resultados esperados:
 
 - Dos filas de registro y dos imágenes NVS.
-- `device_id`, PIN y secreto distintos por unidad; `serverHost` coincide con el broker.
+- `device_id` y secreto distintos por unidad; `serverHost` coincide con el broker. SoftAP usa `EcoTrack.123` compartido (actualización 019).
 - Las imágenes pueden inspeccionarse/cargarse con `nvs_partition_gen.py`.
 - Ningún CSV ni `.bin` aparece en `git status`.
 
@@ -39,10 +39,10 @@ La carga de un esquema nuevo puede borrar NVS: cargar la imagen de fábrica desp
 Para cada placa:
 
 1. Sin configuración editable, reiniciar y confirmar que aparece `EcoTrack-Setup-...`.
-2. Conectar un teléfono/PC al SoftAP abierto, ingresar el PIN de su etiqueta y confirmar que un PIN de otra placa falla.
+2. Conectar un teléfono/PC al SoftAP WPA2 con `EcoTrack.123`; abrir el formulario sin PIN (actualización 019).
 3. Guardar una red válida y observar en serial la confirmación WiFi, MQTT y TLS.
 4. Confirmar que el SoftAP desaparece y que la placa queda en `WIFI_STA`.
-5. Reabrir con BOOT sostenido durante 3 s y verificar el bloqueo tras cinco PINs incorrectos.
+5. Reabrir con BOOT sostenido durante 3 s y confirmar que el SoftAP exige `EcoTrack.123`.
 6. Repetir dejando el portal sin una configuración válida durante 10 minutos; confirmar el cierre dentro de 10 min 30 s.
 7. Probar datos inválidos; confirmar respuesta de error, portal activo y ausencia de cambio a estación.
 
@@ -55,4 +55,4 @@ Para cada placa:
 
 ## 5. Evidencia a registrar
 
-Para cada dispositivo anotar: `device_id`, fecha, versión/compilación, tamaño y porcentaje de flash, resultado de carga USB, PIN validado sin registrarlo, SoftAP abierto, hora de cierre por configuración, hora de cierre por timeout, resultado de BOOT, estado TLS 8883, tópico publicado y capturas/logs seriales. No incluir PIN, claves ni secretos en commits ni en reportes públicos.
+Para cada dispositivo anotar: `device_id`, fecha, versión/compilación, tamaño y porcentaje de flash, resultado de carga USB, asociación con `EcoTrack.123`, hora de cierre por configuración, hora de cierre por timeout, resultado de BOOT, estado TLS 8883, tópico publicado y capturas/logs seriales. No incluir credenciales WiFi del sitio ni secretos en commits ni en reportes públicos.

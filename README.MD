@@ -132,13 +132,14 @@ abre en `https://localhost` o `https://<IP del servidor>`. Caddy enruta `/api/*`
 
 ### Identidad y credenciales del dispositivo
 
-La identidad de fábrica (`device_id`, PIN de instalación, `serverHost`, clave SoftAP
-opcional y secreto reservado) se genera por dispositivo y se carga en NVS mediante el
-procedimiento de fabricación. El `serverHost` queda grabado de fábrica. El SoftAP de
-configuración es abierto pero temporal:
-el portal exige primero el PIN de 6 dígitos, bloquea cinco intentos incorrectos durante
-5 minutos y se apaga como máximo a los 10 minutos. Durante ese tramo, el PIN y la
-clave WiFi viajan sin cifrar dentro de la red local del SoftAP. No se deben agregar
+La identidad de fábrica (`device_id`, `serverHost` y secreto reservado) se genera por
+dispositivo y se carga en NVS mediante el procedimiento de fabricación. El `serverHost`
+queda grabado de fábrica. El SoftAP de configuración usa WPA2 con el código compartido
+`EcoTrack.123`; al conectarse se muestra directamente el formulario, sin PIN. Como el
+código es público e igual en todos los equipos, cualquier persona que lo conozca puede
+asociarse. El portal es temporal y se apaga como máximo a los 10 minutos. WPA2 cifra el
+enlace inalámbrico; el portal sigue usando HTTP y el ESP32 recibe las credenciales en
+el extremo local. No se deben agregar
 secretos a `esp32Secret.h.example`, al sketch ni al repositorio (RNF06), ni se imprimen
 por serial. Los campos `mqttHost`, `mqttUser` y `mqttPass` solo se compilan cuando se
 define `ECOTRACK_DEV_PORTAL`; esa macro queda apagada por defecto.
@@ -200,9 +201,10 @@ Reemplazá `<host>` por el host o IP estable del servidor:
    `python -m esptool` no funciona.
 6. Después del firmware, escribí el NVS en `0x9000` con tamaño `0x5000` usando
    `<id>.nvs.bin`.
-7. Encendé el ESP32. Abrirá `EcoTrack-Setup-<sufijo>` y el portal estará en
-   `http://192.168.4.1/`. Ingresá el PIN de 6 dígitos; después de cinco intentos
-   fallidos queda bloqueado. El dispositivo sincroniza NTP y llama a
+7. Encendé el ESP32. Abrirá `EcoTrack-Setup-<sufijo>`; conectate usando la clave
+   compartida `EcoTrack.123`. El portal estará en
+   `http://192.168.4.1/` y mostrará directamente el formulario WiFi. El dispositivo
+   sincroniza NTP y llama a
    `POST /api/dispositivos/enrolar`. Mientras no esté reclamado recibe el `409`
    genérico y reintenta con backoff.
 8. En el dashboard, como admin, reclamá el dispositivo pegando el token. En el

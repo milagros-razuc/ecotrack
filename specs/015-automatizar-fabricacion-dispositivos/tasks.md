@@ -18,7 +18,7 @@
 - [X] T011 Implementar validación de insertados esperados antes de tokens y flasheo.
 - [X] T012 Implementar generación individual de tokens y almacenamiento protegido fuera del repositorio sin impresión.
 - [X] T013 Implementar ACL restringida con `icacls` y verificación de permisos.
-- [X] T014 Implementar etiquetas mínimas por dispositivo con `device_id` y PIN.
+- [X] T014 Implementar etiquetas mínimas por dispositivo con `device_id`, sin credenciales SoftAP.
 
 ## Phase 3 - CLI flashing and verification
 

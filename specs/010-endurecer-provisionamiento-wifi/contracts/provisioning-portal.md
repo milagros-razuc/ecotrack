@@ -1,5 +1,7 @@
 # Contrato: comportamiento del portal de configuración
 
+**Estado vigente**: La actualización 019 reemplaza el flujo abierto + PIN por WPA2 con el código público compartido `EcoTrack.123`; ver [contrato 019](../../019-portal-softap-wpa2/contracts/provisioning-portal.md).
+
 ## Estado y cierre
 
 | Evento | Respuesta observable |
