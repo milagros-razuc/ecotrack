@@ -177,10 +177,10 @@ bool setConfigField(DeviceConfig& config, const String& field, const String& val
 bool loadMqttRecoveryState(MqttRecoveryState& state) {
   Preferences prefs;
   if (!prefs.begin(kNamespace, true)) return false;
-  state.authRejectCount = prefs.getUInt("mqtt_auth_reject_count", 0);
-  state.reenrollHourCount = prefs.getUInt("mqtt_reenroll_hour_count", 0);
-  state.reenrollWindowStart = prefs.getLong64("mqtt_reenroll_window_start", 0);
-  state.lastRejectEpoch = prefs.getLong64("mqtt_auth_last_reject", 0);
+  state.authRejectCount = prefs.getUInt("mqtt_rej_count", 0);
+  state.reenrollHourCount = prefs.getUInt("mqtt_rn_hcount", 0);
+  state.reenrollWindowStart = prefs.getLong64("mqtt_rn_wstart", 0);
+  state.lastRejectEpoch = prefs.getLong64("mqtt_rej_last", 0);
   prefs.end();
   return true;
 }
@@ -189,10 +189,10 @@ bool saveMqttRecoveryState(const MqttRecoveryState& state) {
   Preferences prefs;
   if (!prefs.begin(kNamespace, false)) return false;
   const bool ok =
-      prefs.putUInt("mqtt_auth_reject_count", state.authRejectCount) > 0 &&
-      prefs.putUInt("mqtt_reenroll_hour_count", state.reenrollHourCount) > 0 &&
-      prefs.putLong64("mqtt_reenroll_window_start", state.reenrollWindowStart) > 0 &&
-      prefs.putLong64("mqtt_auth_last_reject", state.lastRejectEpoch) > 0;
+      prefs.putUInt("mqtt_rej_count", state.authRejectCount) > 0 &&
+      prefs.putUInt("mqtt_rn_hcount", state.reenrollHourCount) > 0 &&
+      prefs.putLong64("mqtt_rn_wstart", state.reenrollWindowStart) > 0 &&
+      prefs.putLong64("mqtt_rej_last", state.lastRejectEpoch) > 0;
   prefs.end();
   return ok;
 }
