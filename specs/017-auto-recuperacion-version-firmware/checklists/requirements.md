@@ -29,7 +29,8 @@
   reinicios y no modifican identidad ni secreto de fábrica.
 - [x] Se define el comportamiento ante reinicio, reintento y backoff.
 - [x] Se define el reporte MQTT autenticado, con `device_id` tomado del tópico, y el
-  campo opcional `fw` dentro de lecturas, incluyendo longitud y formato.
+  campo opcional `fw` dentro de lecturas, incluyendo longitud y formato; un `fw`
+  inválido se descarta sin perder la lectura.
 - [x] Se exige que el reporte corresponda al dispositivo autenticado dueño del `device_id`.
 - [x] Se cubren aislamiento por cliente y ausencia de secretos.
 - [x] Firmware viejo se muestra como "desconocida" sin error.

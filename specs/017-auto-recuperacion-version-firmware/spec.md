@@ -69,7 +69,8 @@ autenticado o malformado y verificar que no modifica esos datos.
    identidad MQTT no válida, **When** llega al backend, **Then** se rechaza sin
    actualizar versión, fecha ni otro dispositivo.
 4. **Given** una versión inválida, vacía, excesivamente larga o con formato no
-   permitido, **When** se recibe, **Then** se rechaza antes de persistirla.
+   permitido dentro de `fw`, **When** se recibe, **Then** se descarta únicamente
+   `fw`, se conserva la lectura y no se actualizan versión ni fecha.
 5. **Given** el listado de dispositivos del cliente, **When** un administrador lo
    consulta, **Then** ve versión y fecha del último reporte, pero nunca secretos,
    tokens, contraseñas ni hashes sensibles.
@@ -152,8 +153,10 @@ autenticado o malformado y verificar que no modifica esos datos.
   la identidad y del secreto de fábrica, el contador de rechazos consecutivos bajo
   la clave `mqtt_auth_reject_count` y el contador de re-enrolamientos de la ventana
   bajo la clave `mqtt_reenroll_hour_count`. MUST persistir también el inicio de la
-  ventana bajo `mqtt_reenroll_window_start`. Estos valores MUST persistir
-  exclusivamente en NVS y sobrevivir a reinicios.
+  ventana bajo `mqtt_reenroll_window_start`, y el instante del último rechazo
+  contable bajo `mqtt_auth_last_reject`. Estos valores MUST persistir
+  exclusivamente en NVS y sobrevivir a reinicios para conservar el intervalo mínimo
+  de 30 segundos también después de reiniciar el dispositivo.
 - **FR-008b**: Al reiniciar, el firmware MUST recuperar esos valores desde NVS,
   descartar la ventana horaria si ya expiró y conservar `device_id`,
   `device_secret` y toda la identidad de fábrica sin modificarlos.
@@ -167,8 +170,9 @@ autenticado o malformado y verificar que no modifica esos datos.
   campo libre del payload. El backend MUST derivar y verificar la identidad a partir
   de las credenciales MQTT autenticadas y del `device_id` del tópico; no se aceptará
   un campo de body HTTP público como fuente confiable de identidad o autorización.
-  `lecturaMqttSchema` MUST aceptar `fw` ausente y, cuando esté presente, exigir una
-  cadena de entre 1 y 50 caracteres con formato SemVer
+  `lecturaMqttSchema` MUST aceptar `fw` ausente; el backend debe validar `fw`
+  separadamente y, si es inválido, descartar solo ese campo. Una versión válida debe
+  ser una cadena de entre 1 y 50 caracteres con formato SemVer
   `MAJOR.MINOR.PATCH` (`^\d+\.\d+\.\d+$`); el campo no debe ser obligatorio para
   persistir la lectura.
 - **FR-012**: El backend MUST aceptar el reporte únicamente cuando la identidad
@@ -220,6 +224,17 @@ autenticado o malformado y verificar que no modifica esos datos.
   versión, mantener compatibilidad con dispositivos antiguos y permitir rollout
   gradual con observación de versiones reportadas y rollback del binario sin cambiar
   particiones.
+
+### Orden de despliegue
+
+1. Aplicar y verificar la migración del backend en `ecotrack_test`, incluyendo
+   `firmware_version` y `firmware_reported_at`.
+2. Desplegar el backend que acepta lecturas con `fw` opcional y persiste solo
+   versiones válidas.
+3. Verificar aislamiento por cliente y compatibilidad con lecturas sin `fw`.
+4. Recién después actualizar gradualmente el firmware, que comenzará a incluir
+   `fw` en las lecturas.
+5. Observar versiones reportadas y mantener rollback del binario anterior.
 
 ### Impacto en el OTA de diciembre
 
