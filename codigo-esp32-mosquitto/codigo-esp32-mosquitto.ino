@@ -6,6 +6,7 @@
 
 #include "DeviceConfig.h"
 #include "EnrollmentClient.h"
+#include "FirmwareRecoveryPolicy.h"
 #include "ReadingBuffer.h"
 #include "SetupPortal.h"
 #include "ecotrack_ca.h"
@@ -28,6 +29,7 @@ constexpr unsigned long kHeapLogIntervalMs = 30000;
 constexpr time_t kValidEpoch = 1700000000;
 constexpr size_t kReadingBufferCapacity = 360;
 constexpr size_t kForwardBatchSize = 1;
+constexpr char kFirmwareVersion[] = "1.0.0";
 
 enum class Mode { provisioning, connectingWifi, verifyingMqtt, readyDisplay, running };
 
@@ -53,14 +55,68 @@ unsigned long nextEnrollmentAt = 0;
 unsigned long lastHeapLogAt = 0;
 uint8_t enrollmentAttempts = 0;
 bool ntpReady = false;
+MqttRecoveryState recoveryState;
+FirmwareRecoveryPolicy recoveryPolicy(recoveryState);
+bool recoveryEnrollmentPending = false;
 ReadingBuffer<kReadingBufferCapacity> readingBuffer;
 
 void beginWifi();
+bool pollNtpSync();
 
 bool hasMqttCredentials() {
   return config.mqttEnrolled && !config.mqttUser.isEmpty() &&
          !config.mqttPassword.isEmpty() &&
          !config.mqttHost.isEmpty() && config.mqttPort != 0;
+}
+
+bool saveRecoveryState() {
+  if (saveMqttRecoveryState(recoveryState)) return true;
+  Serial.println("No se pudo guardar el estado de recuperacion");
+  return false;
+}
+
+void handleNonConclusiveEvent() {
+  const bool hadRejectState =
+      recoveryState.authRejectCount != 0 || recoveryState.lastRejectEpoch != 0;
+  recoveryPolicy.onNonConclusiveEvent();
+  if (hadRejectState) saveRecoveryState();
+}
+
+bool validEpochNow(time_t& now) {
+  now = time(nullptr);
+  return ntpReady && now > kValidEpoch;
+}
+
+bool isMqttAuthenticationReject(int state) {
+  return state == MQTT_CONNECT_BAD_CREDENTIALS ||
+         state == MQTT_CONNECT_UNAUTHORIZED;
+}
+
+void handleMqttAuthenticationReject() {
+  time_t now = 0;
+  if (!validEpochNow(now)) {
+    handleNonConclusiveEvent();
+    pollNtpSync();
+    return;
+  }
+  if (!recoveryPolicy.recordAuthReject(now, true)) {
+    saveRecoveryState();
+    return;
+  }
+  if (!recoveryPolicy.canReenroll(now, true)) {
+    saveRecoveryState();
+    setupPortalStatus("MQTT_REENROLL_LIMIT");
+    Serial.println("Limite horario de re-enrolamiento alcanzado");
+    return;
+  }
+  config.mqttUser = "";
+  config.mqttPassword = "";
+  config.mqttEnrolled = false;
+  recoveryEnrollmentPending = true;
+  configNeedsSave = true;
+  saveRecoveryState();
+  Serial.println("Credenciales MQTT descartadas; se reintentara el enrolamiento");
+  mode = Mode::verifyingMqtt;
 }
 
 void mqttMessageCallback(char*, byte*, unsigned int) {}
@@ -143,6 +199,7 @@ void pollConnectingWifi() {
     beginNtpSync();
     Serial.println("WiFi conectado. Probando MQTT...");
   } else if (millis() - wifiStartedAt >= kWifiTimeoutMs) {
+    handleNonConclusiveEvent();
     WiFi.disconnect();
     enterProvisioning();
     setupPortalStatus("WIFI_FAIL");
@@ -152,6 +209,7 @@ void pollConnectingWifi() {
 
 void pollVerifyingMqtt() {
   if (WiFi.status() != WL_CONNECTED) {
+    handleNonConclusiveEvent();
     enterProvisioning();
     setupPortalStatus("WIFI_FAIL");
     return;
@@ -180,6 +238,14 @@ void pollVerifyingMqtt() {
       configNeedsSave = true;
       enrollmentAttempts = 0;
       nextEnrollmentAt = 0;
+      if (recoveryEnrollmentPending) {
+        time_t now = 0;
+        if (validEpochNow(now) && recoveryPolicy.recordReenrollment(now, true)) {
+          recoveryPolicy.onReenrollmentSucceeded();
+          saveRecoveryState();
+        }
+        recoveryEnrollmentPending = false;
+      }
       setupPortalStatus("MQTT_ENROLLED");
     } else {
       enrollmentAttempts = min<uint8_t>(enrollmentAttempts + 1, 8);
@@ -211,10 +277,17 @@ void pollVerifyingMqtt() {
   if (!mqttConnected) {
     const int mqttState = mqtt.state();
     setupPortalStatus("MQTT_FAIL:" + String(mqttState));
+    if (isMqttAuthenticationReject(mqttState)) {
+      handleMqttAuthenticationReject();
+    } else {
+      handleNonConclusiveEvent();
+    }
     printMqttFailure("No se pudo conectar a MQTT");
     return;
   }
 
+  recoveryPolicy.onMqttConnected();
+  saveRecoveryState();
   const String subscriptionTopic = "ecotrack/" + config.deviceId + "/#";
   if (!mqtt.subscribe(subscriptionTopic.c_str())) {
     mqtt.disconnect();
@@ -243,6 +316,7 @@ void pollVerifyingMqtt() {
 
 void pollReadyDisplay() {
   if (WiFi.status() != WL_CONNECTED) {
+    handleNonConclusiveEvent();
     enterProvisioning();
     setupPortalStatus("WIFI_FAIL");
     return;
@@ -290,6 +364,8 @@ void reconnectMqtt() {
                                           config.mqttPassword.c_str());
 #endif
   if (mqttConnected) {
+    recoveryPolicy.onMqttConnected();
+    saveRecoveryState();
     const String subscriptionTopic = "ecotrack/" + config.deviceId + "/#";
     if (!mqtt.subscribe(subscriptionTopic.c_str())) {
       mqtt.disconnect();
@@ -299,6 +375,11 @@ void reconnectMqtt() {
     logHeap("conectado_tls");
     Serial.println("MQTT reconectado");
   } else {
+    if (isMqttAuthenticationReject(mqtt.state())) {
+      handleMqttAuthenticationReject();
+    } else {
+      handleNonConclusiveEvent();
+    }
     printMqttFailure("MQTT fallo; reintentando");
   }
 }
@@ -320,6 +401,8 @@ String readingPayload(float temperatura,
   payload += ",\"humedad\":" + String(humedad, 1);
   payload += ",\"luminosidad\":" + String(luz);
   if (includeTimestamp) payload += ",\"ts\":" + String(ts);
+  const std::string firmwareField = buildFirmwareField(kFirmwareVersion);
+  payload += firmwareField.c_str();
   payload += "}";
   return payload;
 }
@@ -403,6 +486,9 @@ void setup() {
   mqtt.setSocketTimeout(3);
   mqtt.setCallback(mqttMessageCallback);
   config = defaultConfig();
+  if (!loadMqttRecoveryState(recoveryState)) {
+    Serial.println("No se pudo cargar el estado de recuperacion");
+  }
   String identityError;
   if (!loadFactoryIdentity(config, identityError)) {
     Serial.println("No se pudo cargar identidad de fabrica: " + identityError);
