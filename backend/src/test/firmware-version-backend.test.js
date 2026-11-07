@@ -6,6 +6,11 @@ const test = require('node:test');
 const repositoryRoot = path.resolve(__dirname, '../../..');
 const migrationDirectory = path.join(repositoryRoot, 'backend', 'migrations');
 const aclPath = path.join(repositoryRoot, 'mosquitto', 'config', 'acl.conf');
+const fakeIo = {
+  to() {
+    return { emit() {} };
+  },
+};
 
 function loadMqttClientDoubles() {
   const servicePath = path.resolve(__dirname, '../services/dispositivos.service.js');
@@ -14,6 +19,7 @@ function loadMqttClientDoubles() {
   const alertasPath = path.resolve(__dirname, '../services/alertas.service.js');
   const mqttPath = path.resolve(__dirname, '../mqtt/client.js');
   const calls = [];
+  const readings = [];
   const subscriptions = [];
   const handlers = {};
 
@@ -35,7 +41,7 @@ function loadMqttClientDoubles() {
       calls.push(report);
     },
   });
-  install(lecturasPath, { async guardar() {} });
+  install(lecturasPath, { async guardar(reading) { readings.push(reading); } });
   install(umbralesPath, { async obtener() { return null; } });
   install(alertasPath, { async registrar() { return { id: 1 }; } });
   require.cache[require.resolve('mqtt')] = {
@@ -59,7 +65,7 @@ function loadMqttClientDoubles() {
 
   delete require.cache[mqttPath];
   const mqttClient = require(mqttPath);
-  return { mqttClient, calls, subscriptions, handlers };
+  return { mqttClient, calls, readings, subscriptions, handlers };
 }
 
 function assertSafeRealDatabase() {
@@ -85,12 +91,17 @@ test('backend agrega una migración reversible para versión y fecha de firmware
   assert.doesNotMatch(migration, /dispositivos_fabrica|device_secret|token_reclamo/i);
 });
 
-test('reporte válido guarda versión semver y fecha del servidor', async () => {
+test('fw válido dentro de una lectura guarda versión y fecha del servidor', async () => {
   const { mqttClient, calls } = loadMqttClientDoubles();
   mqttClient.procesarMensaje(
-    {},
-    'ecotrack/DEV-A/firmware',
-    Buffer.from(JSON.stringify({ version: '1.2.3', device_id: 'DEV-B' })),
+    fakeIo,
+    'ecotrack/DEV-A/lecturas',
+    Buffer.from(JSON.stringify({
+      temperatura: 20,
+      humedad: 50,
+      luminosidad: 50,
+      fw: '1.2.3',
+    })),
     new Date('2026-11-04T22:00:00.000Z'),
   );
   await new Promise((resolve) => setImmediate(resolve));
@@ -102,12 +113,18 @@ test('reporte válido guarda versión semver y fecha del servidor', async () => 
   }]);
 });
 
-test('device_id del payload es ignorado y se usa el del tópico', async () => {
+test('device_id del payload no es una fuente de identidad', async () => {
   const { mqttClient, calls } = loadMqttClientDoubles();
   await mqttClient.procesarMensaje(
-    {},
-    'ecotrack/DEV-A/firmware',
-    Buffer.from(JSON.stringify({ version: '2.0.0', device_id: 'DEV-B' })),
+    fakeIo,
+    'ecotrack/DEV-A/lecturas',
+    Buffer.from(JSON.stringify({
+      temperatura: 20,
+      humedad: 50,
+      luminosidad: 50,
+      fw: '2.0.0',
+      device_id: 'DEV-B',
+    })),
     new Date('2026-11-04T22:01:00.000Z'),
   );
 
@@ -115,14 +132,14 @@ test('device_id del payload es ignorado y se usa el del tópico', async () => {
   assert.notEqual(calls[0]?.dispositivoCodigo, 'DEV-B');
 });
 
-test('el suscriptor se suscribe al tópico propio de reportes de firmware', () => {
+test('el suscriptor solo usa el tópico de lecturas', () => {
   const { mqttClient, subscriptions, handlers } = loadMqttClientDoubles();
   process.env.MQTT_CA_PATH = path.join(repositoryRoot, 'backend', 'package.json');
   process.env.MQTT_HOST = 'test-host';
   process.env.MQTT_PORT = '8883';
   mqttClient({});
   handlers.connect();
-  assert.ok(subscriptions.includes('ecotrack/+/firmware'));
+  assert.deepEqual(subscriptions, ['ecotrack/+/lecturas']);
 });
 
 test('payload malformado no rompe el suscriptor ni registra secretos', async () => {
@@ -132,8 +149,8 @@ test('payload malformado no rompe el suscriptor ni registra secretos', async () 
   console.error = (...args) => errors.push(args.join(' '));
   try {
     await assert.doesNotReject(() => mqttClient.procesarMensaje(
-      {},
-      'ecotrack/DEV-A/firmware',
+      fakeIo,
+      'ecotrack/DEV-A/lecturas',
       Buffer.from('{"version":'),
     ));
   } finally {
@@ -143,23 +160,35 @@ test('payload malformado no rompe el suscriptor ni registra secretos', async () 
   assert.doesNotMatch(errors.join('\n'), /device_secret|mqtt_pass|token|secret/i);
 });
 
-test('versión con formato inválido se descarta', async () => {
-  const { mqttClient, calls } = loadMqttClientDoubles();
+test('fw con formato inválido se descarta', async () => {
+  const { mqttClient, calls, readings } = loadMqttClientDoubles();
   await mqttClient.procesarMensaje(
-    {},
-    'ecotrack/DEV-A/firmware',
-    Buffer.from(JSON.stringify({ version: 'release-december' })),
+    fakeIo,
+    'ecotrack/DEV-A/lecturas',
+    Buffer.from(JSON.stringify({
+      temperatura: 20,
+      humedad: 50,
+      luminosidad: 50,
+      fw: 'release-december',
+    })),
   );
   assert.deepEqual(calls, []);
+  assert.equal(readings.length, 1);
+  assert.equal(readings[0].temperatura, 20);
 });
 
 test('reporte repetido actualiza y no duplica el dispositivo', async () => {
   const { mqttClient, calls } = loadMqttClientDoubles();
   for (const version of ['1.2.3', '1.2.4']) {
     await mqttClient.procesarMensaje(
-      {},
-      'ecotrack/DEV-A/firmware',
-      Buffer.from(JSON.stringify({ version })),
+      fakeIo,
+      'ecotrack/DEV-A/lecturas',
+      Buffer.from(JSON.stringify({
+        temperatura: 20,
+        humedad: 50,
+        luminosidad: 50,
+        fw: version,
+      })),
       new Date('2026-11-04T22:02:00.000Z'),
     );
   }

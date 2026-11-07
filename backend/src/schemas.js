@@ -86,10 +86,13 @@ const lecturaMqttSchema = z.object({
   humedad: z.number().min(0).max(100),
   luminosidad: z.number().min(0).max(100),
   ts: z.number().int().nonnegative().optional(),
+  fw: z.unknown().optional(),
 });
 
 const firmwareVersionMqttSchema = z.object({
-  version: z.string().regex(/^\d+\.\d+\.\d+$/, 'versión debe usar SemVer MAJOR.MINOR.PATCH'),
+  version: z.string()
+    .max(50, 'versión demasiado larga')
+    .regex(/^\d+\.\d+\.\d+$/, 'versión debe usar SemVer MAJOR.MINOR.PATCH'),
 }).passthrough();
 
 // Para POST /api/usuarios (alta de usuario, CU09 — RF16)

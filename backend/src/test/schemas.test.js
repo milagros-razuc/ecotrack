@@ -119,6 +119,24 @@ test('CP-RF04 acepta un payload válido y el handler persiste la lectura', async
   assert.equal(calls.guardar, 1);
 });
 
+test('CP-RF04 acepta fw opcional como campo de lectura', () => {
+  const result = lecturaMqttSchema.safeParse({
+    ...validPayload,
+    fw: '01.002.0003',
+  });
+  assert.equal(result.success, true);
+  assert.equal(result.data.fw, '01.002.0003');
+});
+
+test('CP-RF04 conserva una lectura aunque fw sea inválido', () => {
+  const result = lecturaMqttSchema.safeParse({
+    ...validPayload,
+    fw: 'abc',
+  });
+  assert.equal(result.success, true);
+  assert.equal(result.data.fw, 'abc');
+});
+
 for (const missingField of ['temperatura', 'humedad', 'luminosidad']) {
   test(`CP-RF04 rechaza payload con campo faltante: ${missingField} y no persiste`, async () => {
     const payload = { ...validPayload };

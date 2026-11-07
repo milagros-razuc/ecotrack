@@ -53,10 +53,7 @@ function iniciarMQTT(io) {
   mqttClient.on('connect', () => {
     console.log('Conectado a Mosquitto');
     mqttClient.subscribe('ecotrack/+/lecturas', (lecturasError) => {
-      if (lecturasError) return;
-      mqttClient.subscribe('ecotrack/+/firmware', (firmwareError) => {
-        if (!firmwareError) console.log('Suscrito a tópicos de lecturas y firmware');
-      });
+      if (!lecturasError) console.log('Suscrito al tópico de lecturas');
     });
   });
 
@@ -74,30 +71,6 @@ function iniciarMQTT(io) {
 async function procesarMensaje(io, topic, message, recibidaEn = new Date()) {
   try {
       const dispositivoCodigo = topic.split('/')[1];
-
-      if (topic.split('/').length === 3 && topic.endsWith('/firmware')) {
-        let firmwareData;
-        try {
-          firmwareData = JSON.parse(message.toString());
-        } catch (err) {
-          console.error(`Reporte de firmware descartado de ${dispositivoCodigo}: payload inválido`);
-          return;
-        }
-        const resultadoFirmware = firmwareVersionMqttSchema.safeParse(firmwareData);
-        if (!resultadoFirmware.success) {
-          console.error(`Reporte de firmware descartado de ${dispositivoCodigo}: versión inválida`);
-          return;
-        }
-        const guardado = await dispositivosService.guardarReporteFirmware({
-          dispositivoCodigo,
-          version: resultadoFirmware.data.version,
-          reportadaEn: recibidaEn instanceof Date ? recibidaEn : new Date(recibidaEn),
-        });
-        if (!guardado) {
-          console.error(`Reporte de firmware descartado de ${dispositivoCodigo}: dispositivo inexistente`);
-        }
-        return;
-      }
 
       let dataCruda;
       try {
@@ -155,6 +128,23 @@ async function procesarMensaje(io, topic, message, recibidaEn = new Date()) {
         && captureAt < new Date(contexto.reclamado_en)) {
         console.log(`Mensaje MQTT descartado: ${dispositivoCodigo} anterior a reclamado_en`);
         return;
+      }
+
+      if (data.fw !== undefined) {
+        const resultadoFirmware = firmwareVersionMqttSchema.safeParse({ version: data.fw });
+        if (!resultadoFirmware.success) {
+          delete data.fw;
+          console.error(`Reporte de firmware descartado de ${dispositivoCodigo}: versión inválida`);
+        } else {
+          const guardado = await dispositivosService.guardarReporteFirmware({
+            dispositivoCodigo,
+            version: resultadoFirmware.data.version,
+            reportadaEn: receivedAt,
+          });
+          if (!guardado) {
+            console.error(`Reporte de firmware descartado de ${dispositivoCodigo}: dispositivo inexistente`);
+          }
+        }
       }
 
       await dispositivosService.registrarConexion(dispositivoCodigo, receivedAt);
