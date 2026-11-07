@@ -12,9 +12,21 @@
 Desde `backend`:
 
 ```powershell
-$env:TEST_DATABASE_URL = "postgresql://usuario:password@localhost:5432/ecotrack_test"
+$env:DB_HOST = "127.0.0.1"
+$env:DB_PORT = "5433"
+$env:DB_NAME = "ecotrack_test"
+$env:DB_USER = "<TEST_USER>"
+$env:DB_PASS = "<TEST_PASSWORD>"
+node -e "require('./src/config/migrate')().then(()=>process.exit(0)).catch(e=>{console.error(e.message);process.exit(1)})"
+$env:TEST_DATABASE_URL = "postgresql://<TEST_USER>:<TEST_PASSWORD>@127.0.0.1:5433/ecotrack_test"
 npm test
+Remove-Item Env:DB_HOST,Env:DB_PORT,Env:DB_NAME,Env:DB_USER,Env:DB_PASS,Env:TEST_DATABASE_URL
 ```
+
+El contenedor PostgreSQL de pruebas debe publicar `ecotrack_test` en
+`127.0.0.1:5433`. No usar el PostgreSQL de desarrollo en `5432`. La migración se
+ejecuta explícitamente antes de la suite con las mismas variables de conexión que
+usará `TEST_DATABASE_URL`.
 
 La suite debe comprobar:
 
