@@ -160,7 +160,7 @@ test('payload malformado no rompe el suscriptor ni registra secretos', async () 
   assert.doesNotMatch(errors.join('\n'), /device_secret|mqtt_pass|token|secret/i);
 });
 
-test('fw con formato inválido se descarta', async () => {
+test('fw inválido se descarta sin perder la lectura', async () => {
   const { mqttClient, calls, readings } = loadMqttClientDoubles();
   await mqttClient.procesarMensaje(
     fakeIo,
@@ -176,6 +176,28 @@ test('fw con formato inválido se descarta', async () => {
   assert.equal(readings.length, 1);
   assert.equal(readings[0].temperatura, 20);
 });
+
+for (const [label, fw] of [
+  ['sufijo no SemVer', '1.2.3-dev'],
+  ['valor numérico', 123],
+  ['más de 50 caracteres', '1'.repeat(51)],
+]) {
+  test(`fw ${label} se descarta y conserva la lectura`, async () => {
+    const { mqttClient, calls, readings } = loadMqttClientDoubles();
+    await mqttClient.procesarMensaje(
+      fakeIo,
+      'ecotrack/DEV-A/lecturas',
+      Buffer.from(JSON.stringify({
+        temperatura: 20,
+        humedad: 50,
+        luminosidad: 50,
+        fw,
+      })),
+    );
+    assert.deepEqual(calls, []);
+    assert.equal(readings.length, 1);
+  });
+}
 
 test('reporte repetido actualiza y no duplica el dispositivo', async () => {
   const { mqttClient, calls } = loadMqttClientDoubles();
@@ -243,10 +265,10 @@ test('dueño A no ve dispositivos del dueño B', async () => {
   assert.deepEqual(result.map(({ codigo }) => codigo), ['DEV-A']);
 });
 
-test('ACL permite publicar solo el tópico de reportes propio', () => {
+test('ACL permite publicar solo el tópico de lecturas propio', () => {
   const acl = fs.readFileSync(aclPath, 'utf8');
-  assert.match(acl, /topic write ecotrack\/ESP32-001\/firmware/);
-  assert.doesNotMatch(acl, /topic write ecotrack\/\+\/firmware/);
+  assert.match(acl, /topic write ecotrack\/ESP32-001\/lecturas/);
+  assert.doesNotMatch(acl, /\/firmware/);
 });
 
 test('reporte de firmware persiste en PostgreSQL real', {
@@ -260,10 +282,16 @@ test('reporte de firmware persiste en PostgreSQL real', {
   process.env.DB_PASS = decodeURIComponent(database.password);
 
   const servicePath = path.resolve(__dirname, '../services/dispositivos.service.js');
+  const lecturasPath = path.resolve(__dirname, '../services/lecturas.service.js');
+  const umbralesPath = path.resolve(__dirname, '../services/umbrales.service.js');
+  const alertasPath = path.resolve(__dirname, '../services/alertas.service.js');
   const dbPath = path.resolve(__dirname, '../config/db.js');
   const mqttPath = path.resolve(__dirname, '../mqtt/client.js');
   delete require.cache[mqttPath];
   delete require.cache[servicePath];
+  delete require.cache[lecturasPath];
+  delete require.cache[umbralesPath];
+  delete require.cache[alertasPath];
   delete require.cache[dbPath];
 
   const pool = require('../config/db');
@@ -277,9 +305,14 @@ test('reporte de firmware persiste en PostgreSQL real', {
   try {
     const { procesarMensaje } = require('../mqtt/client');
     await procesarMensaje(
-      {},
-      `ecotrack/${deviceCode}/firmware`,
-      Buffer.from(JSON.stringify({ version: '3.4.5', device_id: 'IGNORADO' })),
+      fakeIo,
+      `ecotrack/${deviceCode}/lecturas`,
+      Buffer.from(JSON.stringify({
+        temperatura: 20,
+        humedad: 50,
+        luminosidad: 50,
+        fw: '3.4.5',
+      })),
       reportedAt,
     );
     const { rows } = await pool.query(
@@ -291,7 +324,38 @@ test('reporte de firmware persiste en PostgreSQL real', {
       firmware_reported_at: reportedAt,
     });
 
+    const beforeInvalid = await pool.query(
+      'SELECT COUNT(*)::int AS count FROM lecturas WHERE dispositivo_codigo = $1',
+      [deviceCode],
+    );
+    for (const fw of ['1.2.3-dev', 123, '1'.repeat(51)]) {
+      await procesarMensaje(
+        fakeIo,
+        `ecotrack/${deviceCode}/lecturas`,
+        Buffer.from(JSON.stringify({
+          temperatura: 21,
+          humedad: 51,
+          luminosidad: 51,
+          fw,
+        })),
+        reportedAt,
+      );
+    }
+    const afterInvalid = await pool.query(
+      'SELECT COUNT(*)::int AS count FROM lecturas WHERE dispositivo_codigo = $1',
+      [deviceCode],
+    );
+    assert.equal(afterInvalid.rows[0].count - beforeInvalid.rows[0].count, 3);
+    const unchanged = await pool.query(
+      'SELECT firmware_version, firmware_reported_at FROM dispositivos WHERE codigo = $1',
+      [deviceCode],
+    );
+    assert.deepEqual(unchanged.rows[0], {
+      firmware_version: '3.4.5',
+      firmware_reported_at: reportedAt,
+    });
   } finally {
+    await pool.query('DELETE FROM lecturas WHERE dispositivo_codigo = $1', [deviceCode]);
     await pool.query('DELETE FROM dispositivos WHERE codigo = $1', [deviceCode]);
     await pool.end();
   }
