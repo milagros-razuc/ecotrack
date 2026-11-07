@@ -120,7 +120,7 @@ autenticado o malformado y verificar que no modifica esos datos.
 - **FR-002**: El firmware MUST reiniciar el contador ante una conexión MQTT exitosa y
   MUST establecerlo en `0` ante cualquier evento no concluyente que no sea un rechazo
   de autenticación confirmado.
-- **FR-002a**: El firmware MUST establecer `mqtt_auth_reject_count` en `0` después
+- **FR-002a**: El firmware MUST establecer `mqtt_rn_rcount` en `0` después
   de una conexión MQTT exitosa y después de un re-enrolamiento exitoso.
 - **FR-003**: El firmware MUST distinguir rechazo de credenciales de Wi-Fi ausente,
   broker caído, timeout, DNS fallido y fallo de negociación TLS; estos últimos MUST
@@ -132,11 +132,11 @@ autenticado o malformado y verificar que no modifica esos datos.
   **no concluyentes** únicamente: timeout MQTT, fallo DNS, fallo de negociación
   TLS, broker caído o no disponible, Wi-Fi ausente o desconectado, CONNACK no
   clasificable como autenticación y hora NTP inválida. Cada uno MUST invocar la
-  política de evento no concluyente, reiniciar `mqtt_auth_reject_count` a `0` y
+  política de evento no concluyente, reiniciar `mqtt_rn_rcount` a `0` y
   conservar las credenciales. En particular, si llega un rechazo MQTT cuando la
   hora NTP es inválida, el rechazo se ignora: no incrementa ni conserva el
   contador, sino que lo reinicia a `0`; tampoco actualiza
-  `mqtt_auth_last_reject`, borra credenciales o inicia el re-enrolamiento.
+  `mqtt_rej_last`, borra credenciales o inicia el re-enrolamiento.
   Solo cuentan como **rechazo confirmado** los CONNACK
   MQTT que el cliente clasifica inequívocamente como credenciales inválidas o
   cliente no autorizado (`MQTT_CONNECT_BAD_CREDENTIALS` o
@@ -149,7 +149,7 @@ autenticado o malformado y verificar que no modifica esos datos.
   segundos**; los eventos anteriores al intervalo mínimo no incrementan el contador.
   Un rechazo recibido sin hora NTP válida no es contable y, como evento no
   concluyente, reinicia el contador a `0`.
-- **FR-005a**: `mqtt_reenroll_window_start` y el intervalo mínimo de 30 segundos
+- **FR-005a**: `mqtt_rn_wstart` y el intervalo mínimo de 30 segundos
   MUST calcularse exclusivamente con hora real expresada como epoch, sincronizada
   mediante NTP; el firmware no debe usar `millis()` ni otro reloj monotónico como
   sustituto. Si no existe hora NTP válida, el firmware MUST no contar rechazos ni
@@ -176,12 +176,15 @@ autenticado o malformado y verificar que no modifica esos datos.
   `MQTT_REENROLL_MAX_PER_HOUR`, no `MQTT_AUTH_REJECT_THRESHOLD`.
 - **FR-008a**: El firmware MUST persistir en NVS, con claves propias y separadas de
   la identidad y del secreto de fábrica, el contador de rechazos consecutivos bajo
-  la clave `mqtt_auth_reject_count` y el contador de re-enrolamientos de la ventana
-  bajo la clave `mqtt_reenroll_hour_count`. MUST persistir también el inicio de la
-  ventana bajo `mqtt_reenroll_window_start`, y el instante del último rechazo
-  contable bajo `mqtt_auth_last_reject`. Estos valores MUST persistir
-  exclusivamente en NVS y sobrevivir a reinicios para conservar el intervalo mínimo
-  de 30 segundos también después de reiniciar el dispositivo.
+  la clave `mqtt_rn_rcount` y el contador de re-enrolamientos de la ventana bajo
+  la clave `mqtt_rn_hcount`. MUST persistir también el inicio de la ventana bajo
+  `mqtt_rn_wstart`, y el instante del último rechazo contable bajo
+  `mqtt_rej_last`. Todas las claves de Preferences MUST tener como máximo 15
+  caracteres, límite de la implementación NVS; la persistencia de estas claves
+  solo se considera verificada mediante una prueba en placa, no mediante los
+  tests de política compilados en Docker. Estos valores MUST persistir
+  exclusivamente en NVS y sobrevivir a reinicios para conservar el intervalo
+  mínimo de 30 segundos también después de reiniciar el dispositivo.
 - **FR-008b**: Al reiniciar, el firmware MUST recuperar esos valores desde NVS,
   descartar la ventana horaria si ya expiró y conservar `device_id`,
   `device_secret` y toda la identidad de fábrica sin modificarlos.
@@ -231,8 +234,8 @@ autenticado o malformado y verificar que no modifica esos datos.
   ni los tests existentes de esos flujos.
 - **FR-022**: Los tests MUST cubrir el umbral exacto de N=3 CONNACK rechazados, el
   intervalo mínimo de 30 segundos, la persistencia en NVS de
-  `mqtt_auth_reject_count`, `mqtt_reenroll_hour_count` y
-  `mqtt_reenroll_window_start` a través de reinicios, la no modificación de
+  `mqtt_rej_count`, `mqtt_rn_hcount`, `mqtt_rn_wstart` y `mqtt_rej_last` a través
+  de reinicios, la no modificación de
   identidad ni secreto de fábrica, la no eliminación ante fallos de conectividad,
   la lista exacta de datos borrados/conservados, el límite de 3 re-enrolamientos por
   hora, el backoff y el re-enrolamiento sin token nuevo.
@@ -284,9 +287,10 @@ autenticado o malformado y verificar que no modifica esos datos.
   cliente.
 - **Credenciales operativas MQTT**: usuario, contraseña, host y marca de enrolamiento
   persistidos en NVS; no incluyen la identidad ni el secreto de fábrica.
-- **Contadores de recuperación**: `mqtt_auth_reject_count`,
-  `mqtt_reenroll_hour_count` y `mqtt_reenroll_window_start`, persistidos en NVS
-  como claves independientes de la identidad y del secreto de fábrica.
+- **Contadores de recuperación**: `mqtt_rn_rcount`, `mqtt_rn_hcount`,
+  `mqtt_rn_wstart` y `mqtt_rej_last`, persistidos en NVS como claves
+  independientes de la identidad y del secreto de fábrica, todas dentro del
+  límite de 15 caracteres.
 
 ## Plan de tests y verificación
 
