@@ -128,14 +128,39 @@ autenticado o malformado y verificar que no modifica esos datos.
 - **FR-004**: Solo deben contar como rechazos para el umbral los CONNACK MQTT que
   indiquen inequívocamente rechazo de autenticación. Timeouts, DNS, TLS, broker
   caído, Wi-Fi caído y códigos no concluyentes no cuentan.
+- **FR-004a**: La clasificación de eventos MUST ser cerrada. Se consideran
+  **no concluyentes** únicamente: timeout MQTT, fallo DNS, fallo de negociación
+  TLS, broker caído o no disponible, Wi-Fi ausente o desconectado, CONNACK no
+  clasificable como autenticación y hora NTP inválida. Cada uno MUST invocar la
+  política de evento no concluyente, reiniciar `mqtt_auth_reject_count` a `0` y
+  conservar las credenciales. En particular, si llega un rechazo MQTT cuando la
+  hora NTP es inválida, el rechazo se ignora: no incrementa ni conserva el
+  contador, sino que lo reinicia a `0`; tampoco actualiza
+  `mqtt_auth_last_reject`, borra credenciales o inicia el re-enrolamiento.
+  Solo cuentan como **rechazo confirmado** los CONNACK
+  MQTT que el cliente clasifica inequívocamente como credenciales inválidas o
+  cliente no autorizado (`MQTT_CONNECT_BAD_CREDENTIALS` o
+  `MQTT_CONNECT_UNAUTHORIZED`); ningún otro estado incrementa el contador.
+  `handleNonConclusiveEvent()` debe ejecutarse ante hora NTP inválida, timeout de
+  conexión Wi-Fi, pérdida de Wi-Fi durante verificación u operación, y fallos MQTT
+  con cualquier estado distinto de esos dos CONNACK confirmados. Estos últimos
+  incluyen timeout MQTT, DNS, TLS, broker caído y CONNACK no clasificable.
 - **FR-005**: Entre dos rechazos contables debe transcurrir un mínimo de **30
   segundos**; los eventos anteriores al intervalo mínimo no incrementan el contador.
+  Un rechazo recibido sin hora NTP válida no es contable y, como evento no
+  concluyente, reinicia el contador a `0`.
 - **FR-005a**: `mqtt_reenroll_window_start` y el intervalo mínimo de 30 segundos
   MUST calcularse exclusivamente con hora real expresada como epoch, sincronizada
   mediante NTP; el firmware no debe usar `millis()` ni otro reloj monotónico como
   sustituto. Si no existe hora NTP válida, el firmware MUST no contar rechazos ni
-  iniciar re-enrolamientos, no debe borrar credenciales y MUST reintentar la
-  sincronización de hora.
+  iniciar re-enrolamientos, MUST reiniciar el contador de rechazos a `0`, no debe
+  borrar credenciales y MUST reintentar la sincronización de hora.
+- **FR-005b**: La ausencia de hora NTP válida es un límite operativo aceptado:
+  mientras no exista una época válida, el dispositivo no cuenta rechazos ni se
+  auto-recupera, aunque sí conserva sus credenciales y reintenta sincronizar la
+  hora. En el mejor caso, el umbral puede alcanzarse en **60 segundos desde el
+  primer rechazo confirmado**: tres rechazos separados por al menos 30 segundos
+  (`t=0`, `t=30` y `t=60`).
 - **FR-006**: Al alcanzar el umbral, el firmware MUST borrar únicamente `mqtt_user`
   y `mqtt_pass` del NVS y establecer el estado operativo MQTT como no enrolado.
   MUST conservar `device_id`, `device_secret`, identidad de fábrica, PIN, SSID,
@@ -269,6 +294,32 @@ Los tests de persistencia y aislamiento deben ejecutarse primero contra la base
 `ecotrack_test`, nunca contra la base de desarrollo o producción. La verificación en
 placa debe registrar el código y motivo del CONNACK observado en Mosquitto; no se
 considera válida una conclusión basada solo en la configuración esperada.
+
+### Procedimiento real de backend
+
+1. Levantar el contenedor PostgreSQL de pruebas con `ecotrack_test` publicado en
+   `127.0.0.1:5433`; no usar el PostgreSQL de desarrollo en `5432`.
+2. Desde `backend`, configurar `DB_HOST=127.0.0.1`, `DB_PORT=5433`, `DB_NAME`,
+   `DB_USER` y `DB_PASS` con las credenciales del contenedor, y ejecutar
+   `node -e "require('./src/config/migrate')().then(()=>process.exit(0)).catch(e=>{console.error(e.message);process.exit(1)})"`.
+3. Configurar `TEST_DATABASE_URL` con la misma base, por ejemplo:
+   `postgres://<TEST_USER>:<TEST_PASSWORD>@127.0.0.1:5433/ecotrack_test`.
+4. Ejecutar los tests dirigidos o `npm test`. La suite debe rechazar URLs que
+   apunten a `5432` o a una base cuyo nombre no termine en `_test`.
+
+Ejemplo PowerShell desde `backend`:
+
+```powershell
+$env:DB_HOST = "127.0.0.1"
+$env:DB_PORT = "5433"
+$env:DB_NAME = "ecotrack_test"
+$env:DB_USER = "<TEST_USER>"
+$env:DB_PASS = "<TEST_PASSWORD>"
+node -e "require('./src/config/migrate')().then(()=>process.exit(0)).catch(e=>{console.error(e.message);process.exit(1)})"
+$env:TEST_DATABASE_URL = "postgres://<TEST_USER>:<TEST_PASSWORD>@127.0.0.1:5433/ecotrack_test"
+npm test
+Remove-Item Env:DB_HOST,Env:DB_PORT,Env:DB_NAME,Env:DB_USER,Env:DB_PASS,Env:TEST_DATABASE_URL
+```
 
 | ID | Resultado real | Estado |
 |---|---|---|
