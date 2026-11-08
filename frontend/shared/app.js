@@ -216,11 +216,7 @@ async function initShell() {
   document.getElementById('nombre-menu').textContent = nombre;
   document.getElementById('user-menu').textContent = username;
   document.getElementById('avatar-sidebar').textContent = iniciales;
-  document.getElementById('rol-sidebar').textContent = esPlatformAdmin
-    ? 'Plataforma'
-    : esAdmin
-      ? 'Administrador'
-      : 'Usuario';
+  document.getElementById('rol-sidebar').textContent = window.ecotrackSidebarRole.etiquetaRolSidebar(rol);
 
   // Oculta cualquier elemento marcado data-admin-only si el usuario no es admin.
   if (!esAdmin) {
