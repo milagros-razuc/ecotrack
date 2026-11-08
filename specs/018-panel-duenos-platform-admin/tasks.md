@@ -35,7 +35,7 @@ stories or migrations in one commit.
 
 - [ ] T004 [P] Write a schema-contract test in `backend/src/test/platform-panel-schema.test.js` that queries the real `lecturas` definition and confirms the column is exactly `dispositivo_codigo`, not an inferred alternative.
 - [ ] T005 [P] Write a migration/index contract test in `backend/src/test/platform-panel-schema.test.js` that requires the composite index `(dispositivo_codigo, timestamp DESC)` on the partitioned parent table and verifies migrations are repeatable.
-- [ ] T006 [P] Write configuration startup tests in `backend/src/test/platform-panel-config.test.js` proving validation always runs at startup: absent uses 30, non-integer/zero/negative values fail startup, and values above the constant maximum 365 fail startup.
+- [ ] T006 [P] Write configuration startup tests in `backend/src/test/platform-panel-config.test.js` proving validation always runs at startup: absent uses 30, non-integer/zero/negative values fail startup, 365 is valid, and 366 fails at startup.
 - [ ] T007 [P] Write rate-limit contract tests in `backend/src/test/platform-panel-rate-limit.test.js` proving reset and read limiters have separate in-memory counters, defaults of 10/15 minutes and 300/15 minutes respectively, and environment overrides are applied.
 - [ ] T008 Create the new numbered role migration `backend/migrations/016_platform_admin_role.sql` without editing prior migrations; expand the role constraint to accept `platform_admin` while preserving `admin` and `comun`.
 - [ ] T009 Create the new numbered platform-client migration `backend/migrations/017_platform_client.sql` without editing prior migrations; add `clientes.es_plataforma BOOLEAN NOT NULL DEFAULT false`, enforce the intended uniqueness invariant for the marked platform client, and make the migration rerunnable.
@@ -95,7 +95,7 @@ stories or migrations in one commit.
 ### Implementation for User Story 2
 
 - [ ] T033 [P] [US2] Extend `backend/src/services/auditoria.service.js` with `actor_tipo NOT NULL DEFAULT 'tenant'` handling and service-level masking of platform actor fields before tenant responses.
-- [ ] T034 [US2] Verify `backend/src/services/resetCredenciales.service.js` already receives explicit `{ deviceId, clienteId }` arguments; if so, leave it unchanged, otherwise make only that explicit-argument correction while preserving spec 016 behavior and avoiding any HTTP request object or `req.clienteId` dependency.
+- [ ] T034 [US2] Verify `backend/src/services/resetCredenciales.service.js` already receives explicit `{ deviceId, clienteId }` arguments; if so, leave it unchanged, otherwise make only that explicit-argument correction while preserving spec 016 behavior and avoiding any HTTP request object or `req.clienteId` dependency; must finish before T035.
 - [ ] T035 [US2] Implement platform reset delegation and affected-client resolution in `backend/src/routes/plataforma.js`, record audit with `cliente_id` from the device and sanitized platform actor, and apply the independent reset limiter.
 - [ ] T036 [US2] Add reset confirmation/result handling to `frontend/plataforma.html`, showing generic `reset`/`already_reset` outcomes and no broker, credential, hash, or persistence details.
 
@@ -113,7 +113,7 @@ stories or migrations in one commit.
 
 - [ ] T037 [P] [US3] Write authorization regression tests in `backend/src/test/platform-authorization.integration.test.js` for 401 without/with invalid token, 403 for `admin`/`comun` on `/api/plataforma/...`, and allowed platform access with raw JWT.
 - [ ] T038 [P] [US3] Write isolation regression tests in `backend/src/test/platform-authorization.integration.test.js` proving client A cannot see client B through existing or new routes and `platform_admin` cannot use tenant routes as `admin`.
-- [ ] T039 [P] [US3] Write response-field and frontend-visibility tests in `backend/src/test/platform-authorization.integration.test.js` and `frontend/` for secret/hash absence and non-platform panel omission.
+- [ ] T039 [P] [US3] Write authorization-regression checks in `backend/src/test/platform-authorization.integration.test.js` and `frontend/` that only verify secret/hash fields do not appear in the frontend and that the panel remains omitted after authorization changes; do not duplicate T9.
 
 ### Implementation for User Story 3
 
@@ -145,7 +145,7 @@ stories or migrations in one commit.
 - **Foundational (Phase 2)**: Depends on Setup; T004–T007 can run in parallel, then
   T008–T011 migrations, with T012 verifying their ordering and idempotence.
 - **US1 (Phase 3)**: Depends on the foundational schema/configuration contracts;
-  T013–T019 are tests-first and can be authored in parallel, then T020, T021–T027.
+  T013–T020 are tests and are written first; then T021–T027.
 - **US2 (Phase 4)**: Depends on T022, T025, T026 and the existing spec 016 reset
   service; T028–T032 are tests-first and can be authored in parallel, then T033–T036.
 - **US3 (Phase 5)**: Depends on the platform middleware/routes and T2; T037–T039
@@ -186,9 +186,11 @@ task-generation step.
 - T004–T007 and T012 can be split by file only after avoiding concurrent edits to
   the same test file.
 - T013–T019, T020, T028–T032, and T037–T039 are independent test-writing batches.
-- T022 and T023–T024 can proceed in parallel when their shared contracts are
-  stable; route mounting waits for both.
-- T033 and T034 can proceed in parallel; T035 waits for both.
+- T022 and T023–T024 can proceed after their shared contracts are stable; T023
+  and T024 edit the same `plataforma.service.js` file and therefore run in
+  sequence, not in parallel; route mounting waits for both.
+- T033 can proceed in parallel with T034; T034 verifies the spec 016 service and
+  must finish before T035.
 
 ---
 
