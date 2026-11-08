@@ -1,0 +1,6 @@
+BEGIN;
+
+ALTER TABLE auditoria
+  ADD COLUMN IF NOT EXISTS actor_tipo VARCHAR(30) NOT NULL DEFAULT 'tenant';
+
+COMMIT;
