@@ -8,11 +8,15 @@
   function renderDeviceRow(device) {
     const cliente = device.cliente || 'Sin cliente';
     const firmware = device.firmware_version || '—';
+    const conexion = device.online === 'online' ? 'online' : 'offline';
     const lectura = device.ultima_lectura
-      ? new Date(device.ultima_lectura.timestamp).toLocaleString()
+      ? new Date(device.ultima_lectura.timestamp).toLocaleString('es-AR')
       : 'sin lectura reciente (últimos 30 días)';
+    const ultimaConexion = device.ultima_conexion
+      ? new Date(device.ultima_conexion).toLocaleString('es-AR')
+      : '—';
 
-    return `<tr class="border-b"><td class="p-3">${escapeHtml(device.codigo)}</td><td class="p-3">${escapeHtml(cliente)}</td><td class="p-3">${escapeHtml(device.estado)}</td><td class="p-3">${escapeHtml(firmware)}</td><td class="p-3">${escapeHtml(device.online)}</td><td class="p-3">${escapeHtml(lectura)}</td></tr>`;
+    return `<tr class="border-b"><td class="p-3">${escapeHtml(device.codigo)}</td><td class="p-3">${escapeHtml(cliente)}</td><td class="p-3">${escapeHtml(device.estado)}</td><td class="p-3">${escapeHtml(firmware)}</td><td class="p-3">${escapeHtml(conexion)}</td><td class="p-3">${escapeHtml(lectura)}</td><td class="p-3">${escapeHtml(ultimaConexion)}</td></tr>`;
   }
 
   function renderSummaryItem(estado, total) {

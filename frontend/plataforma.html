@@ -29,7 +29,7 @@
         <button id="filtrar" class="bg-primary text-on-primary rounded px-4 py-2">Filtrar</button>
       </div>
       <div class="overflow-x-auto bg-surface rounded-lg">
-        <table class="w-full text-body-sm"><thead><tr class="text-left border-b"><th class="p-3">Código</th><th class="p-3">Cliente</th><th class="p-3">Estado</th><th class="p-3">Firmware</th><th class="p-3">Conexión</th><th class="p-3">Acción</th></tr></thead><tbody id="devices"></tbody></table>
+        <table class="w-full text-body-sm"><thead><tr class="text-left border-b"><th class="p-3">Código</th><th class="p-3">Cliente</th><th class="p-3">Estado</th><th class="p-3">Firmware</th><th class="p-3">Conexión</th><th class="p-3">Última lectura</th><th class="p-3">Última conexión</th></tr></thead><tbody id="devices"></tbody></table>
       </div>
     </div>
   </main>
@@ -60,6 +60,7 @@
     const panelError = document.getElementById('panel-error');
     document.getElementById('filtrar').addEventListener('click', loadPanel);
     initShell().then(() => {
+      // Este guard mejora la UX; la autorización real la aplica el backend.
       const acceso = ecotrackRoleRouting.decidirAcceso({ rol, pagina: 'plataforma', haySesion: Boolean(token) });
       if (acceso.permitido) {
         Promise.all([loadPanel(), loadSummary()]).catch(error => { panelError.textContent = error.message; });
