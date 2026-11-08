@@ -4,8 +4,7 @@ const { Pool } = require('pg');
 
 const TEST_JWT_SECRET = 'ecotrack-test-jwt-secret';
 
-function testDatabaseConfig() {
-  const connectionString = process.env.TEST_DATABASE_URL;
+function testDatabaseConfig(connectionString = process.env.TEST_DATABASE_URL, options = {}) {
   if (!connectionString) {
     throw new Error('TEST_DATABASE_URL es obligatorio y debe apuntar a una base PostgreSQL de pruebas separada');
   }
@@ -17,8 +16,12 @@ function testDatabaseConfig() {
     throw new Error('TEST_DATABASE_URL debe ser una URL PostgreSQL valida');
   }
 
-  const developmentUrl = process.env.DATABASE_URL;
-  const developmentDatabase = process.env.DB_NAME;
+  const developmentUrl = Object.prototype.hasOwnProperty.call(options, 'developmentUrl')
+    ? options.developmentUrl
+    : process.env.DATABASE_URL;
+  const developmentDatabase = Object.prototype.hasOwnProperty.call(options, 'developmentDatabase')
+    ? options.developmentDatabase
+    : process.env.DB_NAME;
   const testDatabase = decodeURIComponent(testUrl.pathname.slice(1));
   if (!testDatabase.startsWith('hardening_') && !testDatabase.endsWith('_test')) {
     throw new Error('TEST_DATABASE_URL debe apuntar a una base hardening_* o *_test');
@@ -208,6 +211,7 @@ async function assertNoThresholds(pool, deviceCode) {
 
 module.exports = {
   createRealtimeFixture,
+  testDatabaseConfig,
   signToken,
   TEST_JWT_SECRET,
   withTemporaryDatabase,
