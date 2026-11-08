@@ -25,6 +25,7 @@ const nombre = leerDatoLocalStorage('ecotrack_nombre') || 'Usuario';
 const username = leerDatoLocalStorage('ecotrack_username') || '';
 const rol = leerDatoLocalStorage('ecotrack_rol') || 'comun';
 const esAdmin = rol === 'admin';
+const esPlatformAdmin = rol === 'platform_admin';
 const iniciales = nombre.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 
 function cerrarSesion() {
@@ -215,6 +216,9 @@ async function initShell() {
   // Oculta cualquier elemento marcado data-admin-only si el usuario no es admin.
   if (!esAdmin) {
     document.querySelectorAll('[data-admin-only]').forEach(el => el.classList.add('hidden'));
+  }
+  if (!esPlatformAdmin) {
+    document.querySelectorAll('[data-platform-only]').forEach(el => el.classList.add('hidden'));
   }
 }
 

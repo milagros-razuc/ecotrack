@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html class="light" lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>EcoTrack - Plataforma</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+  <script src="shared/tailwind-config.js"></script>
+  <link href="shared/common.css" rel="stylesheet"/>
+</head>
+<body class="bg-background font-body-md text-on-background flex h-screen overflow-hidden" data-page="plataforma">
+  <div id="sidebar-placeholder"></div>
+  <main class="flex-1 overflow-y-auto p-gutter lg:p-margin">
+    <div class="max-w-container-max mx-auto">
+      <header class="flex justify-between items-center mb-6">
+        <h1 class="text-headline-md font-bold text-primary">Panel de plataforma</h1>
+        <span id="panel-error" class="text-error text-body-sm"></span>
+      </header>
+      <section id="summary" class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6"></section>
+      <div class="flex flex-wrap gap-3 mb-4">
+        <select id="estado" class="border rounded px-3 py-2"><option value="">Todos los estados</option><option value="fabricado">Fabricado</option><option value="reclamado_sin_enrolar">Reclamado sin enrolar</option><option value="enrolado">Enrolado</option></select>
+        <input id="firmware" class="border rounded px-3 py-2" placeholder="Firmware"/>
+        <button id="filtrar" class="bg-primary text-on-primary rounded px-4 py-2">Filtrar</button>
+      </div>
+      <div class="overflow-x-auto bg-surface rounded-lg">
+        <table class="w-full text-body-sm"><thead><tr class="text-left border-b"><th class="p-3">Código</th><th class="p-3">Cliente</th><th class="p-3">Estado</th><th class="p-3">Firmware</th><th class="p-3">Conexión</th><th class="p-3">Acción</th></tr></thead><tbody id="devices"></tbody></table>
+      </div>
+    </div>
+  </main>
+  <script src="shared/app.js"></script>
+  <script>
+    async function loadPanel() {
+      const query = new URLSearchParams();
+      if (estado.value) query.set('estado', estado.value);
+      if (firmware.value.trim()) query.set('firmware', firmware.value.trim());
+      const response = await fetch(`${API}/api/plataforma/dispositivos?${query}`, { headers: { Authorization: token } });
+      if (response.status === 401) return manejarNoAutorizado();
+      if (!response.ok) throw new Error('No se pudo cargar el inventario');
+      const body = await response.json();
+      devices.innerHTML = body.items.map(device => `<tr class="border-b"><td class="p-3">${device.codigo}</td><td class="p-3">${device.cliente || 'Sin cliente'}</td><td class="p-3">${device.estado}</td><td class="p-3">${device.firmware_version || '—'}</td><td class="p-3">${device.online}</td><td class="p-3">${device.ultima_lectura ? new Date(device.ultima_lectura.timestamp).toLocaleString() : 'sin lectura reciente (últimos 30 días)'} <button class="text-primary underline ml-2" data-reset="${device.codigo}">Resetear credenciales</button></td></tr>`).join('');
+      devices.querySelectorAll('[data-reset]').forEach(button => button.addEventListener('click', resetDevice));
+    }
+    async function loadSummary() {
+      const response = await fetch(`${API}/api/plataforma/resumen`, { headers: { Authorization: token } });
+      if (!response.ok) throw new Error('No se pudo cargar el resumen');
+      const data = await response.json();
+      summary.innerHTML = Object.entries(data.dispositivos_por_estado).map(([state, total]) => `<div class="bg-surface rounded-lg p-4"><div class="text-on-surface-variant">${state}</div><strong class="text-headline-md">${total}</strong></div>`).join('');
+    }
+    function requestResetConfirmation(confirmFn) {
+      return confirmFn('¿Resetear credenciales del dispositivo?') === true;
+    }
+    async function resetDevice(event) {
+      if (!requestResetConfirmation(window.confirm)) return;
+      const response = await fetch(`${API}/api/plataforma/dispositivos/${encodeURIComponent(event.currentTarget.dataset.reset)}/reset-credenciales`, { method: 'POST', headers: { Authorization: token } });
+      panelError.textContent = response.ok ? 'Credenciales reseteadas.' : 'No se pudo resetear el dispositivo.';
+      if (response.ok) loadPanel();
+    }
+    const { shouldRenderPlatformPanel } = { shouldRenderPlatformPanel: role => role === 'platform_admin' };
+    const estado = document.getElementById('estado');
+    const firmware = document.getElementById('firmware');
+    const devices = document.getElementById('devices');
+    const panelError = document.getElementById('panel-error');
+    document.getElementById('filtrar').addEventListener('click', loadPanel);
+    initShell().then(() => { if (shouldRenderPlatformPanel(rol)) Promise.all([loadPanel(), loadSummary()]).catch(error => { panelError.textContent = error.message; }); });
+  </script>
+</body>
+</html>
