@@ -81,7 +81,8 @@ test.before(async () => {
   fixture = await createRealtimeFixture();
   processReading = require('../mqtt/client').procesarMensaje;
   baseUrl = `http://127.0.0.1:${fixture.server.address().port}`;
-  receivedAt = new Date('2026-10-28T22:00:00.000Z');
+  const ahoraUtc = new Date();
+  receivedAt = new Date(Date.UTC(ahoraUtc.getUTCFullYear(), ahoraUtc.getUTCMonth(), 15, 12, 0));
   await fixture.pool.query(
     `UPDATE dispositivos
      SET reclamado_en = $2, activo = true
