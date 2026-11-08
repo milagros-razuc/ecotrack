@@ -15,6 +15,11 @@
   adelante en orden numérico sobre una base cuyo esquema base ya fue inicializado.
   Se invoca desde el helper de tests, no al arrancar el backend, es repetible y
   no envuelve las migraciones en una transacción adicional.
+- Registra las versiones aplicadas en `schema_migrations`, no detecta cambios
+  posteriores en una migración ya registrada y exige una migración nueva para
+  cualquier modificación. Si `016` a `019` fueron aplicadas manualmente, las
+  ejecuta una vez más y luego las registra; toda migración nueva debe ser
+  repetible. No es importado por `app.js` ni por `migrate.js`.
 - Usuario `platform_admin` creado por el seed local idempotente.
 - Al menos dos clientes operativos y dispositivos fabricados, reclamados y
   enrolados.
@@ -41,8 +46,8 @@ La suite debe cubrir:
 - Rate limit propio del panel: 10 solicitudes por 15 minutos.
 - Seed repetido sin duplicar cliente especial ni usuario.
 
-La línea base medida en `ecotrack_pg_test` (`127.0.0.1:5433`) fue de 260 de 293:
-1 fallo conocido (subtest 13 de continuidad, causa sin diagnosticar; la partición
+La línea base medida en `ecotrack_pg_test` (`127.0.0.1:5433`) fue de 261 de 294:
+1 fallo conocido (subtest 13 de continuidad, causa sin diagnosticar: la partición
 del mes anterior existe) y 32 tests `todo`.
 
 ## Prueba manual final con placa real

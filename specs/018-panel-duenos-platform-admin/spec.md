@@ -265,10 +265,10 @@ confirmar que ninguna respuesta contiene campos secretos.
 - El endpoint existente de reset requiere `admin`, usa `req.clienteId` en la ruta
   de dispositivos, y el servicio actual recibe `clienteId` como argumento; se
   debe verificar en implementación que no dependa de objetos HTTP.
-- La línea base medida en `ecotrack_pg_test` (`127.0.0.1:5433`) fue de 260 de
-  293 tests: 1 fallo conocido, el subtest 13 de continuidad, con causa aún sin
-  diagnosticar aunque la partición del mes anterior existe; además hubo 32
-  tests `todo`.
+- La línea base medida en `ecotrack_pg_test` (`127.0.0.1:5433`) fue de 261 de
+  294 tests: 1 fallo conocido, el subtest 13 de continuidad, con causa aún sin
+  diagnosticar: la partición del mes anterior existe; además hubo 32 tests
+  `todo`.
 - Las referencias de esta feature a `docs/requisitos.md` fueron verificadas:
   RF12, RF14, RF17, RF18, RF19, RI01, RI06, RI08, RI14, RI15, RI17, RI18,
   RNF01, RNF03, RNF05, RNF07, RNF08 y RNF09 existen. El panel global y
