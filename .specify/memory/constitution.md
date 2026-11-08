@@ -1,8 +1,10 @@
 <!--
 Sync Impact Report
-- Version change: unversioned scaffold -> 1.0.0
-- Principles: I-V from README; VI (Tenant Isolation) and VII (Controlled and Auditable Access) added from requirements RNF05, RF14, RF19
-- Follow-up TODOs: none
+- Version change: 1.0.0 -> 2.0.0
+- Principle II amended to permit only the product-approved, intentionally public shared SoftAP passphrase documented in spec 019; it is not treated as a secret or as protection against users who know it.
+- RNF06 and the operational security note in docs/requisitos.md updated with the same narrow exception.
+- Existing authentication, device, MQTT, TLS and backend secrets remain prohibited from source control.
+- Follow-up TODOs: validate exposure and usability on physical hardware before accepting the feature.
 -->
 
 # EcoTrack Constitution
@@ -20,7 +22,11 @@ workflows independently changeable and testable.
 Authentication, authorization, and secret handling MUST be enforced at the backend boundary.
 Administrative operations MUST require the admin role, protected endpoints MUST validate the
 authenticated identity, and credentials or tokens MUST NOT be committed to source control.
-Client-side visibility rules MAY improve usability but MUST NOT replace backend enforcement.
+The sole documented exception is the intentionally public, shared WiFi provisioning passphrase
+`EcoTrack.123` in feature 019. It MUST NOT be represented as a secret or relied upon to exclude
+anyone who knows or obtains it. This exception does not apply to device, backend, MQTT, WiFi-site,
+or user credentials. Client-side visibility rules MAY improve usability but MUST NOT replace
+backend enforcement.
 
 ### III. Validated Data Contracts
 Every payload crossing an external boundary MUST be validated before it is persisted or acted
@@ -60,8 +66,9 @@ EcoTrack uses Node.js and Express for the backend, PostgreSQL for persistence, M
 MQTT, and static HTML/CSS/JavaScript for the frontend. Docker Compose MUST remain the
 reproducible local integration environment. Secrets MUST come from environment files or local
 untracked device configuration, and example files MUST contain placeholders rather than real
-credentials. Passwords MUST be hashed, JWT secrets MUST be configurable, and MQTT access MUST
-use authenticated broker accounts.
+credentials, except for the public SoftAP code explicitly approved in feature 019. Passwords
+MUST be hashed, JWT secrets MUST be configurable, and MQTT access MUST use authenticated broker
+accounts.
 Socket.io for real-time dashboard updates
 
 ## Development Workflow and Quality Gates
@@ -85,4 +92,4 @@ constitution MUST be reviewed whenever authentication, data contracts, deploymen
 testing policy changes. Any unresolved TODO in this document MUST be visible in the sync impact
 report and resolved before the constitution is considered fully ratified.
 
-**Version**: 1.0.0 | **Ratified**: TODO(RATIFICATION_DATE): original adoption date is not recorded | **Last Amended**: 2026-10-02
+**Version**: 2.0.0 | **Ratified**: TODO(RATIFICATION_DATE): original adoption date is not recorded | **Last Amended**: 2026-11-07

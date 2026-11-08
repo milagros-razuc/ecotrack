@@ -4,6 +4,8 @@ description: "Task list for hardening ESP32 WiFi provisioning"
 
 # Tasks: Endurecer aprovisionamiento WiFi
 
+> Estas tareas corresponden al historial de la feature 010. El contrato vigente del SoftAP y el retiro del PIN están en `specs/019-portal-softap-wpa2/`; los pendientes de las tareas 010 que contradicen esa actualización no describen el comportamiento esperado actual.
+
 **Input**: Design documents from `specs/010-endurecer-provisionamiento-wifi/`
 
 **Prerequisites**: [plan.md](plan.md), [spec.md](spec.md), [research.md](research.md), [data-model.md](data-model.md), [contracts/](contracts/), [quickstart.md](quickstart.md)

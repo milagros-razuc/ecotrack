@@ -7,7 +7,7 @@ Representa los valores propios de una unidad antes de su configuración de red.
 | Campo | Tipo/forma | Reglas |
 |---|---|---|
 | `device_id` | texto ASCII | Obligatorio, único globalmente, válido para tópico MQTT y ACL; no contiene secretos. |
-| `softap_password` | texto ASCII | Obligatorio, aleatorio, distinto por dispositivo y apto para WPA2; no tiene valor por defecto en el código. |
+| `softap_password` | — | Retirado por spec 019; el código SoftAP actual es público y compartido. |
 | `device_secret` | texto ASCII | Obligatorio, aleatorio e independiente; reservado para enrolamiento futuro y no usado en esta feature. |
 
 ### Persistencia
@@ -18,8 +18,8 @@ Claves lógicas previstas:
 
 - `factoryReady`: marca de escritura completa de identidad.
 - `deviceId`: identidad usada por MQTT y ACL.
-- `softApPass`: clave opcional del SoftAP; Spec 1A usa un SoftAP abierto.
-- `setupPin`: PIN de seis dígitos exigido por el portal antes de mostrar la configuración.
+- `softApPass`: retirado del modelo activo; el firmware de la actualización 019 usa el código público compartido `EcoTrack.123`.
+- `setupPin`: eliminado del flujo y de la identidad de fábrica por la actualización 019.
 - `serverHost`: hostname o IPv4 del servidor MQTT grabado de fábrica.
 - `deviceSecret`: secreto reservado.
 - `configured`: marca existente de configuración WiFi/MQTT confirmada.
@@ -33,7 +33,6 @@ Salida local por dispositivo, en CSV y/o etiqueta, vinculada físicamente a la u
 Campos mínimos:
 
 - `device_id`
-- `softap_password`
 - `device_secret`
 - `nvs_image`
 - `created_at`

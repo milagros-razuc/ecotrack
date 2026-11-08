@@ -68,14 +68,14 @@ una comprobación posterior que confirme el estado de enrolamiento sin mostrar s
 **Why this priority**: Permite asociar físicamente cada unidad con su identidad y
 detectar fallos sin consultar tokens ni credenciales.
 
-**Independent Test**: Verificar que cada etiqueta contiene solo `device_id` y PIN, y que
+**Independent Test**: Verificar que cada etiqueta contiene solo `device_id` y que
 el modo opcional consulta el estado de un dispositivo con resultado enrolado/no enrolado
 sin imprimir secretos.
 
 **Acceptance Scenarios**:
 
 1. **Given** un lote generado correctamente, **When** finaliza la fabricación, **Then**
-   existe una etiqueta por dispositivo con `device_id` y PIN, fuera del repositorio.
+   existe una etiqueta local por dispositivo con `device_id`, sin credenciales SoftAP.
 2. **Given** el modo de comprobación habilitado, **When** el dispositivo completa el
    enrolamiento, **Then** el script informa únicamente el estado y termina exitosamente.
 3. **Given** que el dispositivo no aparece enrolado antes del límite de espera, **When**
@@ -118,8 +118,9 @@ sin imprimir secretos.
   repositorio.
 - **FR-007**: Tokens, secretos de fábrica, `device_secret`, contraseñas y credenciales
   MQTT MUST NOT aparecer en stdout, stderr, logs ni archivos del repositorio.
-- **FR-008**: El comando MUST generar una etiqueta por dispositivo que contenga solamente
-  su `device_id` y PIN de instalación.
+- **FR-008**: El comando MUST generar una etiqueta local por dispositivo que contenga
+  solamente su `device_id`; el código SoftAP es compartido y se documenta como público,
+  no forma parte de la identidad de fábrica ni de la etiqueta.
 - **FR-009**: El comando MUST escribir el firmware en este orden y direcciones:
   particiones en `0x8000`, aplicación en `0x10000` y NVS al final en `0x9000` con tamaño
   `0x5000`; si falla cualquiera de las primeras escrituras, MUST NOT escribir el NVS.

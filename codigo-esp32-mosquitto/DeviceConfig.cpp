@@ -29,6 +29,7 @@ bool validHost(const String& host) {
   }
   return labelLength != 0 && host[host.length() - 1] != '-';
 }
+
 }  // namespace
 
 DeviceConfig defaultConfig() {
@@ -43,17 +44,11 @@ bool loadFactoryIdentity(DeviceConfig& config, String& error) {
   }
   const bool ready = prefs.getBool("factoryReady", false);
   config.deviceId = prefs.getString("deviceId", "");
-  config.softApPassword = prefs.getString("softApPass", "");
-  config.setupPin = prefs.getString("setupPin", "");
   config.serverHost = prefs.getString("serverHost", "");
   config.deviceSecret = prefs.getString("deviceSecret", "");
   prefs.end();
 
-  bool validPin = config.setupPin.length() == 6;
-  for (size_t i = 0; validPin && i < config.setupPin.length(); ++i) {
-    validPin = isdigit(static_cast<unsigned char>(config.setupPin[i]));
-  }
-  if (!ready || config.deviceId.isEmpty() || !validPin ||
+  if (!ready || config.deviceId.isEmpty() ||
       !validHost(config.serverHost) || config.deviceSecret.isEmpty()) {
     error = "Identidad de fabrica incompleta";
     return false;

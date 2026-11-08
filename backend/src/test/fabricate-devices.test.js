@@ -36,8 +36,6 @@ if (command === 'python') {
   const count = Number(args[args.indexOf('--count') + 1]);
   const rows = Array.from({ length: count }, (_, index) => ({
     device_id: 'ET-SYNTH-' + String(index + 1).padStart(2, '0'),
-    softap_password: 'synthetic-softap-' + index,
-    setup_pin: '123456',
     server_host: 'localhost',
     device_secret: 'synthetic-device-secret-' + index,
     nvs_image: 'synthetic.nvs.bin',
@@ -45,7 +43,7 @@ if (command === 'python') {
   }));
   fs.mkdirSync(output, { recursive: true });
   fs.writeFileSync(path.join(output, 'factory.csv'),
-    'device_id,softap_password,setup_pin,server_host,device_secret,nvs_image,created_at\\n' +
+    'device_id,server_host,device_secret,nvs_image,created_at\\n' +
     rows.map((row) => Object.values(row).join(',')).join('\\n') + '\\n');
   fs.writeFileSync(path.join(output, 'backend.csv'),
     'device_id,factory_secret_hash,created_at\\n' +
@@ -169,10 +167,10 @@ test('phase 3 uses write-flash without erase_flash', () => {
   assert.doesNotMatch(script, /erase_flash|flash_id/i);
 });
 
-test('tests use synthetic values for token and PIN fixtures', () => {
+test('tests use synthetic values for token and factory credential fixtures', () => {
   const testSource = fs.readFileSync(__filename, 'utf8');
   assert.match(testSource, /SYNTHETIC-CLAIM-TOKEN/);
-  assert.match(testSource, /setup_pin: '123456'/);
+  assert.match(testSource, /device_secret: 'synthetic-device-secret-'/);
   assert.match(testSource, /synthetic-device-secret/);
 });
 
@@ -277,7 +275,7 @@ test('behavior: non-empty output rejects before provision_factory', () => {
   });
 });
 
-test('behavior: synthetic PIN is not printed', () => {
+test('behavior: setup PIN is no longer part of the fabrication output', () => {
   withShimEnvironment({ importCount: 1, tokenOutput: 'SYNTHETIC-CLAIM-TOKEN' }, ({ env }) => {
     const output = fs.mkdtempSync(path.join(os.tmpdir(), 'ecotrack-fabricate-output-'));
     try {
@@ -353,7 +351,7 @@ test('phase 3: failed firmware prevents NVS write', () => {
     env.SHIM_ESPTOOL_FAIL = '1';
     env.SHIM_ESPTOOL_FAIL_STEP = '0x10000';
     env.SHIM_ESPTOOL_FAIL_OUTPUT =
-      'flash failed: synthetic diagnostic\nToken de reclamo: synthetic-token\nPIN: 123456\n';
+      'flash failed: synthetic diagnostic\nToken de reclamo: synthetic-token\n';
     const inputs = createFlashInputs();
     const output = fs.mkdtempSync(path.join(os.tmpdir(), 'ecotrack-fabricate-output-'));
     try {

@@ -146,7 +146,7 @@ clientes es absoluto.
 | RNF03 | El sistema debe validar los datos de entrada de todas las peticiones mediante esquemas definidos. |
 | RNF04 | El sistema debe registrar el historial completo de eventos de alerta, con consulta y gestión desde auditoría. |
 | RNF05 | El sistema debe garantizar el aislamiento lógico de los datos entre clientes, sin que ninguna consulta exponga información de otro cliente. |
-| RNF06 | Las credenciales sensibles deben mantenerse fuera del control de versiones. |
+| RNF06 | Las credenciales y secretos sensibles deben mantenerse fuera del control de versiones. Excepción aprobada para CU10: `EcoTrack.123` es un código SoftAP compartido e intencionalmente público; no se considera secreto ni mecanismo de exclusión frente a quien lo conozca (spec 019). |
 | RNF07 | El código del backend debe organizarse en capas claramente diferenciadas. |
 | RNF08 | El sistema debe contar con documentación técnica actualizada. |
 | RNF09 | El código debe seguir convenciones de estilo y buenas prácticas. |
@@ -208,7 +208,7 @@ Las reglas del dominio de la tesis se resumen aquí; los criterios de implementa
 
 **Configuración inicial del WiFi**
 
-- El portal SoftAP es temporal y permite cargar las credenciales de la red del sitio (RF15, RI13, RD06). La tesis no fija un tiempo exacto de cierre.
+- El portal SoftAP es temporal y permite cargar las credenciales de la red del sitio (RF15, RI13, RD06). La implementación exige WPA2 con el código compartido `EcoTrack.123`, sin PIN de formulario. Como el código es público e igual para todos los equipos, cualquier persona que lo conozca puede asociarse; WPA2 cifra el enlace de radio, pero no proporciona TLS hasta el navegador ni protege los datos una vez recibidos por el ESP32 (spec 019). La tesis no fija un tiempo exacto de cierre.
 
 **Lecturas diferidas**
 

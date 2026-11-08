@@ -26,8 +26,6 @@ class ProvisionFactoryTest(unittest.TestCase):
         second = generate_identity("broker.ecotrack.local")
         self.assertNotEqual(first, second)
         self.assertRegex(first.device_id, r"^ET-[A-Z2-9]{12}$")
-        self.assertGreaterEqual(len(first.softap_password), 8)
-        self.assertRegex(first.setup_pin, r"^[0-9]{6}$")
         self.assertEqual(first.server_host, "broker.ecotrack.local")
         self.assertEqual(len(first.device_secret), 64)
 
@@ -39,7 +37,7 @@ class ProvisionFactoryTest(unittest.TestCase):
 
     def test_nvs_csv_contains_only_factory_values(self):
         identity = FactoryIdentity(
-            "ET-TEST12345678", "Password123", "a" * 64, "123456", "broker.ecotrack.local"
+            "ET-TEST12345678", "a" * 64, "broker.ecotrack.local"
         )
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "identity.csv"
@@ -49,7 +47,8 @@ class ProvisionFactoryTest(unittest.TestCase):
             self.assertIn(identity.device_id, content)
             rows = list(csv.reader(content.splitlines()))
             self.assertEqual(rows[1], ["ecotrack", "namespace", "", ""])
-            self.assertIn(["setupPin", "data", "string", "123456"], rows)
+            self.assertNotIn("setupPin", content)
+            self.assertNotIn("softApPass", content)
             self.assertIn(
                 ["serverHost", "data", "string", "broker.ecotrack.local"], rows
             )
@@ -58,7 +57,7 @@ class ProvisionFactoryTest(unittest.TestCase):
 
     def test_backend_export_contains_only_device_id_and_secret_hash(self):
         identity = FactoryIdentity(
-            "ET-TEST12345678", "Password123", "a" * 64, "987654", "broker.ecotrack.local"
+            "ET-TEST12345678", "a" * 64, "broker.ecotrack.local"
         )
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "backend.csv"
@@ -71,13 +70,11 @@ class ProvisionFactoryTest(unittest.TestCase):
                 hashlib.sha256(identity.device_secret.encode("utf-8")).hexdigest(),
             )
             self.assertNotIn(identity.device_secret, content)
-            self.assertNotIn(identity.setup_pin, content)
-            self.assertNotIn(identity.softap_password, content)
 
     @patch("scripts.provision_factory._run_nvs_generator")
-    def test_provision_can_write_backend_export_without_secret_or_pin(self, run_generator):
+    def test_provision_can_write_backend_export_without_secret(self, run_generator):
         identity = FactoryIdentity(
-            "ET-TEST12345678", "Password123", "a" * 64, "987654", "localhost"
+            "ET-TEST12345678", "a" * 64, "localhost"
         )
         run_generator.side_effect = lambda _, __, image_path, ___, ____: image_path.write_bytes(
             b"nvs"
@@ -88,7 +85,6 @@ class ProvisionFactoryTest(unittest.TestCase):
                 provision(1, output, "nvs_partition_gen.py", "0x5000", export_backend=True)
             export = (output / "backend.csv").read_text(encoding="utf-8")
             self.assertNotIn(identity.device_secret, export)
-            self.assertNotIn(identity.setup_pin, export)
 
     @patch("scripts.provision_factory.subprocess.run")
     def test_default_nvs_generator_uses_current_python_module(self, run):
@@ -122,7 +118,7 @@ class ProvisionFactoryTest(unittest.TestCase):
                 Path("input.csv"),
                 Path("output.bin"),
                 "0x5000",
-                FactoryIdentity("ET-TEST123456", "Password123", "b" * 64, "123456", "localhost"),
+                FactoryIdentity("ET-TEST123456", "b" * 64, "localhost"),
             )
         self.assertEqual(run.call_count, 3)
         self.assertEqual(sleep.call_count, 2)
@@ -136,7 +132,7 @@ class ProvisionFactoryTest(unittest.TestCase):
     @patch("scripts.provision_factory.generate_identity")
     def test_provision_rejects_duplicate_identity(self, generate):
         duplicate = FactoryIdentity(
-            "ET-DUPLICATE123", "Password123", "b" * 64, "123456", "localhost"
+            "ET-DUPLICATE123", "b" * 64, "localhost"
         )
         generate.return_value = duplicate
         with tempfile.TemporaryDirectory() as parent:
@@ -157,12 +153,13 @@ class ProvisionFactoryTest(unittest.TestCase):
             self.assertEqual(len(rows), 2)
             self.assertEqual(len(list(output.glob("*.nvs.bin"))), 2)
             self.assertEqual(len(list(output.glob("*.label.txt"))), 2)
-            self.assertNotEqual(rows[0]["softap_password"], rows[1]["softap_password"])
+            self.assertNotIn("softap_password", rows[0])
             for label_path in output.glob("*.label.txt"):
                 label = label_path.read_text(encoding="utf-8")
-                self.assertIn("setup_pin=", label)
+                self.assertNotIn("softap_password=", label)
+                self.assertNotIn("setup_pin=", label)
+                self.assertIn("device_id=", label)
                 self.assertIn("server_host=", label)
-                self.assertNotIn("softap_password", label)
 
     @patch("scripts.provision_factory.subprocess.run")
     def test_nvs_image_is_not_open_before_generator(self, run):
@@ -184,7 +181,7 @@ class ProvisionFactoryTest(unittest.TestCase):
     )
     def test_real_generator_accepts_factory_csv(self):
         identity = FactoryIdentity(
-            "ET-REALTEST123", "Password123", "a" * 64, "123456", "localhost"
+            "ET-REALTEST123", "a" * 64, "localhost"
         )
         with tempfile.TemporaryDirectory() as parent:
             directory = Path(parent)
@@ -208,7 +205,7 @@ class ProvisionFactoryTest(unittest.TestCase):
     @patch("scripts.provision_factory.generate_identity")
     def test_existing_nonempty_output_is_rejected(self, generate):
         generate.return_value = FactoryIdentity(
-            "ET-TEST123456", "Password123", "b" * 64, "123456", "localhost"
+            "ET-TEST123456", "b" * 64, "localhost"
         )
         with tempfile.TemporaryDirectory() as parent:
             output = Path(parent) / "factory"
@@ -225,16 +222,15 @@ class ProvisionFactoryTest(unittest.TestCase):
         self, run, generate
     ):
         identity = FactoryIdentity(
-            "ET-TEST123456", "ApPassword123", "s" * 64, "123456", "localhost"
+            "ET-TEST123456", "s" * 64, "localhost"
         )
         generate.return_value = identity
         run.side_effect = subprocess.CalledProcessError(
             1,
             ["nvs-generator"],
             stderr=(
-                f"failed with {identity.device_id} {identity.softap_password} "
-                f"{identity.device_secret}\n"
-                f"last line contains {identity.device_id} and {identity.softap_password}"
+                f"failed with {identity.device_id} {identity.device_secret}\n"
+                f"last line contains {identity.device_id} and {identity.device_secret}"
             ),
         )
         with tempfile.TemporaryDirectory() as parent:
@@ -243,9 +239,7 @@ class ProvisionFactoryTest(unittest.TestCase):
                 provision(1, output, None, "0x5000", keep_on_error=True)
             message = str(raised.exception)
             self.assertNotIn(identity.device_id, message)
-            self.assertNotIn(identity.softap_password, message)
             self.assertNotIn(identity.device_secret, message)
-            self.assertNotIn(identity.setup_pin, message)
             self.assertEqual(len(list(output.glob("*.nvs.csv"))), 1)
 
 

@@ -86,7 +86,7 @@ static const char kSetupPortalPage[] PROGMEM = R"ECOTRACK(
       });
       campo.insertAdjacentElement('afterend',b);
     });
-    ['setupPin','ssid','wifiPass'].forEach(function(n){
+    ['ssid','wifiPass'].forEach(function(n){
       const c=document.getElementById(n);
       if(c){c.setAttribute('autocapitalize','none');c.setAttribute('autocorrect','off');c.setAttribute('spellcheck','false');}
     });
@@ -95,28 +95,6 @@ static const char kSetupPortalPage[] PROGMEM = R"ECOTRACK(
   scan();
 </script></body></html>
 )ECOTRACK";
-
-static const char kSetupPinPage[] PROGMEM = R"ECOTRACK_PIN(
-<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Desbloquear EcoTrack</title><style>
-body{font:16px system-ui,sans-serif;background:#eef4ee;margin:0;padding:24px 12px}
-main{max-width:540px;margin:auto;background:white;border-radius:18px;padding:28px}
-input,button{width:100%;font:inherit;padding:12px;margin-top:12px;box-sizing:border-box}
-button{background:#236c42;color:white;border:0;border-radius:9px;font-weight:700}
-#status{margin-top:18px}
-</style></head><body><main><h1>Configurar EcoTrack</h1>
-<p>Ingresá el PIN de instalación para continuar.</p>
-<form id="unlock"><label for="setupPin">PIN de instalación</label>
-<input id="setupPin" name="setupPin" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required>
-<button type="submit">Desbloquear configuración</button></form><p id="status" role="status"></p>
-<script>
-document.getElementById('unlock').addEventListener('submit',async function(event){
-event.preventDefault();const response=await fetch('/unlock',{method:'POST',body:new URLSearchParams(new FormData(this))});
-document.getElementById('status').textContent=await response.text();
-if(response.ok) window.location='/';
-});
-</script></main></body></html>
-)ECOTRACK_PIN";
 
 #ifdef ECOTRACK_DEV_PORTAL
 static const char kSetupDevFields[] PROGMEM = R"ECOTRACK_DEV(

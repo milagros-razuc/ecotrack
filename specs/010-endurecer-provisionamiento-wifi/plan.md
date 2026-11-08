@@ -4,6 +4,8 @@
 
 **Input**: Feature specification from [spec.md](spec.md)
 
+**Current Behavior Note**: For the current portal policy, spec 019 supersedes the per-device WPA2 key and open+PIN iterations with the public shared code `EcoTrack.123` and no PIN. Remaining plan details are historical context for the original feature.
+
 ## Summary
 
 El firmware ESP32 leerá la identidad de fábrica desde NVS mediante `Preferences`, eliminará
