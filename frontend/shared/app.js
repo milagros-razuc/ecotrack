@@ -19,18 +19,21 @@ function borrarDatoLocalStorage(key) {
 }
 
 const token = leerDatoLocalStorage('ecotrack_token');
-if (!token) { window.location.href = 'login.html'; }
-
 const nombre = leerDatoLocalStorage('ecotrack_nombre') || 'Usuario';
 const username = leerDatoLocalStorage('ecotrack_username') || '';
 const rol = leerDatoLocalStorage('ecotrack_rol') || 'comun';
 const esAdmin = rol === 'admin';
 const esPlatformAdmin = rol === 'platform_admin';
 const iniciales = nombre.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-const pagina = document.body.dataset.page;
-if (token && pagina) {
-  const acceso = window.ecotrackRoleRouting.decidirAcceso({ rol, pagina, haySesion: true });
-  if (!acceso.permitido) window.location.replace(acceso.destino);
+const paginaGuard = document.body.dataset.page;
+const accesoGuard = token && paginaGuard
+  ? window.ecotrackRoleRouting.decidirAcceso({ rol, pagina: paginaGuard, haySesion: true })
+  : null;
+window.ecotrackAccesoDenegado = !token || Boolean(accesoGuard && !accesoGuard.permitido);
+if (!token) {
+  window.location.href = 'login.html';
+} else if (window.ecotrackAccesoDenegado) {
+  window.location.replace(accesoGuard.destino);
 }
 
 function cerrarSesion() {
@@ -54,7 +57,7 @@ function manejarNoAutorizado() {
 //   <script src="shared/app.js"></script>
 
 let socket = null;
-if (typeof io !== 'undefined') {
+if (!window.ecotrackAccesoDenegado && typeof io !== 'undefined') {
   socket = io(API, { auth: { token } });
 
   socket.on('connect_error', (err) => {
@@ -188,6 +191,7 @@ document.addEventListener('click', e => {
 
 // ─── Carga del sidebar compartido ──────────────────────────────────────
 async function initShell() {
+  if (window.ecotrackAccesoDenegado) return;
   const res = await fetch('shared/sidebar.html');
   const placeholder = document.getElementById('sidebar-placeholder');
   placeholder.outerHTML = await res.text();
@@ -295,7 +299,7 @@ async function abrirPerfil() {
     </div>
     <div class="flex flex-col gap-1">
       <label class="text-label-bold text-on-surface-variant uppercase">Rol</label>
-      <p class="text-on-surface">${usuario.rol === 'admin' ? 'Administrador' : 'Común'}</p>
+      <p class="text-on-surface">${window.ecotrackSidebarRole.etiquetaRolPerfil(usuario.rol)}</p>
     </div>
     <div class="flex flex-col gap-1">
       <label class="text-label-bold text-on-surface-variant uppercase">Nombre</label>

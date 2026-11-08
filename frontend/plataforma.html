@@ -11,6 +11,7 @@
   <link href="shared/common.css" rel="stylesheet"/>
   <script src="shared/html-escape.js"></script>
   <script src="shared/platform-panel-render.js"></script>
+  <script src="shared/platform-http.js"></script>
   <script src="shared/role-routing.js"></script>
   <script src="shared/sidebar-role.js"></script>
 </head>
@@ -40,16 +41,18 @@
       if (estado.value) query.set('estado', estado.value);
       if (firmware.value.trim()) query.set('firmware', firmware.value.trim());
       const response = await fetch(`${API}/api/plataforma/dispositivos?${query}`, { headers: { Authorization: token } });
-      if (response.status === 401) return manejarNoAutorizado();
-      if (response.status === 403) return window.location.replace(ecotrackRoleRouting.destinoPorRol(rol));
+      const accion = ecotrackPlatformHttp.accionPorEstadoHttp(response);
+      if (accion.accion === 'cerrar-sesion') return manejarNoAutorizado();
+      if (accion.accion === 'error' && !response.ok) throw new Error(accion.mensaje);
       if (!response.ok) throw new Error('No se pudo cargar el inventario');
       const body = await response.json();
       devices.innerHTML = body.items.map(ecotrackPlatformPanelRender.renderDeviceRow).join('');
     }
     async function loadSummary() {
       const response = await fetch(`${API}/api/plataforma/resumen`, { headers: { Authorization: token } });
-      if (response.status === 401) return manejarNoAutorizado();
-      if (response.status === 403) return window.location.replace(ecotrackRoleRouting.destinoPorRol(rol));
+      const accion = ecotrackPlatformHttp.accionPorEstadoHttp(response);
+      if (accion.accion === 'cerrar-sesion') return manejarNoAutorizado();
+      if (accion.accion === 'error' && !response.ok) throw new Error(accion.mensaje);
       if (!response.ok) throw new Error('No se pudo cargar el resumen');
       const data = await response.json();
       summary.innerHTML = Object.entries(data.dispositivos_por_estado).map(([state, total]) => ecotrackPlatformPanelRender.renderSummaryItem(state, total)).join('');

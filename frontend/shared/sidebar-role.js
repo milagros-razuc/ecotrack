@@ -9,5 +9,11 @@
     return 'Usuario';
   }
 
-  return { etiquetaRolSidebar };
+  function etiquetaRolPerfil(rol) {
+    if (rol === 'platform_admin') return 'Plataforma';
+    if (rol === 'admin') return 'Administrador';
+    return 'Común';
+  }
+
+  return { etiquetaRolSidebar, etiquetaRolPerfil };
 });
