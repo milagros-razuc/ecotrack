@@ -5,13 +5,18 @@ const rateLimit = require('express-rate-limit').rateLimit;
 const { PlatformValidationError } = plataformaService;
 
 const router = express.Router();
-const readLimiter = rateLimit({
-  windowMs: rateLimits.read.windowMs,
-  max: rateLimits.read.max,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: 'Límite de solicitudes excedido.' },
-});
+function createReadLimiter(options = {}) {
+  return rateLimit({
+    windowMs: rateLimits.read.windowMs,
+    max: rateLimits.read.max,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Límite de solicitudes excedido.' },
+    ...options,
+  });
+}
+
+const readLimiter = createReadLimiter();
 function handleErrors(handler) {
   return async (req, res, next) => {
     try {
@@ -29,3 +34,4 @@ router.get('/dispositivos', readLimiter, handleErrors((req) =>
   plataformaService.listarDispositivos(req.query, lastReadingWindowDays)));
 
 module.exports = router;
+module.exports.createReadLimiter = createReadLimiter;
