@@ -279,10 +279,11 @@ async function abrirPerfil() {
   if (res.status === 401) return manejarNoAutorizado();
   const usuario = await res.json();
 
+  const escapeHtml = window.ecotrackHtmlEscape.escapeHtml;
   contenido.innerHTML = `
     <div class="flex flex-col gap-1">
       <label class="text-label-bold text-on-surface-variant uppercase">Usuario</label>
-      <p class="font-bold text-on-surface">${usuario.username}</p>
+      <p class="font-bold text-on-surface">${escapeHtml(usuario.username)}</p>
     </div>
     <div class="flex flex-col gap-1">
       <label class="text-label-bold text-on-surface-variant uppercase">Rol</label>
@@ -290,7 +291,7 @@ async function abrirPerfil() {
     </div>
     <div class="flex flex-col gap-1">
       <label class="text-label-bold text-on-surface-variant uppercase">Nombre</label>
-      <input id="perfil-nombre" class="px-3 py-2 border border-outline-variant rounded-lg text-body-sm outline-none focus:border-primary" value="${usuario.nombre || ''}"/>
+      <input id="perfil-nombre" class="px-3 py-2 border border-outline-variant rounded-lg text-body-sm outline-none focus:border-primary" value="${escapeHtml(usuario.nombre || '')}"/>
     </div>
     <p id="perfil-error" class="hidden text-error text-body-sm"></p>
   `;

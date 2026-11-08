@@ -9,6 +9,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
   <script src="shared/tailwind-config.js"></script>
   <link href="shared/common.css" rel="stylesheet"/>
+  <script src="shared/html-escape.js"></script>
+  <script src="shared/platform-panel-render.js"></script>
 </head>
 <body class="bg-background font-body-md text-on-background flex h-screen overflow-hidden" data-page="plataforma">
   <div id="sidebar-placeholder"></div>
@@ -39,13 +41,13 @@
       if (response.status === 401) return manejarNoAutorizado();
       if (!response.ok) throw new Error('No se pudo cargar el inventario');
       const body = await response.json();
-      devices.innerHTML = body.items.map(device => `<tr class="border-b"><td class="p-3">${device.codigo}</td><td class="p-3">${device.cliente || 'Sin cliente'}</td><td class="p-3">${device.estado}</td><td class="p-3">${device.firmware_version || '—'}</td><td class="p-3">${device.online}</td><td class="p-3">${device.ultima_lectura ? new Date(device.ultima_lectura.timestamp).toLocaleString() : 'sin lectura reciente (últimos 30 días)'}</td></tr>`).join('');
+      devices.innerHTML = body.items.map(ecotrackPlatformPanelRender.renderDeviceRow).join('');
     }
     async function loadSummary() {
       const response = await fetch(`${API}/api/plataforma/resumen`, { headers: { Authorization: token } });
       if (!response.ok) throw new Error('No se pudo cargar el resumen');
       const data = await response.json();
-      summary.innerHTML = Object.entries(data.dispositivos_por_estado).map(([state, total]) => `<div class="bg-surface rounded-lg p-4"><div class="text-on-surface-variant">${state}</div><strong class="text-headline-md">${total}</strong></div>`).join('');
+      summary.innerHTML = Object.entries(data.dispositivos_por_estado).map(([state, total]) => ecotrackPlatformPanelRender.renderSummaryItem(state, total)).join('');
     }
     const { shouldRenderPlatformPanel } = { shouldRenderPlatformPanel: role => role === 'platform_admin' };
     const estado = document.getElementById('estado');
