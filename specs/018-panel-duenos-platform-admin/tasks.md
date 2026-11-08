@@ -48,8 +48,8 @@ stories or migrations in one commit.
 **Purpose**: Ensure every newly initialized test database receives migrations
 016 onward explicitly, after the base schema has been created by `migrate.js`.
 
-- [ ] T048 Write a test in `backend/src/test/platform-panel-schema.test.js` that creates a fresh temporary test database, initializes its base schema with `migrate.js`, invokes the explicit migration runner through the test helper, verifies migrations 016–019 are applied, runs the runner a second time to prove idempotence, and drops the temporary database in cleanup.
-- [ ] T049 Implement `backend/scripts/run-migrations.js` as an explicit idempotent runner invoked by the test helper, applying `backend/migrations/016_*.sql` onward in numeric order after the base schema exists; record applied migrations, expose failures instead of silently continuing, and do not wrap migrations in an additional transaction.
+- [X] T048 Write a test in `backend/src/test/platform-panel-schema.test.js` that creates a fresh temporary test database, initializes its base schema with `migrate.js`, invokes the explicit migration runner through the test helper, verifies migrations 016–019 are applied, runs the runner a second time to prove idempotence, and drops the temporary database in cleanup.
+- [X] T049 Implement `backend/scripts/run-migrations.js` as an explicit idempotent runner invoked by the test helper, applying `backend/migrations/016_*.sql` onward in numeric order after the base schema exists; record applied migrations, expose failures instead of silently continuing, and do not wrap migrations in an additional transaction.
 
 **Checkpoint**: Foundational schema/configuration tests fail before implementation; migration names, database contracts, and delivery to fresh test databases are fixed.
 

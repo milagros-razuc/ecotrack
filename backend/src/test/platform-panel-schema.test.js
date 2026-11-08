@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { Pool } = require('pg');
 const test = require('node:test');
-const { requireTestDatabase } = require('./platform-panel.test-support');
+const { requireTestDatabase, withTemporaryMigrationDatabase } = require('./platform-panel.test-support');
 
 const root = path.resolve(__dirname, '../../..');
 const migrationsDir = path.join(root, 'backend', 'migrations');
@@ -132,4 +132,53 @@ test('las migraciones 016 a 019 siguen a la lista real y no editan 014 o 015', (
     const current = fs.readFileSync(path.join(migrationsDir, migration), 'utf8').replace(/\r\n/g, '\n');
     assert.equal(current, committed, `${migration} no debe modificarse`);
   }
+});
+
+test('el helper aplica 016 a 019 sobre una base nueva inicializada por migrate.js y es repetible', async () => {
+  await withTemporaryMigrationDatabase(async ({ connectionString, runMigrations }) => {
+    const pool = new Pool({ connectionString });
+    try {
+      const { rows: baseColumns } = await pool.query(`
+        SELECT table_name, column_name
+        FROM information_schema.columns
+        WHERE (table_name, column_name) IN (
+          ('dispositivos_fabrica', 'enrolled_at'),
+          ('dispositivos', 'firmware_version')
+        )
+        ORDER BY table_name, column_name
+      `);
+      assert.deepEqual(baseColumns, [
+        { table_name: 'dispositivos', column_name: 'firmware_version' },
+        { table_name: 'dispositivos_fabrica', column_name: 'enrolled_at' },
+      ]);
+    } finally {
+      await pool.end();
+    }
+
+    await runMigrations();
+    await runMigrations();
+
+    const migratedPool = new Pool({ connectionString });
+    try {
+      const { rows } = await migratedPool.query(`
+        SELECT column_name
+        FROM information_schema.columns
+        WHERE table_name = 'auditoria' AND column_name = 'actor_tipo'
+      `);
+      assert.deepEqual(rows, [{ column_name: 'actor_tipo' }]);
+
+      const { rows: applied } = await migratedPool.query(
+        'SELECT version FROM schema_migrations WHERE version = ANY($1::text[]) ORDER BY version',
+        [['016_platform_admin_role', '017_platform_client', '018_audit_actor', '019_platform_reading_index']],
+      );
+      assert.deepEqual(applied.map((row) => row.version), [
+        '016_platform_admin_role',
+        '017_platform_client',
+        '018_audit_actor',
+        '019_platform_reading_index',
+      ]);
+    } finally {
+      await migratedPool.end();
+    }
+  });
 });
