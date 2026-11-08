@@ -2,8 +2,19 @@
 
 ## Prerrequisitos
 
-- Docker Compose levantado con PostgreSQL, backend, frontend y broker.
-- `TEST_DATABASE_URL` configurada para la base aislada existente.
+- PostgreSQL de pruebas levantado como `ecotrack_pg_test` y publicado en
+  `127.0.0.1:5433`.
+- `TEST_DATABASE_URL` apuntando a `ecotrack_test` en ese puerto, por ejemplo:
+  `postgresql://<usuario>:<password>@127.0.0.1:5433/ecotrack_test`.
+- No usar el PostgreSQL de desarrollo en `5432`; las guardas existentes deben
+  rechazar cualquier base que no sea `*_test` o `hardening_*`.
+- El inicializador `backend/src/config/migrate.js` crea el esquema base mediante
+  SQL inline, incluyendo las estructuras correspondientes a `014` y `015`, y
+  no ejecuta archivos de `backend/migrations/`.
+- El script explícito `backend/scripts/run-migrations.js` aplica `016` en
+  adelante en orden numérico sobre una base cuyo esquema base ya fue inicializado.
+  Se invoca desde el helper de tests, no al arrancar el backend, es repetible y
+  no envuelve las migraciones en una transacción adicional.
 - Usuario `platform_admin` creado por el seed local idempotente.
 - Al menos dos clientes operativos y dispositivos fabricados, reclamados y
   enrolados.
@@ -30,11 +41,9 @@ La suite debe cubrir:
 - Rate limit propio del panel: 10 solicitudes por 15 minutos.
 - Seed repetido sin duplicar cliente especial ni usuario.
 
-Las guardas existentes deben rechazar cualquier base que no cumpla el contrato actual
-de `TEST_DATABASE_URL`.
-
-La línea base previa registrada es 76/77 tests de integración: 76 pasaron y 1 falló
-en el subtest 13 de continuidad por falta de partición mensual; el subtest T011 pasó.
+La línea base medida en `ecotrack_pg_test` (`127.0.0.1:5433`) fue de 260 de 293:
+1 fallo conocido (subtest 13 de continuidad, causa sin diagnosticar; la partición
+del mes anterior existe) y 32 tests `todo`.
 
 ## Prueba manual final con placa real
 

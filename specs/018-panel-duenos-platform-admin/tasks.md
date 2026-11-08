@@ -21,7 +21,7 @@ stories or migrations in one commit.
 
 **Purpose**: Establish test and configuration surfaces without changing runtime behavior.
 
-- [X] T001 [P] Create the platform-panel test fixture and isolated test helpers in `backend/src/test/platform-panel.test-support.js`, reusing the existing `TEST_DATABASE_URL` guard and recording the baseline as 76 de 77, subtest 13 conocido.
+- [X] T001 [P] Create the platform-panel test fixture and isolated test helpers in `backend/src/test/platform-panel.test-support.js`, reusing the existing `TEST_DATABASE_URL` guard and recording the baseline as 260 de 293, with subtest 13 known and 32 todo.
 - [X] T002 [P] Add platform-panel test configuration helpers in `backend/src/config/platformPanelConfig.js` with defaults, always-run-at-startup environment validation, and explicit error reporting; define the maximum `PLATFORM_LAST_READING_WINDOW_DAYS` constant as 365, alongside `PLATFORM_RESET_RATE_LIMIT_MAX`, `PLATFORM_RESET_RATE_LIMIT_WINDOW_MS`, `PLATFORM_READ_RATE_LIMIT_MAX`, and `PLATFORM_READ_RATE_LIMIT_WINDOW_MS`.
 - [X] T003 [P] Add the frontend panel test harness or lightweight DOM test entrypoint in `frontend/` without adding external dependencies, covering role-based rendering and reset confirmation.
 
@@ -41,9 +41,17 @@ stories or migrations in one commit.
 - [X] T009 Create the new numbered platform-client migration `backend/migrations/017_platform_client.sql` without editing prior migrations; add `clientes.es_plataforma BOOLEAN NOT NULL DEFAULT false`, enforce the intended uniqueness invariant for the marked platform client, and make the migration rerunnable.
 - [X] T010 Create the new numbered audit-actor migration `backend/migrations/018_audit_actor.sql` without editing prior migrations; add `auditoria.actor_tipo VARCHAR(30) NOT NULL DEFAULT 'tenant'` in a rerunnable way.
 - [X] T011 Create the parent-table index migration `backend/migrations/019_platform_reading_index.sql` without editing prior migrations; verify by definition that the real partitioned `lecturas` parent has `(dispositivo_codigo, timestamp DESC)` and create a replacement only when no equivalent index exists, rerunnable.
-- [X] T012 [P] Write migration-order and no-edit regression checks in `backend/src/test/platform-panel-schema.test.js` against the real migration list, confirming 015 is currently last, migrations 016–019 follow it in order, are idempotent, and do not modify migrations 014 or 015.
+- [X] T012 [P] Write migration-order and no-edit regression checks in `backend/src/test/platform-panel-schema.test.js` against the real migration list, confirming 015 is immediately followed by migrations 016–019, which are idempotent and do not modify migrations 014 or 015.
 
-**Checkpoint**: Foundational schema/configuration tests fail before implementation; migration names and database contracts are fixed.
+### Phase 2A: Test Database Migration Delivery
+
+**Purpose**: Ensure every newly initialized test database receives migrations
+016 onward explicitly, after the base schema has been created by `migrate.js`.
+
+- [ ] T048 Write a test in `backend/src/test/platform-panel-schema.test.js` that creates a fresh temporary test database, initializes its base schema with `migrate.js`, invokes the explicit migration runner through the test helper, verifies migrations 016–019 are applied, runs the runner a second time to prove idempotence, and drops the temporary database in cleanup.
+- [ ] T049 Implement `backend/scripts/run-migrations.js` as an explicit idempotent runner invoked by the test helper, applying `backend/migrations/016_*.sql` onward in numeric order after the base schema exists; record applied migrations, expose failures instead of silently continuing, and do not wrap migrations in an additional transaction.
+
+**Checkpoint**: Foundational schema/configuration tests fail before implementation; migration names, database contracts, and delivery to fresh test databases are fixed.
 
 ---
 
@@ -131,7 +139,7 @@ stories or migrations in one commit.
 
 - [ ] T043 [P] Add focused unit coverage for configuration bounds, lifecycle derivation, whitelist mapping, LATERAL query parameters, and actor masking in `backend/src/test/platform-panel.unit.test.js`.
 - [ ] T044 [P] Update `README.MD` or the relevant operational documentation with seed invocation, environment variables, raw JWT header convention, in-memory rate-limit limitation, and migration order.
-- [ ] T045 Run the focused platform tests and then the broader backend suite from `backend/`; record the known baseline result of 76/77 separately from feature regressions and do not rewrite the pre-existing continuity failure.
+- [ ] T045 Run the focused platform tests and then the broader backend suite from `backend/`; record the known baseline result of 260/293 (32 todo) separately from feature regressions and do not rewrite the pre-existing continuity failure.
 - [ ] T046 Execute the final manual validation with a real ESP32 board that is not `ET-974XQNAHDYVX`, following [quickstart.md](./quickstart.md), and record panel listing, reset, re-enrollment, reading/connection timestamps, firmware, audit masking, and rate-limit observations.
 - [ ] T047 Verify `git diff --check`, migration repeatability, no edits to migrations 014/015, no secrets in responses/logs/audit, and all task-level commits before delivery in `specs/018-panel-duenos-platform-admin/`.
 
@@ -143,8 +151,11 @@ stories or migrations in one commit.
 
 - **Setup (Phase 1)**: No dependencies; T001–T003 can run in parallel.
 - **Foundational (Phase 2)**: Depends on Setup; T004–T007 can run in parallel, then
-  T008–T011 migrations, with T012 verifying their ordering and idempotence.
-- **US1 (Phase 3)**: Depends on the foundational schema/configuration contracts;
+  T008–T011 migrations, with T012 verifying their ordering and idempotence. T048
+  must be written and observed failing before T049 implements the migration runner.
+- **US1 (Phase 3)**: Depends on the foundational schema/configuration contracts and
+  the test database migration delivery tasks T048–T049; T013 depends explicitly
+  on T049 so its integration fixture cannot run before the runner is available.
   T013–T020 are tests and are written first; then T021–T027.
 - **US2 (Phase 4)**: Depends on T022, T025, T026 and the existing spec 016 reset
   service; T028–T032 are tests-first and can be authored in parallel, then T033–T036.
@@ -168,6 +179,7 @@ must be investigated for fixture leakage or an incomplete assertion.
 
 - `T001–T007`: test/configuration scaffolding.
 - `T008–T012`: numbered migrations and schema contracts.
+- `T048–T049`: test database migration delivery and idempotence.
 - `T013–T019`: US1 failing tests.
 - `T020`: US1 seed tests.
 - `T021–T027`: US1 implementation.
@@ -191,6 +203,8 @@ task-generation step.
   sequence, not in parallel; route mounting waits for both.
 - T033 can proceed in parallel with T034; T034 verifies the spec 016 service and
   must finish before T035.
+- T048 precedes T049; both affect test database initialization and are sequential.
+- T013 depends on T049 and must remain after the explicit runner is available.
 
 ---
 
@@ -198,10 +212,10 @@ task-generation step.
 
 ### MVP First (User Story 1 Only)
 
-1. Complete T001–T012.
+1. Complete T001–T012, then write and implement T048–T049.
 2. Write and observe failing T013–T020.
 3. Implement T021–T027.
-4. Run the US1 checkpoint and verify the pre-existing 76/77 baseline separately.
+4. Run the US1 checkpoint and verify the pre-existing 260/293 baseline separately.
 5. Stop for an MVP review before starting reset behavior.
 
 ### Incremental Delivery
@@ -217,4 +231,6 @@ task-generation step.
 - `[P]` appears only where the task can proceed independently without incomplete
   prerequisites.
 - All user-story tasks carry `[US1]`, `[US2]`, or `[US3]`.
+- T048–T049 are foundational infrastructure tasks and intentionally have no
+  user-story tag.
 - No code, migration, or commit is created by this generation step.

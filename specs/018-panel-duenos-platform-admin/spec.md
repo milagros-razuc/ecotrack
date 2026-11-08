@@ -19,6 +19,22 @@
 - Reclamar dispositivos automáticamente o por lote.
 - Convertir al `platform_admin` en un administrador operativo de ningún cliente.
 
+## Entorno de pruebas y migraciones
+
+- Las pruebas de integración usan exclusivamente la base PostgreSQL aislada
+  `ecotrack_test` del contenedor `ecotrack_pg_test`, publicada en
+  `127.0.0.1:5433`, mediante `TEST_DATABASE_URL`.
+- Las guardas existentes deben rechazar URLs sin base de pruebas (`*_test` o
+  `hardening_*`) y no deben usar la base de desarrollo ni el puerto `5432`.
+- `backend/src/config/migrate.js` no ejecuta automáticamente
+  `backend/migrations/*.sql`: crea y actualiza el esquema mediante SQL inline.
+  Por eso, una base nueva recibe actualmente las estructuras equivalentes a
+  `014_factory_devices.sql` y `015_firmware_version.sql` desde ese inicializador,
+  no mediante la aplicación de esos archivos ni de un historial de migraciones.
+- Antes de US1 debe existir un runner idempotente para aplicar las migraciones
+  numeradas a cualquier base de test inicializada, incluyendo `016` a `019`, y
+  una prueba que lo verifique en una base nueva y en una segunda ejecución.
+
 ## User Scenarios & Testing
 
 ### User Story 1 - Consultar el inventario global (Priority: P1)
@@ -249,12 +265,10 @@ confirmar que ninguna respuesta contiene campos secretos.
 - El endpoint existente de reset requiere `admin`, usa `req.clienteId` en la ruta
   de dispositivos, y el servicio actual recibe `clienteId` como argumento; se
   debe verificar en implementación que no dependa de objetos HTTP.
-- La línea base real ejecutada antes de modificar esta spec fue de 77 tests de
-  integración: 76 pasaron y 1 falló. El fallo fue el subtest 13, “lectura
-  diferida del mes anterior cae en su partición y agregado de captura”, por
-  ausencia de una partición de `lecturas` para el mes anterior. La referencia
-  previa a “continuidad-lecturas test 11” no coincide con esta ejecución real:
-  T011 (“última lectura no es reemplazada por una diferida”) pasó.
+- La línea base medida en `ecotrack_pg_test` (`127.0.0.1:5433`) fue de 260 de
+  293 tests: 1 fallo conocido, el subtest 13 de continuidad, con causa aún sin
+  diagnosticar aunque la partición del mes anterior existe; además hubo 32
+  tests `todo`.
 - Las referencias de esta feature a `docs/requisitos.md` fueron verificadas:
   RF12, RF14, RF17, RF18, RF19, RI01, RI06, RI08, RI14, RI15, RI17, RI18,
   RNF01, RNF03, RNF05, RNF07, RNF08 y RNF09 existen. El panel global y
