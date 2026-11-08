@@ -25,8 +25,8 @@ function validateDatabaseConfig(environment, options = {}) {
     )}@${environment.DB_HOST}:${environment.DB_PORT}/${encodeURIComponent(environment.DB_NAME)}`;
     try {
       testDatabaseConfig(connectionString, { developmentUrl: null, developmentDatabase: null });
-    } catch (error) {
-      throw new Error(`DB_NAME inválido: ${error.message}`);
+    } catch {
+      throw new Error('DB_NAME inválido: debe terminar en _test o comenzar con hardening_');
     }
     if (String(environment.DB_PORT) === '5432') {
       throw new Error(`El runner requiere el puerto de pruebas ${TEST_DATABASE_PORT}; 5432 está reservado para desarrollo`);
