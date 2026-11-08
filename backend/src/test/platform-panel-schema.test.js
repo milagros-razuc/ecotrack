@@ -37,27 +37,42 @@ test('la migración del índice cubre la tabla padre particionada', async () => 
   const pool = new Pool({ connectionString: database.connectionString });
   try {
     const { rows } = await pool.query(`
-      SELECT c.relkind, i.indexrelid::regclass::text AS index_name,
-             pg_get_indexdef(i.indexrelid) AS index_definition
+      SELECT c.relkind,
+             array_agg(a.attname::text ORDER BY key.ordinality)::text[] AS columns,
+             array_agg((i.indoption[key.ordinality - 1] & 1) = 1 ORDER BY key.ordinality)::boolean[] AS descending
       FROM pg_index i
       JOIN pg_class c ON c.oid = i.indrelid
-      WHERE c.relname = 'lecturas'
-        AND pg_get_indexdef(i.indexrelid) ILIKE '%dispositivo_codigo%'
-        AND pg_get_indexdef(i.indexrelid) ILIKE '%timestamp%'
+      CROSS JOIN LATERAL unnest(i.indkey) WITH ORDINALITY AS key(attnum, ordinality)
+      JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = key.attnum
+      WHERE i.indrelid = 'lecturas'::regclass
+        AND i.indisvalid
+        AND i.indisready
+        AND i.indpred IS NULL
+        AND i.indnkeyatts = 2
+      GROUP BY c.relkind, i.indexrelid
     `);
     assert.ok(rows.some((row) => row.relkind === 'p'), 'lecturas debe ser tabla particionada');
     assert.ok(
-      rows.some((row) => /dispositivo_codigo.*timestamp\s+DESC/i.test(row.index_definition)),
-      'falta el índice dispositivo_codigo, timestamp DESC en la tabla padre',
+      rows.some(
+        (row) =>
+          Array.isArray(row.columns) &&
+          row.columns.join(',') === 'dispositivo_codigo,timestamp' &&
+          Array.isArray(row.descending) &&
+          row.descending.join(',') === 'false,true',
+      ),
+      'falta un índice equivalente por columnas y orden en la tabla padre',
     );
   } finally {
     await pool.end();
   }
   const migration = fs.readFileSync(path.join(migrationsDir, '019_platform_reading_index.sql'), 'utf8');
-  assert.match(migration, /CREATE INDEX IF NOT EXISTS/i);
+  assert.match(migration, /IF NOT EXISTS\s*\(\s*SELECT 1\s+FROM pg_index/is);
+  assert.match(migration, /indrelid\s*=\s*'lecturas'::regclass/i);
+  assert.match(migration, /indisvalid/i);
+  assert.match(migration, /indisready/i);
+  assert.match(migration, /indpred\s+IS\s+NULL/i);
   assert.match(migration, /dispositivo_codigo\s*,\s*timestamp\s+DESC/i);
   assert.match(migration, /ON\s+lecturas\s*\(/i);
-  assert.match(migration, /PARTITIONED|parent/i);
 });
 
 test('las migraciones nuevas declaran operaciones repetibles', () => {
@@ -69,7 +84,35 @@ test('las migraciones nuevas declaran operaciones repetibles', () => {
   assert.match(platformClientMigration, /ADD COLUMN IF NOT EXISTS/i);
   assert.match(platformClientMigration, /CREATE UNIQUE INDEX IF NOT EXISTS/i);
   assert.match(auditMigration, /ADD COLUMN IF NOT EXISTS/i);
-  assert.match(indexMigration, /CREATE INDEX IF NOT EXISTS/i);
+  assert.match(indexMigration, /IF NOT EXISTS\s*\(\s*SELECT 1\s+FROM pg_index/is);
+  assert.match(indexMigration, /indrelid\s*=\s*'lecturas'::regclass/i);
+  assert.match(indexMigration, /indisvalid/i);
+  assert.match(indexMigration, /indisready/i);
+  assert.match(indexMigration, /indpred\s+IS\s+NULL/i);
+  assert.doesNotMatch(indexMigration, /CREATE INDEX IF NOT EXISTS/i);
+});
+
+test('la migración 019 es idempotente y reutiliza el índice existente', async () => {
+  const database = requireTestDatabase();
+  const migration = fs.readFileSync(path.join(migrationsDir, '019_platform_reading_index.sql'), 'utf8');
+  const pool = new Pool({ connectionString: database.connectionString });
+  try {
+    await pool.query('DROP INDEX IF EXISTS idx_lecturas_dispositivo_ts_platform');
+    await pool.query(migration);
+    await pool.query(migration);
+    const { rows } = await pool.query(`
+      SELECT 1
+      FROM pg_class c
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE c.relname = 'idx_lecturas_dispositivo_ts_platform'
+        AND n.nspname = current_schema()
+        AND relkind = 'i'
+    `);
+    assert.equal(rows.length, 0, 'no debe crear un índice alternativo si ya existe uno equivalente');
+  } finally {
+    await pool.query('DROP INDEX IF EXISTS idx_lecturas_dispositivo_ts_platform').catch(() => {});
+    await pool.end();
+  }
 });
 
 test('las migraciones 016 a 019 siguen a la lista real y no editan 014 o 015', () => {
