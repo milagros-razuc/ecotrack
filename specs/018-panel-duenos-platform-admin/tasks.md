@@ -21,9 +21,9 @@ stories or migrations in one commit.
 
 **Purpose**: Establish test and configuration surfaces without changing runtime behavior.
 
-- [ ] T001 [P] Create the platform-panel test fixture and isolated test helpers in `backend/src/test/platform-panel.test-support.js`, reusing the existing `TEST_DATABASE_URL` guard and recording the baseline as 76 de 77, subtest 13 conocido.
-- [ ] T002 [P] Add platform-panel test configuration helpers in `backend/src/config/platformPanelConfig.js` with defaults, always-run-at-startup environment validation, and explicit error reporting; define the maximum `PLATFORM_LAST_READING_WINDOW_DAYS` constant as 365, alongside `PLATFORM_RESET_RATE_LIMIT_MAX`, `PLATFORM_RESET_RATE_LIMIT_WINDOW_MS`, `PLATFORM_READ_RATE_LIMIT_MAX`, and `PLATFORM_READ_RATE_LIMIT_WINDOW_MS`.
-- [ ] T003 [P] Add the frontend panel test harness or lightweight DOM test entrypoint in `frontend/` without adding external dependencies, covering role-based rendering and reset confirmation.
+- [X] T001 [P] Create the platform-panel test fixture and isolated test helpers in `backend/src/test/platform-panel.test-support.js`, reusing the existing `TEST_DATABASE_URL` guard and recording the baseline as 76 de 77, subtest 13 conocido.
+- [X] T002 [P] Add platform-panel test configuration helpers in `backend/src/config/platformPanelConfig.js` with defaults, always-run-at-startup environment validation, and explicit error reporting; define the maximum `PLATFORM_LAST_READING_WINDOW_DAYS` constant as 365, alongside `PLATFORM_RESET_RATE_LIMIT_MAX`, `PLATFORM_RESET_RATE_LIMIT_WINDOW_MS`, `PLATFORM_READ_RATE_LIMIT_MAX`, and `PLATFORM_READ_RATE_LIMIT_WINDOW_MS`.
+- [X] T003 [P] Add the frontend panel test harness or lightweight DOM test entrypoint in `frontend/` without adding external dependencies, covering role-based rendering and reset confirmation.
 
 **Checkpoint**: Test/configuration surfaces exist; no production endpoint or schema behavior has changed.
 
@@ -33,15 +33,15 @@ stories or migrations in one commit.
 
 **Purpose**: Verify the existing database contracts and define migration boundaries before story implementation.
 
-- [ ] T004 [P] Write a schema-contract test in `backend/src/test/platform-panel-schema.test.js` that queries the real `lecturas` definition and confirms the column is exactly `dispositivo_codigo`, not an inferred alternative.
-- [ ] T005 [P] Write a migration/index contract test in `backend/src/test/platform-panel-schema.test.js` that requires the composite index `(dispositivo_codigo, timestamp DESC)` on the partitioned parent table and verifies migrations are repeatable.
-- [ ] T006 [P] Write configuration startup tests in `backend/src/test/platform-panel-config.test.js` proving validation always runs at startup: absent uses 30, non-integer/zero/negative values fail startup, 365 is valid, and 366 fails at startup.
-- [ ] T007 [P] Write rate-limit contract tests in `backend/src/test/platform-panel-rate-limit.test.js` proving reset and read limiters have separate in-memory counters, defaults of 10/15 minutes and 300/15 minutes respectively, and environment overrides are applied.
-- [ ] T008 Create the new numbered role migration `backend/migrations/016_platform_admin_role.sql` without editing prior migrations; expand the role constraint to accept `platform_admin` while preserving `admin` and `comun`.
-- [ ] T009 Create the new numbered platform-client migration `backend/migrations/017_platform_client.sql` without editing prior migrations; add `clientes.es_plataforma BOOLEAN NOT NULL DEFAULT false`, enforce the intended uniqueness invariant for the marked platform client, and make the migration rerunnable.
-- [ ] T010 Create the new numbered audit-actor migration `backend/migrations/018_audit_actor.sql` without editing prior migrations; add `auditoria.actor_tipo VARCHAR(30) NOT NULL DEFAULT 'tenant'` in a rerunnable way.
-- [ ] T011 Create the parent-table index migration `backend/migrations/019_platform_reading_index.sql` without editing prior migrations; verify the real partitioned `lecturas` parent and create `(dispositivo_codigo, timestamp DESC)` on that parent, rerunnable.
-- [ ] T012 [P] Write migration-order and no-edit regression checks in `backend/src/test/platform-panel-schema.test.js` against the real migration list, confirming 015 is currently last, migrations 016–019 follow it in order, are idempotent, and do not modify migrations 014 or 015.
+- [X] T004 [P] Write a schema-contract test in `backend/src/test/platform-panel-schema.test.js` that queries the real `lecturas` definition and confirms the column is exactly `dispositivo_codigo`, not an inferred alternative.
+- [X] T005 [P] Write a migration/index contract test in `backend/src/test/platform-panel-schema.test.js` that requires the composite index `(dispositivo_codigo, timestamp DESC)` on the partitioned parent table and verifies migrations are repeatable.
+- [X] T006 [P] Write configuration startup tests in `backend/src/test/platform-panel-config.test.js` proving validation always runs at startup: absent uses 30, non-integer/zero/negative values fail startup, 365 is valid, and 366 fails at startup.
+- [X] T007 [P] Write rate-limit contract tests in `backend/src/test/platform-panel-rate-limit.test.js` proving reset and read limiters have separate in-memory counters, defaults of 10/15 minutes and 300/15 minutes respectively, and environment overrides are applied.
+- [X] T008 Create the new numbered role migration `backend/migrations/016_platform_admin_role.sql` without editing prior migrations; expand the role constraint to accept `platform_admin` while preserving `admin` and `comun`.
+- [X] T009 Create the new numbered platform-client migration `backend/migrations/017_platform_client.sql` without editing prior migrations; add `clientes.es_plataforma BOOLEAN NOT NULL DEFAULT false`, enforce the intended uniqueness invariant for the marked platform client, and make the migration rerunnable.
+- [X] T010 Create the new numbered audit-actor migration `backend/migrations/018_audit_actor.sql` without editing prior migrations; add `auditoria.actor_tipo VARCHAR(30) NOT NULL DEFAULT 'tenant'` in a rerunnable way.
+- [X] T011 Create the parent-table index migration `backend/migrations/019_platform_reading_index.sql` without editing prior migrations; verify the real partitioned `lecturas` parent and create `(dispositivo_codigo, timestamp DESC)` on that parent, rerunnable.
+- [X] T012 [P] Write migration-order and no-edit regression checks in `backend/src/test/platform-panel-schema.test.js` against the real migration list, confirming 015 is currently last, migrations 016–019 follow it in order, are idempotent, and do not modify migrations 014 or 015.
 
 **Checkpoint**: Foundational schema/configuration tests fail before implementation; migration names and database contracts are fixed.
 
