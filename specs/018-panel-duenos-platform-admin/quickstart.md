@@ -46,9 +46,9 @@ La suite debe cubrir:
 - Rate limit propio del panel: 10 solicitudes por 15 minutos.
 - Seed repetido sin duplicar cliente especial ni usuario.
 
-La línea base medida en `ecotrack_pg_test` (`127.0.0.1:5433`) fue de 261 de 294:
-1 fallo conocido (subtest 13 de continuidad, causa sin diagnosticar: la partición
-del mes anterior existe) y 32 tests `todo`.
+La línea base medida en `ecotrack_pg_test` (`127.0.0.1:5433`) fue de 266 de 299:
+1 fallo conocido (subtest 13 de continuidad, causa sin diagnosticar) y 32 tests
+`todo`.
 
 ## Prueba manual final con placa real
 

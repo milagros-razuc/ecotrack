@@ -21,7 +21,7 @@ stories or migrations in one commit.
 
 **Purpose**: Establish test and configuration surfaces without changing runtime behavior.
 
-- [X] T001 [P] Create the platform-panel test fixture and isolated test helpers in `backend/src/test/platform-panel.test-support.js`, reusing the existing `TEST_DATABASE_URL` guard and recording the baseline as 261 de 294, with subtest 13 known and 32 todo.
+- [X] T001 [P] Create the platform-panel test fixture and isolated test helpers in `backend/src/test/platform-panel.test-support.js`, reusing the existing `TEST_DATABASE_URL` guard and recording the baseline as 266 de 299, with subtest 13 known and 32 todo.
 - [X] T002 [P] Add platform-panel test configuration helpers in `backend/src/config/platformPanelConfig.js` with defaults, always-run-at-startup environment validation, and explicit error reporting; define the maximum `PLATFORM_LAST_READING_WINDOW_DAYS` constant as 365, alongside `PLATFORM_RESET_RATE_LIMIT_MAX`, `PLATFORM_RESET_RATE_LIMIT_WINDOW_MS`, `PLATFORM_READ_RATE_LIMIT_MAX`, and `PLATFORM_READ_RATE_LIMIT_WINDOW_MS`.
 - [X] T003 [P] Add the frontend panel test harness or lightweight DOM test entrypoint in `frontend/` without adding external dependencies, covering role-based rendering and reset confirmation.
 
@@ -139,7 +139,7 @@ stories or migrations in one commit.
 
 - [ ] T043 [P] Add focused unit coverage for configuration bounds, lifecycle derivation, whitelist mapping, LATERAL query parameters, and actor masking in `backend/src/test/platform-panel.unit.test.js`.
 - [ ] T044 [P] Update `README.MD` or the relevant operational documentation with seed invocation, environment variables, raw JWT header convention, in-memory rate-limit limitation, and migration order.
-- [ ] T045 Run the focused platform tests and then the broader backend suite from `backend/`; record the known baseline result of 261/294 (32 todo) separately from feature regressions and do not rewrite the pre-existing continuity failure.
+- [ ] T045 Run the focused platform tests and then the broader backend suite from `backend/`; record the known baseline result of 266/299 (32 todo) separately from feature regressions and do not rewrite the pre-existing continuity failure.
 - [ ] T046 Execute the final manual validation with a real ESP32 board that is not `ET-974XQNAHDYVX`, following [quickstart.md](./quickstart.md), and record panel listing, reset, re-enrollment, reading/connection timestamps, firmware, audit masking, and rate-limit observations.
 - [ ] T047 Verify `git diff --check`, migration repeatability, no edits to migrations 014/015, no secrets in responses/logs/audit, and all task-level commits before delivery in `specs/018-panel-duenos-platform-admin/`.
 
@@ -215,7 +215,7 @@ task-generation step.
 1. Complete T001–T012, then write and implement T048–T049.
 2. Write and observe failing T013–T020.
 3. Implement T021–T027.
-4. Run the US1 checkpoint and verify the pre-existing 261/294 baseline separately.
+4. Run the US1 checkpoint and verify the pre-existing 266/299 baseline separately.
 5. Stop for an MVP review before starting reset behavior.
 
 ### Incremental Delivery
