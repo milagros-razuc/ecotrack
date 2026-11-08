@@ -8,8 +8,7 @@
 
 namespace {
 constexpr unsigned long kPortalTimeoutMs = 10UL * 60UL * 1000UL;
-constexpr unsigned long kPinLockoutMs = 5UL * 60UL * 1000UL;
-constexpr uint8_t kMaxPinAttempts = 5;
+constexpr char kSoftApPassword[] = "EcoTrack.123";
 DNSServer dns;
 WebServer web(80);
 DeviceConfig* activeConfig = nullptr;
@@ -19,9 +18,6 @@ bool active = false;
 bool routesRegistered = false;
 unsigned long lastActivityAt = 0;
 unsigned long portalStartedAt = 0;
-unsigned long pinLockedUntil = 0;
-uint8_t failedPinAttempts = 0;
-bool pinAuthenticated = false;
 
 void markActivity() {
   lastActivityAt = millis();
@@ -78,11 +74,6 @@ void listNetworks() {
 
 void showForm() {
   markActivity();
-  if (!pinAuthenticated) {
-    noCache();
-    web.send_P(200, "text/html; charset=utf-8", kSetupPinPage);
-    return;
-  }
   String page = FPSTR(kSetupPortalPage);
   page.replace("{{SSID}}", htmlEscape(activeConfig->ssid));
 #ifdef ECOTRACK_DEV_PORTAL
@@ -97,33 +88,7 @@ void showForm() {
   web.send(200, "text/html; charset=utf-8", page);
 }
 
-void unlockPortal() {
-  if (static_cast<long>(millis() - pinLockedUntil) < 0) {
-    web.send(429, "text/plain; charset=utf-8", "Portal bloqueado temporalmente.");
-    return;
-  }
-  if (!web.hasArg("setupPin") || web.arg("setupPin") != activeConfig->setupPin) {
-    ++failedPinAttempts;
-    if (failedPinAttempts >= kMaxPinAttempts) {
-      failedPinAttempts = 0;
-      pinLockedUntil = millis() + kPinLockoutMs;
-      web.send(429, "text/plain; charset=utf-8",
-               "Demasiados intentos. Reintente en 5 minutos.");
-    } else {
-      web.send(401, "text/plain; charset=utf-8", "PIN incorrecto.");
-    }
-    return;
-  }
-  failedPinAttempts = 0;
-  pinAuthenticated = true;
-  web.send(200, "text/plain; charset=utf-8", "PIN correcto.");
-}
-
 void saveForm() {
-  if (!pinAuthenticated) {
-    web.send(401, "text/plain; charset=utf-8", "Se requiere el PIN.");
-    return;
-  }
   if (currentStatus == "WIFI_CONNECTING") {
     web.send(409, "text/plain; charset=utf-8", "Ya se está probando WiFi.");
     return;
@@ -189,15 +154,11 @@ bool startSetupPortal(const String& apName, DeviceConfig& config,
   currentStatus = "READY";
   lastActivityAt = millis();
   portalStartedAt = lastActivityAt;
-  pinAuthenticated = false;
-  failedPinAttempts = 0;
-  pinLockedUntil = 0;
   WiFi.mode(WIFI_AP_STA);
-  if (!WiFi.softAP(apName.c_str())) return false;
+  if (!WiFi.softAP(apName.c_str(), kSoftApPassword)) return false;
   dns.start(53, "*", WiFi.softAPIP());
   if (!routesRegistered) {
     web.on("/", HTTP_GET, showForm);
-    web.on("/unlock", HTTP_POST, unlockPortal);
     web.on("/networks", HTTP_GET, listNetworks);
     web.on("/save", HTTP_POST, saveForm);
     web.on("/status", HTTP_GET, []() {
@@ -234,7 +195,6 @@ void stopSetupPortal() {
   active = false;
   lastActivityAt = 0;
   portalStartedAt = 0;
-  pinAuthenticated = false;
 }
 
 bool setupPortalActive() { return active; }

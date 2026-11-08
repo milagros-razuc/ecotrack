@@ -236,7 +236,6 @@ try {
         $labelPath = Join-Path $outputPath "$($row.device_id).label.txt"
         Set-Content -LiteralPath $labelPath -Value @(
             "device_id=$($row.device_id)"
-            "setup_pin=$($row.setup_pin)"
         ) -Encoding UTF8
     }
 

@@ -19,11 +19,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 DEVICE_ID_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
-PASSWORD_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789"
 DEVICE_ID_LENGTH = 12
-SOFTAP_PASSWORD_LENGTH = 16
 DEVICE_SECRET_LENGTH = 64
-SETUP_PIN_LENGTH = 6
 HOSTNAME_PATTERN = re.compile(
     r"(?=.{1,253}\Z)(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)*"
     r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\Z"
@@ -33,9 +30,7 @@ HOSTNAME_PATTERN = re.compile(
 @dataclass(frozen=True)
 class FactoryIdentity:
     device_id: str
-    softap_password: str
     device_secret: str
-    setup_pin: str = ""
     server_host: str = ""
 
 
@@ -60,9 +55,7 @@ def valid_server_host(value: str) -> bool:
 def generate_identity(server_host: str = "localhost") -> FactoryIdentity:
     return FactoryIdentity(
         device_id="ET-" + _token(DEVICE_ID_ALPHABET, DEVICE_ID_LENGTH),
-        softap_password=_token(PASSWORD_ALPHABET, SOFTAP_PASSWORD_LENGTH),
         device_secret=secrets.token_hex(DEVICE_SECRET_LENGTH // 2),
-        setup_pin="".join(secrets.choice("0123456789") for _ in range(SETUP_PIN_LENGTH)),
         server_host=server_host,
     )
 
@@ -74,8 +67,6 @@ def _write_nvs_csv(path: Path, identity: FactoryIdentity) -> None:
         writer.writerow(["ecotrack", "namespace", "", ""])
         writer.writerow(["factoryReady", "data", "u8", "1"])
         writer.writerow(["deviceId", "data", "string", identity.device_id])
-        writer.writerow(["softApPass", "data", "string", identity.softap_password])
-        writer.writerow(["setupPin", "data", "string", identity.setup_pin])
         writer.writerow(["serverHost", "data", "string", identity.server_host])
         writer.writerow(["deviceSecret", "data", "string", identity.device_secret])
 
@@ -100,8 +91,6 @@ def _sanitize_error(message: str, identity: FactoryIdentity | None) -> str:
         secret
         for secret in (
             identity.device_id,
-            identity.softap_password,
-            identity.setup_pin,
             identity.device_secret,
         )
         if secret
@@ -194,8 +183,6 @@ def provision(
     identities = [generate_identity(server_host) for _ in range(count)]
     if len({item.device_id for item in identities}) != count:
         raise RuntimeError("colision de device_id")
-    if len({item.softap_password for item in identities}) != count:
-        raise RuntimeError("colision de clave SoftAP")
     if len({item.device_secret for item in identities}) != count:
         raise RuntimeError("colision de secreto")
 
@@ -226,8 +213,6 @@ def provision(
             writer.writerow(
                 [
                     "device_id",
-                    "softap_password",
-                    "setup_pin",
                     "server_host",
                     "device_secret",
                     "nvs_image",
@@ -239,8 +224,6 @@ def provision(
                 writer.writerow(
                     [
                         identity.device_id,
-                        identity.softap_password,
-                        identity.setup_pin,
                         identity.server_host,
                         identity.device_secret,
                         image_name,
@@ -249,7 +232,6 @@ def provision(
                 )
                 (temp / f"{identity.device_id}.label.txt").write_text(
                     f"device_id={identity.device_id}\n"
-                    f"setup_pin={identity.setup_pin}\n"
                     f"server_host={identity.server_host}\n"
                     f"device_secret={identity.device_secret}\n"
                     f"nvs_image={image_name}\n",
@@ -278,7 +260,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--export-backend",
         action="store_true",
-        help="generar backend.csv con device_id y hash del secreto, sin secretos ni PIN",
+        help="generar backend.csv con device_id y hash del secreto, sin secretos",
     )
     args = parser.parse_args(argv)
     try:

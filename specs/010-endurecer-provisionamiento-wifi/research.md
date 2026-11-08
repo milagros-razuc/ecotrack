@@ -1,5 +1,7 @@
 # Research: Endurecer aprovisionamiento WiFi
 
+> Estado histórico para el portal: la decisión de generar claves WPA2 SoftAP individuales quedó sustituida por el código público compartido `EcoTrack.123` en la spec 019.
+
 ## Decisión 1: Mantener Arduino IDE como flujo de firmware
 
 - **Decision**: Mantener el sketch en `codigo-esp32-mosquitto/` como proyecto de Arduino IDE y documentar el esquema de particiones mediante el mecanismo equivalente disponible en la instalación del ESP32. No agregar PlatformIO.

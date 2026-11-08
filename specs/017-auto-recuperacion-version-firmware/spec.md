@@ -163,7 +163,7 @@ autenticado o malformado y verificar que no modifica esos datos.
   (`t=0`, `t=30` y `t=60`).
 - **FR-006**: Al alcanzar el umbral, el firmware MUST borrar únicamente `mqtt_user`
   y `mqtt_pass` del NVS y establecer el estado operativo MQTT como no enrolado.
-  MUST conservar `device_id`, `device_secret`, identidad de fábrica, PIN, SSID,
+  MUST conservar `device_id`, `device_secret`, identidad de fábrica, SSID,
   contraseña Wi-Fi, servidor de enrolamiento y certificados CA. No debe borrar,
   modificar ni regenerar esos datos conservados.
 - **FR-007**: Después de la invalidación, el firmware MUST volver a enrolarse mediante

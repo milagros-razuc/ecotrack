@@ -13,8 +13,6 @@ struct DeviceConfig {
   String deviceId;
   String mqttUser;
   String mqttPassword;
-  String softApPassword;
-  String setupPin;
   String deviceSecret;
   bool mqttEnrolled = false;
 };
