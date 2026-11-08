@@ -2,7 +2,9 @@ const assert = require('node:assert/strict');
 const { execFileSync } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
+const { Pool } = require('pg');
 const test = require('node:test');
+const { requireTestDatabase } = require('./platform-panel.test-support');
 
 const root = path.resolve(__dirname, '../../..');
 const migrationsDir = path.join(root, 'backend', 'migrations');
@@ -11,12 +13,46 @@ function migrationNames() {
   return fs.readdirSync(migrationsDir).filter((name) => name.endsWith('.sql')).sort();
 }
 
-test('el esquema real de lecturas usa dispositivo_codigo', () => {
+test('el esquema real de lecturas usa dispositivo_codigo', async () => {
+  const database = requireTestDatabase();
+  const pool = new Pool({ connectionString: database.connectionString });
+  try {
+    const { rows } = await pool.query(`
+      SELECT 1
+      FROM information_schema.columns
+      WHERE table_schema = current_schema()
+        AND table_name = 'lecturas'
+        AND column_name = 'dispositivo_codigo'
+    `);
+    assert.equal(rows.length, 1, 'la base real debe tener lecturas.dispositivo_codigo');
+  } finally {
+    await pool.end();
+  }
   const migrateSource = fs.readFileSync(path.join(root, 'backend', 'src', 'config', 'migrate.js'), 'utf8');
   assert.match(migrateSource, /dispositivo_codigo\s+VARCHAR\(50\)\s+REFERENCES\s+dispositivos\(codigo\)/);
 });
 
-test('la migración del índice cubre la tabla padre particionada', () => {
+test('la migración del índice cubre la tabla padre particionada', async () => {
+  const database = requireTestDatabase();
+  const pool = new Pool({ connectionString: database.connectionString });
+  try {
+    const { rows } = await pool.query(`
+      SELECT c.relkind, i.indexrelid::regclass::text AS index_name,
+             pg_get_indexdef(i.indexrelid) AS index_definition
+      FROM pg_index i
+      JOIN pg_class c ON c.oid = i.indrelid
+      WHERE c.relname = 'lecturas'
+        AND pg_get_indexdef(i.indexrelid) ILIKE '%dispositivo_codigo%'
+        AND pg_get_indexdef(i.indexrelid) ILIKE '%timestamp%'
+    `);
+    assert.ok(rows.some((row) => row.relkind === 'p'), 'lecturas debe ser tabla particionada');
+    assert.ok(
+      rows.some((row) => /dispositivo_codigo.*timestamp\s+DESC/i.test(row.index_definition)),
+      'falta el índice dispositivo_codigo, timestamp DESC en la tabla padre',
+    );
+  } finally {
+    await pool.end();
+  }
   const migration = fs.readFileSync(path.join(migrationsDir, '019_platform_reading_index.sql'), 'utf8');
   assert.match(migration, /CREATE INDEX IF NOT EXISTS/i);
   assert.match(migration, /dispositivo_codigo\s*,\s*timestamp\s+DESC/i);
