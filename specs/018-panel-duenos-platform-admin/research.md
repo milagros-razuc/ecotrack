@@ -11,8 +11,10 @@ con `PLATFORM_LAST_READING_WINDOW_DAYS`.
 
 La consulta debe usar el índice compuesto
 `(dispositivo_codigo, timestamp DESC)` y no agregar una lectura global sin límites
-que recorra todas las particiones mensuales. Si el esquema vigente no ofrece ese
-índice compatible, la migración debe crearlo de forma segura.
+que recorra todas las particiones mensuales. El esquema actual ya ofrece esa
+definición en el padre particionado como `idx_lecturas_dispositivo_ts`; la
+migración 019 debe reconocerla por columnas y orden, reutilizarla y solo crear un
+índice alternativo de forma segura si la definición equivalente no existe.
 
 **Rationale**: `lecturas` está particionada por tiempo y el panel necesita una lectura
 por dispositivo. Paginar primero y ejecutar el `LATERAL` después evita calcular

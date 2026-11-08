@@ -43,7 +43,10 @@
 
 - `dispositivo_codigo`: dispositivo asociado.
 - `timestamp`: instante de captura; fuente de “última lectura”.
-- Índice: `(dispositivo_codigo, timestamp DESC)`.
+- Índice requerido: `(dispositivo_codigo, timestamp DESC)` en la tabla padre
+  particionada. La migración 019 reutiliza el índice equivalente existente
+  `idx_lecturas_dispositivo_ts` y solo crea un índice alternativo si la
+  definición equivalente no existe.
 - Consulta: después de paginar dispositivos, `LEFT JOIN LATERAL` por dispositivo
   con `WHERE timestamp >= NOW() - (ventana_días * INTERVAL '1 day')`,
   `ORDER BY timestamp DESC LIMIT 1`. La ventana por defecto es de 30 días y es
