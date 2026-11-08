@@ -12,10 +12,12 @@ const umbralesRouter = require('./routes/umbrales');
 const usuariosRouter = require('./routes/usuarios');
 const auditoriaRouter = require('./routes/auditoria');
 const apiKeysRouter = require('./routes/apiKeys.routes');
+const plataformaRouter = require('./routes/plataforma');
 const publicRouter = require('./routes/public.routes');
 const errorHandler = require('./middleware/errorHandler');
 const verificarToken = require('./middleware/auth');
 const extraerCliente = require('./middleware/cliente');
+const requirePlatformAdmin = require('./middleware/platformAdmin');
 
 const { apiPublicaPorIp } = require('./middleware/rateLimiter');
 const { obtenerOrigenesPermitidos } = require('./config/cors');
@@ -39,6 +41,7 @@ app.use('/api/dispositivos/enrolar', createEnrollmentRouter());
 
 // Pública: no requiere token. /me y /change-password validan la sesión
 app.use('/api/auth', authRouter);
+app.use('/api/plataforma', verificarToken, requirePlatformAdmin, plataformaRouter);
 
 // Protegidas: requieren estar logueado Y tener clienteId en el token
 app.use('/api/dispositivos', verificarToken, extraerCliente, dispositivosRouter);

@@ -8,6 +8,10 @@ function extraerCliente(req, res, next) {
     return res.status(401).json({ error: 'No autenticado' });
   }
 
+  if (req.usuario.rol === 'platform_admin') {
+    return res.status(403).json({ error: 'No tenés permisos para realizar esta acción' });
+  }
+
   if (!req.usuario.clienteId) {
     // Token viejo emitido antes de agregar clienteId al payload: se obliga
     // a re-loguear en vez de dejarlo pasar sin aislamiento entre clientes.
