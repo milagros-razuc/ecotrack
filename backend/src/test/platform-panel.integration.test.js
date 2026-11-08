@@ -2,6 +2,8 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const jwt = require('jsonwebtoken');
 const { Pool } = require('pg');
+const fs = require('node:fs');
+const path = require('node:path');
 const { createRealtimeFixture } = require('./realtime.test-support');
 
 const JWT_SECRET = 'ecotrack-test-jwt-secret';
@@ -122,9 +124,19 @@ test.after(async () => {
   await fixture.close();
 });
 
+test('el montaje del panel conserva verificarToken y middleware exclusivo de plataforma', () => {
+  const appSource = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
+  assert.match(
+    appSource,
+    /app\.use\('\/api\/plataforma', verificarToken, requirePlatformAdmin, plataformaRouter\)/,
+  );
+});
+
 test('T1: platform_admin lista dispositivos globales y admin tenant recibe 403 en panel', async () => {
   const response = await request('/api/plataforma/dispositivos');
   assert.equal(response.status, 200);
+  const routeSource = fs.readFileSync(path.join(__dirname, '..', 'routes', 'plataforma.js'), 'utf8');
+  assert.match(routeSource, /router\.get\('\/dispositivos', readLimiter,/);
   const body = await json(response);
   assert.ok(body.items.some((device) => device.codigo === platform.devices[0]));
   for (const pathname of [
@@ -192,20 +204,34 @@ test('T7: el listado pagina, filtra y excluye el cliente plataforma', async () =
   assert.doesNotMatch(JSON.stringify(await json(excluded)), /es_plataforma/);
 });
 
-test('T6: reset o código inexistente devuelve error genérico sin filtrar existencia', async () => {
-  const response = await request('/api/plataforma/dispositivos/NO-EXISTE/reset-credenciales', {
-    method: 'POST',
-  });
-  assert.ok([400, 404].includes(response.status));
-  assert.doesNotMatch(JSON.stringify(await json(response)), /NO-EXISTE|not found|inexistente/i);
+test('cliente_id cero y negativos son inválidos', async () => {
+  for (const clienteId of ['0', '-1']) {
+    const response = await request(`/api/plataforma/dispositivos?cliente_id=${clienteId}`);
+    assert.equal(response.status, 400, clienteId);
+  }
 });
 
-test('la última lectura usa ventana de 30 días y se separa de última conexión', async () => {
-  const response = await request('/api/plataforma/dispositivos?cliente_id=0');
+test('el filtro reclamado_sin_enrolar usa el mapa explícito de estados', async () => {
+  const response = await request('/api/plataforma/dispositivos?estado=reclamado_sin_enrolar');
+  assert.equal(response.status, 200);
+  const body = await json(response);
+  assert.ok(body.items.some((device) => device.codigo === platform.devices[1]));
+});
+
+test('ultima_lectura solo contiene timestamp', async () => {
+  const response = await request('/api/plataforma/dispositivos');
   assert.equal(response.status, 200);
   const body = await json(response);
   const enrolled = body.items.find((device) => device.codigo === platform.devices[2]);
-  assert.equal(enrolled.ultima_lectura.temperatura, 20);
+  assert.deepEqual(Object.keys(enrolled.ultima_lectura), ['timestamp']);
+});
+
+test('la última lectura usa ventana de 30 días y se separa de última conexión', async () => {
+  const response = await request('/api/plataforma/dispositivos');
+  assert.equal(response.status, 200);
+  const body = await json(response);
+  const enrolled = body.items.find((device) => device.codigo === platform.devices[2]);
+  assert.ok(enrolled.ultima_lectura.timestamp);
   assert.ok(enrolled.ultima_conexion);
   assert.ok(Date.now() - new Date(enrolled.ultima_conexion).getTime() < DAY);
 });

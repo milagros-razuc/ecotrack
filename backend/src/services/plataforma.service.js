@@ -1,5 +1,12 @@
 const pool = require('../config/db');
 
+class PlatformValidationError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'PlatformValidationError';
+  }
+}
+
 const DEVICE_FIELDS = `
   codigo, cliente, nombre, estado, firmware_version, firmware_reported_at,
   ultima_lectura, ultima_conexion, reclamado_en, enrolled_at, online
@@ -24,8 +31,8 @@ function onlineExpression(alias = 'd') {
 function parsePage(query = {}) {
   const pagina = Number(query.pagina || 1);
   const limite = Number(query.limite || 20);
-  if (!Number.isInteger(pagina) || pagina < 1) throw new Error('pagina inválida');
-  if (!Number.isInteger(limite) || limite < 1 || limite > 100) throw new Error('limite inválido');
+  if (!Number.isInteger(pagina) || pagina < 1) throw new PlatformValidationError('pagina inválida');
+  if (!Number.isInteger(limite) || limite < 1 || limite > 100) throw new PlatformValidationError('limite inválido');
   return { pagina, limite, offset: (pagina - 1) * limite };
 }
 
@@ -35,17 +42,20 @@ async function listarDispositivos(query = {}, windowDays = 30) {
   const conditions = ['COALESCE(c.es_plataforma, false) = false'];
   if (query.cliente_id !== undefined) {
     const clienteId = Number(query.cliente_id);
-    if (!Number.isInteger(clienteId) || clienteId < 0) throw new Error('cliente_id inválido');
-    if (clienteId > 0) {
-      params.push(clienteId);
-      conditions.push(`d.cliente_id = $${params.length}`);
-    }
+    if (!Number.isInteger(clienteId) || clienteId < 1) throw new PlatformValidationError('cliente_id inválido');
+    params.push(clienteId);
+    conditions.push(`d.cliente_id = $${params.length}`);
   }
   if (query.estado) {
-    if (!['fabricado', 'reclamado_sin_enrolar', 'enrolado'].includes(query.estado)) {
-      throw new Error('estado inválido');
+    const stateMap = {
+      fabricado: 'fabricado',
+      reclamado_sin_enrolar: 'reclamado sin enrolar',
+      enrolado: 'enrolado',
+    };
+    if (!Object.prototype.hasOwnProperty.call(stateMap, query.estado)) {
+      throw new PlatformValidationError('estado inválido');
     }
-    const state = query.estado.replace('_', ' ');
+    const state = stateMap[query.estado];
     params.push(state);
     conditions.push(`${lifecycleExpression('d', 'df.enrolled_at')} = $${params.length}`);
   }
@@ -72,12 +82,7 @@ async function listarDispositivos(query = {}, windowDays = 30) {
        p.enrolled_at, ${onlineExpression('p')} AS online
      FROM pagina p
      LEFT JOIN LATERAL (
-       SELECT json_build_object(
-         'timestamp', l.timestamp,
-         'temperatura', l.temperatura,
-         'humedad', l.humedad,
-         'luminosidad', l.luminosidad
-       ) AS ultima_lectura
+       SELECT json_build_object('timestamp', l.timestamp) AS ultima_lectura
        FROM lecturas l
        WHERE l.dispositivo_codigo = p.codigo
          AND l.timestamp >= NOW() - ($1 * INTERVAL '1 day')
@@ -138,4 +143,11 @@ async function resumen() {
   };
 }
 
-module.exports = { listarDispositivos, listarClientes, resumen, parsePage, DEVICE_FIELDS };
+module.exports = {
+  listarDispositivos,
+  listarClientes,
+  resumen,
+  parsePage,
+  DEVICE_FIELDS,
+  PlatformValidationError,
+};
