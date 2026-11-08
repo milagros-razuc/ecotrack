@@ -11,6 +11,7 @@
   <link href="shared/common.css" rel="stylesheet"/>
   <script src="shared/html-escape.js"></script>
   <script src="shared/platform-panel-render.js"></script>
+  <script src="shared/role-routing.js"></script>
 </head>
 <body class="bg-background font-body-md text-on-background flex h-screen overflow-hidden" data-page="plataforma">
   <div id="sidebar-placeholder"></div>
@@ -39,23 +40,30 @@
       if (firmware.value.trim()) query.set('firmware', firmware.value.trim());
       const response = await fetch(`${API}/api/plataforma/dispositivos?${query}`, { headers: { Authorization: token } });
       if (response.status === 401) return manejarNoAutorizado();
+      if (response.status === 403) return window.location.replace(ecotrackRoleRouting.destinoPorRol(rol));
       if (!response.ok) throw new Error('No se pudo cargar el inventario');
       const body = await response.json();
       devices.innerHTML = body.items.map(ecotrackPlatformPanelRender.renderDeviceRow).join('');
     }
     async function loadSummary() {
       const response = await fetch(`${API}/api/plataforma/resumen`, { headers: { Authorization: token } });
+      if (response.status === 401) return manejarNoAutorizado();
+      if (response.status === 403) return window.location.replace(ecotrackRoleRouting.destinoPorRol(rol));
       if (!response.ok) throw new Error('No se pudo cargar el resumen');
       const data = await response.json();
       summary.innerHTML = Object.entries(data.dispositivos_por_estado).map(([state, total]) => ecotrackPlatformPanelRender.renderSummaryItem(state, total)).join('');
     }
-    const { shouldRenderPlatformPanel } = { shouldRenderPlatformPanel: role => role === 'platform_admin' };
     const estado = document.getElementById('estado');
     const firmware = document.getElementById('firmware');
     const devices = document.getElementById('devices');
     const panelError = document.getElementById('panel-error');
     document.getElementById('filtrar').addEventListener('click', loadPanel);
-    initShell().then(() => { if (shouldRenderPlatformPanel(rol)) Promise.all([loadPanel(), loadSummary()]).catch(error => { panelError.textContent = error.message; }); });
+    initShell().then(() => {
+      const acceso = ecotrackRoleRouting.decidirAcceso({ rol, pagina: 'plataforma', haySesion: Boolean(token) });
+      if (acceso.permitido) {
+        Promise.all([loadPanel(), loadSummary()]).catch(error => { panelError.textContent = error.message; });
+      }
+    });
   </script>
 </body>
 </html>

@@ -22,6 +22,7 @@
 
   <!-- Configuración compartida -->
   <script src="shared/tailwind-config.js"></script>
+  <script src="shared/role-routing.js"></script>
   <link href="shared/common.css" rel="stylesheet"/>
 
   <style>
@@ -293,7 +294,9 @@
     // ─────────────────────────────────────────────────────────────
 
     if (localStorage.getItem('ecotrack_token')) {
-      window.location.replace('index.html');
+      window.location.replace(
+        ecotrackRoleRouting.destinoPorRol(localStorage.getItem('ecotrack_rol'))
+      );
     }
 
 
@@ -493,7 +496,7 @@
 
 
         // Ir al dashboard
-        window.location.replace('index.html');
+        window.location.replace(ecotrackRoleRouting.destinoPorRol(data.rol || 'comun'));
 
       } catch (error) {
 

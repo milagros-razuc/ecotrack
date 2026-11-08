@@ -27,6 +27,11 @@ const rol = leerDatoLocalStorage('ecotrack_rol') || 'comun';
 const esAdmin = rol === 'admin';
 const esPlatformAdmin = rol === 'platform_admin';
 const iniciales = nombre.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+const pagina = document.body.dataset.page;
+if (token && pagina) {
+  const acceso = window.ecotrackRoleRouting.decidirAcceso({ rol, pagina, haySesion: true });
+  if (!acceso.permitido) window.location.replace(acceso.destino);
+}
 
 function cerrarSesion() {
   socket?.disconnect();
@@ -211,7 +216,11 @@ async function initShell() {
   document.getElementById('nombre-menu').textContent = nombre;
   document.getElementById('user-menu').textContent = username;
   document.getElementById('avatar-sidebar').textContent = iniciales;
-  document.getElementById('rol-sidebar').textContent = esAdmin ? 'Administrador' : 'Usuario';
+  document.getElementById('rol-sidebar').textContent = esPlatformAdmin
+    ? 'Plataforma'
+    : esAdmin
+      ? 'Administrador'
+      : 'Usuario';
 
   // Oculta cualquier elemento marcado data-admin-only si el usuario no es admin.
   if (!esAdmin) {
@@ -219,6 +228,9 @@ async function initShell() {
   }
   if (!esPlatformAdmin) {
     document.querySelectorAll('[data-platform-only]').forEach(el => el.classList.add('hidden'));
+  }
+  if (esPlatformAdmin) {
+    document.querySelectorAll('[data-tenant-only]').forEach(el => el.classList.add('hidden'));
   }
 }
 
