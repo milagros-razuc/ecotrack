@@ -163,8 +163,7 @@ function parseArguments(argv) {
     username: values['--username'],
     nombreAdmin: values['--nombre-admin'],
     motivo: values['--motivo'],
-    password: z.string({ required_error: 'La contraseña es obligatoria (variable ECOTRACK_ADMIN_PASSWORD)' })
-  .min(12, 'La contraseña debe tener al menos 12 caracteres'),
+    password: process.env.ECOTRACK_ADMIN_PASSWORD,
   };
 }
 
