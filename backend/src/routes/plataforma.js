@@ -4,6 +4,7 @@ const validar = require('../middleware/validar');
 const { crearClienteAdminSchema, provisionarDispositivosSchema } = require('../schemas');
 const { lastReadingWindowDays, rateLimits } = require('../config/platformPanelConfig');
 const { MemoryStore, rateLimit } = require('express-rate-limit');
+const socketRegistry = require('../realtime/socketRegistry');
 const { PlatformValidationError } = plataformaService;
 const { PlatformProvisioningError } = plataformaService;
 const { PlatformConflictError } = plataformaService;
@@ -84,6 +85,16 @@ router.post('/clientes', clientAdminLimiter, validar(crearClienteAdminSchema), a
       motivo: req.body.motivo,
       usuario: req.usuario,
     });
+    try {
+      socketRegistry.getActiveRegistry()?.emitToPlatformAdmins('platform:cliente-creado', {
+        cliente: {
+          id: result.cliente.id,
+          nombre: result.cliente.nombre,
+        },
+      });
+    } catch (error) {
+      console.error(error.message);
+    }
     return res.set('Cache-Control', 'no-store').status(201).json(result);
   } catch (error) {
     if (error instanceof PlatformConflictError) {

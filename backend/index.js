@@ -34,7 +34,12 @@ function crearServidor({ iniciarMqtt = true } = {}) {
 
   io.on('connection', (socket) => {
     const { sub: userId, clienteId } = socket.data.usuario;
-    socketRegistry.register(socket, { userId, clienteId, expiresAt: socket.data.usuario.exp });
+    socketRegistry.register(socket, {
+      userId,
+      clienteId,
+      rol: socket.data.usuario.rol,
+      expiresAt: socket.data.usuario.exp,
+    });
     console.log('Cliente WebSocket conectado:', socket.id);
     socket.on('disconnect', () => {
       socketRegistry.unregister(socket);
