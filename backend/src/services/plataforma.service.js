@@ -5,6 +5,8 @@ const dispositivosService = require('./dispositivos.service');
 const auditoriaService = require('./auditoria.service');
 const { hashFactorySecret } = require('./enrolamiento.service');
 
+const TEMPORARY_PASSWORD_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+const RESERVED_USERNAMES = new Set(['platform_admin', 'plataforma', 'root']);
 const DEVICE_ID_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const DEVICE_ID_LENGTH = 12;
 const MAX_DEVICE_ID_ATTEMPTS = 5;
@@ -44,6 +46,26 @@ function generateDeviceId() {
 
 function generateDeviceSecret() {
   return crypto.randomBytes(32).toString('hex');
+}
+
+function normalizeClientName(value) {
+  return value.trim();
+}
+
+function normalizeUsername(value) {
+  return value.trim().toLowerCase();
+}
+
+function isReservedUsername(value) {
+  return RESERVED_USERNAMES.has(normalizeUsername(value));
+}
+
+function generateTemporaryPassword(length = 20) {
+  let password = '';
+  for (let index = 0; index < length; index += 1) {
+    password += TEMPORARY_PASSWORD_ALPHABET[crypto.randomInt(TEMPORARY_PASSWORD_ALPHABET.length)];
+  }
+  return password;
 }
 
 function nvsCsv({ deviceId, deviceSecret, serverHost }) {
@@ -262,4 +284,8 @@ module.exports = {
   generateDeviceSecret,
   nvsCsv,
   fabricarDispositivos,
+  normalizeClientName,
+  normalizeUsername,
+  isReservedUsername,
+  generateTemporaryPassword,
 };

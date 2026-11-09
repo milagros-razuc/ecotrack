@@ -3,6 +3,9 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const test = require('node:test');
 const path = require('node:path');
+const fs = require('node:fs');
+const { Pool } = require('pg');
+const { withTemporaryMigrationDatabase } = require('./platform-panel.test-support');
 
 process.env.JWT_SECRET = 'unit-test-secret';
 const dbPath = path.resolve(__dirname, '../config/db.js');
@@ -17,6 +20,7 @@ const user = {
   rol: 'admin',
   cliente_id: 10,
   token_version: 3,
+  must_change_password: false,
 };
 const queries = [];
 
@@ -30,7 +34,7 @@ const fakePool = {
     if (sql.includes('SELECT id, username, nombre, rol, creado_en')) {
       return { rows: [{ id: user.id, username: user.username, nombre: user.nombre, rol: user.rol }] };
     }
-    if (sql.includes('UPDATE usuarios SET password_hash')) {
+    if (sql.includes('UPDATE usuarios') && sql.includes('password_hash')) {
       user.password_hash = params[0];
       user.token_version += 1;
       return { rows: [{ token_version: user.token_version, username: user.username, rol: user.rol, cliente_id: user.cliente_id }] };
@@ -39,7 +43,12 @@ const fakePool = {
       user.nombre = params[0];
       return { rows: [{ id: user.id, username: user.username, nombre: user.nombre, rol: user.rol }] };
     }
-    if (sql.includes('SELECT token_version FROM usuarios')) return { rows: [{ token_version: user.token_version }] };
+    if (sql.includes('SELECT token_version') && sql.includes('FROM usuarios')) {
+      return { rows: [{ token_version: user.token_version, must_change_password: user.must_change_password }] };
+    }
+    if (sql.includes('SELECT must_change_password FROM usuarios')) {
+      return { rows: [{ must_change_password: user.must_change_password }] };
+    }
     throw new Error(`Query no mockeada: ${sql}`);
   },
 };
@@ -127,4 +136,106 @@ test('CP-RF18 token sin clienteId se conserva para que extraerCliente lo rechace
     throw new Error('un token sin cliente no puede continuar');
   });
   assert.equal(response.statusCode, 401);
+});
+
+test('Feature 021 auth usa PostgreSQL real para restringir el primer login y completarlo', async () => {
+  await withTemporaryMigrationDatabase(async ({ connectionString }) => {
+    const url = new URL(connectionString);
+    const databaseConfig = {
+      host: url.hostname,
+      port: url.port,
+      database: url.pathname.slice(1),
+      user: decodeURIComponent(url.username),
+      password: decodeURIComponent(url.password),
+    };
+    const realPool = new Pool(databaseConfig);
+    const temporaryPassword = 'Temporal-Password-123';
+    const username = 'pending-feature-021';
+    try {
+      await realPool.query(fs.readFileSync(
+        path.resolve(__dirname, '../../migrations/020_client_admin.sql'),
+        'utf8',
+      ));
+      const hash = await bcrypt.hash(temporaryPassword, 10);
+      const { rows } = await realPool.query(
+        `INSERT INTO usuarios
+          (username, password_hash, nombre, rol, cliente_id, must_change_password)
+         VALUES ($1, $2, 'Pending User', 'admin', 1, true)
+         RETURNING id`,
+        [username, hash],
+      );
+      const userId = rows[0].id;
+
+      process.env.DB_HOST = databaseConfig.host;
+      process.env.DB_PORT = databaseConfig.port;
+      process.env.DB_NAME = databaseConfig.database;
+      process.env.DB_USER = databaseConfig.user;
+      process.env.DB_PASS = databaseConfig.password;
+
+      delete require.cache[dbPath];
+      delete require.cache[authServicePath];
+      delete require.cache[authMiddlewarePath];
+      const realAuthService = require('../services/auth.service');
+      const realAuthMiddleware = require('../middleware/auth');
+
+      const login = await realAuthService.login(username, temporaryPassword);
+      assert.equal(login.mustChangePassword, true);
+      assert.equal((await realAuthService.obtenerPorId(userId)).must_change_password, true);
+
+      const accessResponse = {
+        statusCode: null,
+        body: null,
+        status(code) {
+          this.statusCode = code;
+          return this;
+        },
+        json(body) {
+          this.body = body;
+          return this;
+        },
+      };
+      await realAuthMiddleware.requerirCambioCompletado(
+        { usuario: jwt.verify(login.token, process.env.JWT_SECRET) },
+        accessResponse,
+        () => {
+          throw new Error('un usuario pendiente no puede acceder a rutas operativas');
+        },
+      );
+      assert.equal(accessResponse.statusCode, 403);
+      assert.equal(accessResponse.body.code, 'PASSWORD_CHANGE_REQUIRED');
+
+      const samePassword = await realAuthService.cambiarPassword(
+        userId,
+        temporaryPassword,
+        temporaryPassword,
+      );
+      assert.deepEqual(samePassword, { error: 'La nueva contraseña no puede ser igual a la temporal' });
+
+      const changed = await realAuthService.cambiarPassword(userId, temporaryPassword, 'Nueva-Segura-456');
+      assert.equal(changed.ok, true);
+      const { rows: state } = await realPool.query(
+        'SELECT must_change_password, token_version FROM usuarios WHERE id = $1',
+        [userId],
+      );
+      assert.equal(state[0].must_change_password, false);
+      assert.equal(state[0].token_version, 2);
+
+      const allowedResponse = {
+        status() {
+          throw new Error('un usuario completado debe poder continuar');
+        },
+      };
+      await realAuthMiddleware.requerirCambioCompletado(
+        { usuario: jwt.verify(changed.token, process.env.JWT_SECRET) },
+        allowedResponse,
+        () => {},
+      );
+    } finally {
+      await realPool.end();
+      await require(dbPath).end();
+      require.cache[dbPath] = { id: dbPath, filename: dbPath, loaded: true, exports: fakePool };
+      delete require.cache[authServicePath];
+      delete require.cache[authMiddlewarePath];
+    }
+  });
 });
