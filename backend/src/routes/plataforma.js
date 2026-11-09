@@ -3,7 +3,7 @@ const plataformaService = require('../services/plataforma.service');
 const validar = require('../middleware/validar');
 const { crearClienteAdminSchema, provisionarDispositivosSchema } = require('../schemas');
 const { lastReadingWindowDays, rateLimits } = require('../config/platformPanelConfig');
-const rateLimit = require('express-rate-limit').rateLimit;
+const { MemoryStore, rateLimit } = require('express-rate-limit');
 const { PlatformValidationError } = plataformaService;
 const { PlatformProvisioningError } = plataformaService;
 const { PlatformConflictError } = plataformaService;
@@ -32,8 +32,32 @@ function createProvisionLimiter(options = {}) {
   });
 }
 
+function createClientAdminLimiter(options = {}) {
+  const { store: configuredStore, ...limiterOptions } = options;
+  const store = configuredStore || new MemoryStore();
+  const limiter = rateLimit({
+    windowMs: rateLimits.clientAdmin.windowMs,
+    max: rateLimits.clientAdmin.max,
+    keyGenerator: (req) => String(req.usuario?.sub),
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Límite de solicitudes excedido.' },
+    ...limiterOptions,
+    store,
+  });
+  limiter.resetAll = () => store.resetAll();
+  return limiter;
+}
+
 const readLimiter = createReadLimiter();
 const provisionLimiter = createProvisionLimiter();
+const clientAdminRateLimitStore = new MemoryStore();
+const clientAdminLimiter = createClientAdminLimiter({ store: clientAdminRateLimitStore });
+
+function resetClientAdminRateLimit() {
+  return clientAdminRateLimitStore.resetAll();
+}
+
 function handleErrors(handler) {
   return async (req, res, next) => {
     try {
@@ -50,7 +74,8 @@ router.get('/resumen', readLimiter, handleErrors(() => plataformaService.resumen
 router.get('/clientes', readLimiter, handleErrors(() => plataformaService.listarClientes()));
 router.get('/dispositivos', readLimiter, handleErrors((req) =>
   plataformaService.listarDispositivos(req.query, lastReadingWindowDays)));
-router.post('/clientes', validar(crearClienteAdminSchema), async (req, res, next) => {
+// Todos los intentos cuentan, incluidos 400 y 409, para frenar abuso y fuerza bruta de nombres.
+router.post('/clientes', clientAdminLimiter, validar(crearClienteAdminSchema), async (req, res, next) => {
   try {
     const result = await plataformaService.crearClienteAdmin({
       nombreCliente: req.body.nombre_cliente,
@@ -85,3 +110,5 @@ router.post('/dispositivos', provisionLimiter, validar(provisionarDispositivosSc
 module.exports = router;
 module.exports.createReadLimiter = createReadLimiter;
 module.exports.createProvisionLimiter = createProvisionLimiter;
+module.exports.createClientAdminLimiter = createClientAdminLimiter;
+module.exports.resetClientAdminRateLimit = resetClientAdminRateLimit;
