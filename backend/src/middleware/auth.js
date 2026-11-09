@@ -17,7 +17,7 @@ async function validarToken(token) {
   try {
     const payload = jwt.verify(token, JWT_SECRET);
     const { rows } = await pool.query(
-      'SELECT token_version FROM usuarios WHERE id = $1',
+      'SELECT token_version, must_change_password FROM usuarios WHERE id = $1',
       [payload.sub]
     );
 
@@ -25,7 +25,7 @@ async function validarToken(token) {
       throw crearErrorAuth('SESSION_INVALIDATED', 'Sesión invalidada');
     }
 
-    return payload;
+    return { ...payload, mustChangePassword: rows[0].must_change_password === true };
   } catch (err) {
     if (err.code === 'SESSION_INVALIDATED') throw err;
     throw crearErrorAuth('INVALID_TOKEN', 'Token inválido o expirado');
@@ -37,9 +37,17 @@ async function verificarToken(req, res, next) {
 
   try {
     req.usuario = await validarToken(token);
+    const isPasswordChangeRoute = req.baseUrl === '/api/auth'
+      && (req.path === '/me' || req.path === '/change-password');
+    if (req.usuario.mustChangePassword && !isPasswordChangeRoute) {
+      return res.status(403).json({
+        error: 'Debe cambiar la contraseña antes de continuar',
+        code: 'PASSWORD_CHANGE_REQUIRED',
+      });
+    }
     next();
   } catch (err) {
-    return res.status(401).json({ error: err.message });
+    return res.status(401).json({ error: err.message, code: err.code });
   }
 }
 

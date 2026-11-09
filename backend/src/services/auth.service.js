@@ -8,7 +8,9 @@ const JWT_EXPIRES_IN = '12h';
 
 async function login(username, password) {
   const { rows } = await pool.query(
-    'SELECT * FROM usuarios WHERE username = $1',
+    `SELECT id, username, password_hash, nombre, rol, cliente_id, token_version,
+            must_change_password
+     FROM usuarios WHERE username = $1`,
     [username]
   );
   const usuario = rows[0];
@@ -37,12 +39,14 @@ async function login(username, password) {
     username: usuario.username,
     nombre: usuario.nombre,
     rol: usuario.rol,
+    mustChangePassword: usuario.must_change_password === true,
   };
 }
 
 async function obtenerPorId(id) {
   const { rows } = await pool.query(
-    'SELECT id, username, nombre, rol, creado_en FROM usuarios WHERE id = $1',
+    `SELECT id, username, nombre, rol, creado_en, must_change_password
+     FROM usuarios WHERE id = $1`,
     [id]
   );
   return rows[0] || null;
@@ -60,10 +64,14 @@ async function cambiarPassword(id, passwordActual, passwordNueva) {
   if (!passwordValida) {
     return { error: 'La contraseña actual es incorrecta' };
   }
+  if (usuario.must_change_password && passwordActual === passwordNueva) {
+    return { error: 'La nueva contraseña no puede ser igual a la temporal' };
+  }
 
   const nuevoHash = await bcrypt.hash(passwordNueva, 10);
   const { rows: actualizado } = await pool.query(
-    `UPDATE usuarios SET password_hash = $1, token_version = token_version + 1
+    `UPDATE usuarios
+     SET password_hash = $1, must_change_password = false, token_version = token_version + 1
      WHERE id = $2 RETURNING token_version, username, rol, cliente_id`,
     [nuevoHash, id]
   );

@@ -117,6 +117,10 @@ async function withMigratedDatabase(callback) {
     assert.strictEqual(migration.status, 0, migration.stderr);
     const pool = new Pool(database);
     try {
+      await pool.query(fs.readFileSync(
+        require('path').resolve(__dirname, '../../migrations/020_client_admin.sql'),
+        'utf8',
+      ));
       return await callback({ database, pool });
     } finally {
       await pool.end();
