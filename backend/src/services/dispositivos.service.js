@@ -10,12 +10,13 @@ function hashTokenReclamo(token) {
   return crypto.createHash('sha256').update(token, 'utf8').digest('hex');
 }
 
-async function provisionar({ codigo, auditoria } = {}) {
+async function provisionar({ codigo, auditoria, client: providedClient } = {}) {
   const token = generarTokenReclamo();
   const tokenHash = hashTokenReclamo(token);
-  const client = await pool.connect();
+  const client = providedClient || await pool.connect();
+  const ownsTransaction = !providedClient;
   try {
-    await client.query('BEGIN');
+    if (ownsTransaction) await client.query('BEGIN');
     const result = await client.query(
       `INSERT INTO dispositivos
         (codigo, nombre, ubicacion, activo, cliente_id, token_reclamo_hash, reclamado_en)
@@ -25,11 +26,11 @@ async function provisionar({ codigo, auditoria } = {}) {
       [codigo, tokenHash]
     );
     if (result.rowCount === 0) {
-      await client.query('ROLLBACK');
+      if (ownsTransaction) await client.query('ROLLBACK');
       return { error: 'El código de dispositivo ya existe' };
     }
-    await client.query('COMMIT');
-    if (auditoria) {
+    if (ownsTransaction) await client.query('COMMIT');
+    if (auditoria && ownsTransaction) {
       await auditoriaService.registrarOperacionDispositivo({
         ...auditoria,
         accion: 'aprovisionar_dispositivo',
@@ -38,10 +39,10 @@ async function provisionar({ codigo, auditoria } = {}) {
     }
     return { codigo, token };
   } catch (err) {
-    await client.query('ROLLBACK');
+    if (ownsTransaction) await client.query('ROLLBACK');
     throw err;
   } finally {
-    client.release();
+    if (ownsTransaction) client.release();
   }
 }
 

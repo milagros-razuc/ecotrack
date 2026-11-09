@@ -1,10 +1,116 @@
+const crypto = require('crypto');
+const net = require('net');
 const pool = require('../config/db');
+const dispositivosService = require('./dispositivos.service');
+const auditoriaService = require('./auditoria.service');
+const { hashFactorySecret } = require('./enrolamiento.service');
+
+const DEVICE_ID_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const DEVICE_ID_LENGTH = 12;
+const MAX_DEVICE_ID_ATTEMPTS = 5;
+const HOSTNAME_PATTERN = /^(?=.{1,253}$)(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)*[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$/;
+const GENERIC_PROVISIONING_ERROR = 'No se pudieron fabricar los dispositivos';
 
 class PlatformValidationError extends Error {
   constructor(message) {
     super(message);
     this.name = 'PlatformValidationError';
   }
+}
+
+class PlatformProvisioningError extends Error {
+  constructor() {
+    super(GENERIC_PROVISIONING_ERROR);
+    this.name = 'PlatformProvisioningError';
+  }
+}
+
+function validServerHost(value) {
+  if (typeof value !== 'string' || value.length === 0) return false;
+  if (net.isIP(value)) return true;
+  if (value.split('.').length === 4 && value.split('.').every((part) => /^\d+$/.test(part))) {
+    return false;
+  }
+  return !/[\r\n]/.test(value) && HOSTNAME_PATTERN.test(value);
+}
+
+function generateDeviceId() {
+  let suffix = '';
+  for (let index = 0; index < DEVICE_ID_LENGTH; index += 1) {
+    suffix += DEVICE_ID_ALPHABET[crypto.randomInt(DEVICE_ID_ALPHABET.length)];
+  }
+  return `ET-${suffix}`;
+}
+
+function generateDeviceSecret() {
+  return crypto.randomBytes(32).toString('hex');
+}
+
+function nvsCsv({ deviceId, deviceSecret, serverHost }) {
+  return [
+    'key,type,encoding,value',
+    'ecotrack,namespace,,',
+    'factoryReady,data,u8,1',
+    `deviceId,data,string,${deviceId}`,
+    `serverHost,data,string,${serverHost}`,
+    `deviceSecret,data,string,${deviceSecret}`,
+  ].join('\r\n') + '\r\n';
+}
+
+async function fabricarDispositivos({ motivo, cantidad, usuario }) {
+    const serverHost = process.env.MQTT_PUBLIC_HOST || 'localhost';
+    if (!validServerHost(serverHost)) throw new PlatformProvisioningError();
+
+    const client = await pool.connect();
+    const items = [];
+    try {
+      await client.query('BEGIN');
+      for (let index = 0; index < cantidad; index += 1) {
+        let provisionado = false;
+        for (let attempt = 0; attempt < MAX_DEVICE_ID_ATTEMPTS && !provisionado; attempt += 1) {
+          const deviceId = generateDeviceId();
+          const deviceSecret = generateDeviceSecret();
+          const result = await dispositivosService.provisionar({ codigo: deviceId, client });
+          if (result.error) continue;
+
+          await client.query(
+            `INSERT INTO dispositivos_fabrica (device_id, factory_secret_hash)
+             VALUES ($1, $2)`,
+            [deviceId, hashFactorySecret(deviceSecret)],
+          );
+          items.push({
+            codigo: deviceId,
+            token_reclamo: result.token,
+            nvs_csv: nvsCsv({ deviceId, deviceSecret, serverHost }),
+          });
+          provisionado = true;
+        }
+        if (!provisionado) throw new PlatformProvisioningError();
+      }
+
+      await auditoriaService.registrarEnTransaccion(client, {
+        clienteId: usuario.clienteId,
+        usuarioId: usuario.sub,
+        usuarioUsername: usuario.username,
+        actorTipo: 'platform_admin',
+        accion: 'fabricar_dispositivos',
+        entidad: 'dispositivo',
+        entidadId: 'lote',
+        detalle: JSON.stringify({ motivo, cantidad: items.length, codigos: items.map((item) => item.codigo) }),
+      });
+      await client.query('COMMIT');
+      return items;
+    } catch (error) {
+      try {
+        await client.query('ROLLBACK');
+      } catch {
+        // Preserve the generic provisioning error.
+      }
+      if (error instanceof PlatformProvisioningError) throw error;
+      throw new PlatformProvisioningError();
+    } finally {
+      client.release();
+    }
 }
 
 const DEVICE_FIELDS = `
@@ -150,4 +256,10 @@ module.exports = {
   parsePage,
   DEVICE_FIELDS,
   PlatformValidationError,
+  PlatformProvisioningError,
+  validServerHost,
+  generateDeviceId,
+  generateDeviceSecret,
+  nvsCsv,
+  fabricarDispositivos,
 };
