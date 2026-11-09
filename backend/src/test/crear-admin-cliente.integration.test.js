@@ -78,7 +78,7 @@ test('rechaza username duplicado ignorando mayúsculas y no deja basura', async 
     const { target } = await seedClients(pool);
     await pool.query(
       `INSERT INTO usuarios (username, password_hash, nombre, rol, cliente_id)
-       VALUES ('duplicado', 'fixture-hash', 'Existente', 'admin', $1)`,
+       VALUES ('Duplicado', 'fixture-hash', 'Existente', 'admin', $1)`,
       [target.id],
     );
 
