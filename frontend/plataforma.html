@@ -12,6 +12,7 @@
   <script src="shared/html-escape.js"></script>
   <script src="shared/platform-panel-render.js"></script>
   <script src="shared/platform-http.js"></script>
+  <script src="shared/cliente-alta.js"></script>
   <script src="shared/role-routing.js"></script>
   <script src="shared/sidebar-role.js"></script>
 </head>
@@ -23,6 +24,7 @@
         <h1 class="text-headline-md font-bold text-primary">Panel de plataforma</h1>
         <div class="flex items-center gap-3">
           <button id="nuevo-dispositivo" class="bg-primary text-on-primary rounded px-4 py-2">Nuevo dispositivo</button>
+          <button id="nuevo-cliente" class="bg-primary text-on-primary rounded px-4 py-2">Nuevo cliente</button>
           <span id="panel-error" class="text-error text-body-sm"></span>
         </div>
       </header>
@@ -54,6 +56,37 @@
         <button class="bg-primary text-on-primary rounded px-4 py-2" type="submit">Fabricar</button>
       </form>
       <div id="provision-results" class="mt-4 space-y-4"></div>
+    </div>
+  </div>
+  <div id="cliente-modal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="cliente-title">
+    <div class="bg-surface rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div class="flex justify-between items-center mb-4">
+        <h2 id="cliente-title" class="text-headline-sm font-bold">Nuevo cliente</h2>
+        <button id="cerrar-cliente" class="text-on-surface-variant" type="button" aria-label="Cerrar">Cerrar</button>
+      </div>
+      <form id="cliente-form" class="space-y-4">
+        <label class="block">Nombre del cliente
+          <input id="cliente-nombre" class="border rounded w-full p-2" minlength="1" maxlength="100" required/>
+        </label>
+        <label class="block">Username del administrador
+          <input id="cliente-username" class="border rounded w-full p-2" minlength="3" maxlength="50" required/>
+        </label>
+        <label class="block">Nombre del administrador
+          <input id="cliente-admin" class="border rounded w-full p-2" minlength="1" maxlength="100" required/>
+        </label>
+        <label class="block">Motivo
+          <textarea id="cliente-motivo" class="border rounded w-full p-2" minlength="3" maxlength="200" required></textarea>
+        </label>
+        <p id="cliente-error" class="text-error text-body-sm"></p>
+        <button id="cliente-submit" class="bg-primary text-on-primary rounded px-4 py-2" type="submit">Crear cliente</button>
+      </form>
+      <div id="cliente-resultado" class="hidden mt-4 space-y-3">
+        <p>Usuario: <strong id="cliente-resultado-username"></strong></p>
+        <p>Contraseña temporal: <strong id="cliente-resultado-password"></strong></p>
+        <p class="text-body-sm">Esta contraseña no se vuelve a mostrar. Entregásela al cliente por un canal seguro</p>
+        <button id="cliente-copiar-password" class="border rounded px-3 py-1" type="button">Copiar</button>
+        <p id="cliente-copiar-estado" class="text-body-sm"></p>
+      </div>
     </div>
   </div>
   <script src="shared/app.js"></script>
@@ -89,6 +122,19 @@
     const provisionCantidad = document.getElementById('provision-cantidad');
     const provisionError = document.getElementById('provision-error');
     const provisionResults = document.getElementById('provision-results');
+    const clienteModal = document.getElementById('cliente-modal');
+    const clienteForm = document.getElementById('cliente-form');
+    const clienteNombre = document.getElementById('cliente-nombre');
+    const clienteUsername = document.getElementById('cliente-username');
+    const clienteAdmin = document.getElementById('cliente-admin');
+    const clienteMotivo = document.getElementById('cliente-motivo');
+    const clienteError = document.getElementById('cliente-error');
+    const clienteSubmit = document.getElementById('cliente-submit');
+    const clienteResultado = document.getElementById('cliente-resultado');
+    const clienteResultadoUsername = document.getElementById('cliente-resultado-username');
+    const clienteResultadoPassword = document.getElementById('cliente-resultado-password');
+    const clienteCopiarEstado = document.getElementById('cliente-copiar-estado');
+    const clienteCopiarPassword = document.getElementById('cliente-copiar-password');
     let provisionItems = null;
 
     function cerrarProvision() {
@@ -98,6 +144,20 @@
       provisionForm.reset();
       provisionCantidad.value = '1';
       provisionModal.classList.add('hidden');
+    }
+
+    function cerrarCliente() {
+      if (!clienteResultado.classList.contains('hidden') && !confirm('¿Cerrar sin volver a mostrar la contraseña temporal?')) {
+        return;
+      }
+      clienteResultadoPassword.textContent = '';
+      clienteResultadoUsername.textContent = '';
+      clienteCopiarEstado.textContent = '';
+      clienteForm.reset();
+      clienteError.textContent = '';
+      clienteResultado.classList.add('hidden');
+      clienteForm.classList.remove('hidden');
+      clienteModal.classList.add('hidden');
     }
 
     function descargarNvs(item) {
@@ -167,12 +227,71 @@
       }
     }
 
+    async function crearCliente(event) {
+      event.preventDefault();
+      clienteError.textContent = '';
+      const resultado = ecotrackClienteAlta.validarAltaCliente({
+        nombreCliente: clienteNombre.value,
+        username: clienteUsername.value,
+        nombreAdmin: clienteAdmin.value,
+        motivo: clienteMotivo.value,
+      });
+      if (!resultado.ok) {
+        clienteError.textContent = resultado.error;
+        return;
+      }
+
+      clienteSubmit.disabled = true;
+      try {
+        const response = await fetch(`${API}/api/plataforma/clientes`, {
+          method: 'POST',
+          headers: { Authorization: token, 'Content-Type': 'application/json' },
+          body: JSON.stringify(resultado.datos),
+        });
+        const accion = ecotrackPlatformHttp.accionPorEstadoHttp(response);
+        if (accion.accion === 'cerrar-sesion') return manejarNoAutorizado();
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          clienteError.textContent = body.error || 'No se pudo crear el cliente';
+          return;
+        }
+
+        clienteResultadoUsername.textContent = body.usuario?.username ?? '';
+        clienteResultadoPassword.textContent = body.password_temporal;
+        clienteForm.classList.add('hidden');
+        clienteResultado.classList.remove('hidden');
+        try {
+          await loadSummary();
+        } catch (error) {
+          panelError.textContent = error.message;
+        }
+      } catch (error) {
+        clienteError.textContent = 'No se pudo conectar al servidor';
+      } finally {
+        clienteSubmit.disabled = false;
+      }
+    }
+
     document.getElementById('nuevo-dispositivo').addEventListener('click', () => {
       provisionModal.classList.remove('hidden');
       provisionMotivo.focus();
     });
     document.getElementById('cerrar-provision').addEventListener('click', cerrarProvision);
     provisionForm.addEventListener('submit', fabricarDispositivos);
+    document.getElementById('nuevo-cliente').addEventListener('click', () => {
+      clienteModal.classList.remove('hidden');
+      clienteNombre.focus();
+    });
+    document.getElementById('cerrar-cliente').addEventListener('click', cerrarCliente);
+    clienteForm.addEventListener('submit', crearCliente);
+    clienteCopiarPassword.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(clienteResultadoPassword.textContent);
+        clienteCopiarEstado.textContent = 'Copiada';
+      } catch (error) {
+        clienteCopiarEstado.textContent = 'No se pudo copiar, seleccionala a mano';
+      }
+    });
     document.getElementById('filtrar').addEventListener('click', loadPanel);
     initShell().then(() => {
       // Este guard mejora la UX; la autorización real la aplica el backend.

@@ -27,3 +27,7 @@ salida.txt
 demo.ps1
 backup_demo.sql
 *.bak
+
+pre-*.dump
+*.nvs.csv
+nvs.bin
