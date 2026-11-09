@@ -23,10 +23,16 @@ const user = {
   must_change_password: false,
 };
 const queries = [];
+let missingColumnError = false;
 
 const fakePool = {
   async query(sql, params = []) {
     queries.push({ sql, params });
+    if (missingColumnError && sql.includes('must_change_password')) {
+      const error = new Error('column must_change_password does not exist');
+      error.code = '42703';
+      throw error;
+    }
     if (sql.includes('SELECT * FROM usuarios WHERE username')) {
       return { rows: params[0] === user.username ? [user] : [] };
     }
@@ -138,6 +144,36 @@ test('CP-RF18 token sin clienteId se conserva para que extraerCliente lo rechace
   assert.equal(response.statusCode, 401);
 });
 
+test('Feature 021 validarToken consulta el estado de contraseña en una sola consulta', async () => {
+  queries.length = 0;
+  const token = jwt.sign({
+    sub: user.id,
+    username: user.username,
+    rol: user.rol,
+    clienteId: user.cliente_id,
+    tv: user.token_version,
+  }, process.env.JWT_SECRET);
+
+  const payload = await authMiddleware.validarToken(token);
+
+  assert.equal(payload.mustChangePassword, false);
+  assert.equal(queries.length, 1);
+});
+
+test('Feature 021 un error de columna ausente no desactiva el bloqueo', async () => {
+  missingColumnError = true;
+  const token = jwt.sign({
+    sub: user.id,
+    username: user.username,
+    rol: user.rol,
+    clienteId: user.cliente_id,
+    tv: user.token_version,
+  }, process.env.JWT_SECRET);
+
+  await assert.rejects(() => authMiddleware.validarToken(token), { code: 'INVALID_TOKEN' });
+  missingColumnError = false;
+});
+
 test('Feature 021 auth usa PostgreSQL real para restringir el primer login y completarlo', async () => {
   await withTemporaryMigrationDatabase(async ({ connectionString }) => {
     const url = new URL(connectionString);
@@ -174,35 +210,11 @@ test('Feature 021 auth usa PostgreSQL real para restringir el primer login y com
 
       delete require.cache[dbPath];
       delete require.cache[authServicePath];
-      delete require.cache[authMiddlewarePath];
       const realAuthService = require('../services/auth.service');
-      const realAuthMiddleware = require('../middleware/auth');
 
       const login = await realAuthService.login(username, temporaryPassword);
       assert.equal(login.mustChangePassword, true);
       assert.equal((await realAuthService.obtenerPorId(userId)).must_change_password, true);
-
-      const accessResponse = {
-        statusCode: null,
-        body: null,
-        status(code) {
-          this.statusCode = code;
-          return this;
-        },
-        json(body) {
-          this.body = body;
-          return this;
-        },
-      };
-      await realAuthMiddleware.requerirCambioCompletado(
-        { usuario: jwt.verify(login.token, process.env.JWT_SECRET) },
-        accessResponse,
-        () => {
-          throw new Error('un usuario pendiente no puede acceder a rutas operativas');
-        },
-      );
-      assert.equal(accessResponse.statusCode, 403);
-      assert.equal(accessResponse.body.code, 'PASSWORD_CHANGE_REQUIRED');
 
       const samePassword = await realAuthService.cambiarPassword(
         userId,
@@ -220,16 +232,6 @@ test('Feature 021 auth usa PostgreSQL real para restringir el primer login y com
       assert.equal(state[0].must_change_password, false);
       assert.equal(state[0].token_version, 2);
 
-      const allowedResponse = {
-        status() {
-          throw new Error('un usuario completado debe poder continuar');
-        },
-      };
-      await realAuthMiddleware.requerirCambioCompletado(
-        { usuario: jwt.verify(changed.token, process.env.JWT_SECRET) },
-        allowedResponse,
-        () => {},
-      );
     } finally {
       await realPool.end();
       await require(dbPath).end();
