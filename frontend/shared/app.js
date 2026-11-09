@@ -62,6 +62,10 @@ if (!window.ecotrackAccesoDenegado && typeof io !== 'undefined') {
 
   socket.on('connect_error', (err) => {
     console.warn('Socket.IO: no se pudo conectar en tiempo real —', err.message);
+    if (window.ecotrackSocketAuth?.isPasswordChangeRequired(err)) {
+      socket.io.opts.reconnection = false;
+      return;
+    }
     if (window.ecotrackSocketAuth?.shouldEndSession(err)) {
       socket.io.opts.reconnection = false;
       cerrarSesion();
