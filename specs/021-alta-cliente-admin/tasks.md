@@ -27,7 +27,7 @@ real cuando corresponda, con `skip` únicamente si falta `TEST_DATABASE_URL`.
 **Purpose**: Crear la base de datos, autenticación restringida y utilidades compartidas.
 
 - [ ] T005 Escribir primero en `backend/src/test/platform-client-admin.integration.test.js` una prueba PostgreSQL de la migración 020 que verifique el marcador de cambio obligatorio `NOT NULL DEFAULT false`, los índices únicos sobre `lower(clientes.nombre)` y `lower(usuarios.username)`, y la detección de colisiones históricas; confirmar el fallo antes de implementar.
-- [ ] T006 Implementar `backend/migrations/020_client_admin.sql` como migración idempotente posterior a 019: resolver o rechazar duplicados por `lower()` antes de crear índices, agregar el marcador `NOT NULL DEFAULT false` y aplicar solo los valores de `actor_tipo` verificados en T004.
+- [ ] T006 Implementar `backend/migrations/020_client_admin.sql` como migración idempotente posterior a 019: abortar sin crear índices si existen duplicados por `lower()`, agregar el marcador `NOT NULL DEFAULT false` y aplicar solo los valores de `actor_tipo` verificados en T004.
 - [ ] T007 Escribir primero pruebas en `backend/src/test/auth.test.js` para login con cambio obligatorio, bloqueo server-side, limpieza del marcador y rechazo de reutilización de la contraseña temporal como contraseña nueva; confirmar los fallos correctos antes de implementar.
 - [ ] T008 Implementar el estado persistido y el flujo de `backend/src/services/auth.service.js`, `backend/src/middleware/auth.js` y `backend/src/routes/auth.js`: permitir solo login, me mínima y change-password, consultar la base, incrementar `token_version` y rechazar la nueva contraseña igual a la temporal.
 - [ ] T009 [P] Escribir primero pruebas unitarias en `backend/src/test/platform-client-admin.test.js` para trim, username en minúsculas, reservados y contraseña CSPRNG de mínimo 16 caracteres sin `0`, `O`, `1`, `I` ni `l`; confirmar que fallan antes de implementar.
@@ -51,7 +51,7 @@ de lista blanca.
 
 - [ ] T011 [P] [US1] Escribir primero el test de contrato en `backend/src/test/platform-client-admin.integration.test.js` para `POST /api/plataforma/clientes`, JWT crudo, payload `{ nombre_cliente, username, nombre_admin, motivo }`, 201, username normalizado y lista blanca; confirmar el fallo antes de implementar.
 - [ ] T012 [P] [US1] Escribir primero el test PostgreSQL en `backend/src/test/platform-client-admin.integration.test.js` que cuente clientes, usuarios y auditoría, verifique `rol = 'admin'`, hash bcrypt y ausencia de contraseña en persistencia.
-- [ ] T013 [P] [US1] Escribir primero el test de login en `backend/src/test/platform-client-admin.integration.test.js` con username normalizado, sesión restringida, bloqueo operativo, change-password, incremento de `token_version` e invalidación de la sesión anterior.
+- [ ] T013 [P] [US1] Escribir primero el test de login en `backend/src/test/platform-client-admin.integration.test.js` con username normalizado, sesión restringida, bloqueo operativo, rechazo de contraseña nueva igual a la temporal, `change-password` que apaga el marcador y devuelve el JWT nuevo con `tv` actualizado, incremento de `token_version` e invalidación de la sesión anterior; continuar con ese JWT sin re-login.
 - [ ] T014 [P] [US1] Escribir primero el test frontend en `backend/src/test/platform-client-admin.test.js` para modal, `textContent`, copiar, ausencia de descarga y limpieza de secreto del DOM y variables.
 
 ### Implementation for User Story 1
@@ -62,7 +62,9 @@ de lista blanca.
 - [ ] T018 Montar `POST /api/plataforma/clientes` en `backend/src/routes/plataforma.js` con autorización `platform_admin`, respuesta `Cache-Control: no-store`, errores sanitizados y el schema estricto.
 - [ ] T019 Montar el limiter ya configurado en T002 para ambas rutas en `backend/src/routes/plataforma.js`; no redefinir máximos, ventana ni `counterKey` aquí.
 - [ ] T020 Implementar el modal en `frontend/plataforma.html` con `textContent`, copiar contraseña, advertencia de entrega única y limpieza al cerrar, sin descarga.
-- [ ] T021 Ejecutar T011-T014 y verificar US1 contra PostgreSQL real; usar `skip` solo cuando falte `TEST_DATABASE_URL`.
+- [ ] T021 Ejecutar T011-T014 y T061-T062 y verificar US1 contra PostgreSQL real; usar `skip` solo cuando falte `TEST_DATABASE_URL`.
+- [ ] T061 [P] [US1] Escribir primero el test frontend en `backend/src/test/platform-client-admin.test.js` que compruebe que un alta exitosa recarga tabla y resumen, y que la contraseña no queda en esas cargas ni en el estado operativo; confirmar el fallo antes de implementar.
+- [ ] T062 Implementar en `frontend/plataforma.html` la recarga de tabla y resumen después del alta, separando el estado efímero de contraseña del estado operativo y sin incluir el secreto en ninguna carga posterior.
 
 ---
 
@@ -135,36 +137,56 @@ administrado o concurrentemente reclamado produce un error estable sin filas par
 ## Phase 7: Backend mutation validation
 
 **Purpose**: Demostrar que cada garantía crítica depende de una aserción concreta.
-Para cada tarea, aplicar una sola mutación en el archivo productivo indicado,
-confirmar el cambio con `git --no-pager diff`, ejecutar el test dirigido, mostrar
-que falla por la razón correcta y restaurar inmediatamente con `git checkout --
-<archivo>` antes de continuar. No combinar mutaciones.
+Para cada tarea, verificar primero que `git status --short` esté vacío. Aplicar una
+sola mutación en el archivo productivo indicado, confirmar el cambio con
+`git --no-pager diff`, ejecutar el test dirigido, mostrar que falla por la razón
+correcta y restaurar inmediatamente solo el archivo mutado con
+`git checkout -- <archivo>` antes de continuar. No combinar mutaciones ni restaurar
+archivos fuera del objetivo.
 
-- [ ] T041 [US1] Mutar el rollback de `backend/src/services/plataforma.service.js`, confirmar diff, ejecutar el test de atomicidad, mostrar fallo por filas residuales y restaurar con `git checkout -- backend/src/services/plataforma.service.js`.
-- [ ] T042 [US3] Mutar la propagación fail-closed de `backend/src/services/auditoria.service.js`, confirmar diff, ejecutar el test de auditoría, mostrar fallo por alta sin auditoría y restaurar con `git checkout -- backend/src/services/auditoria.service.js`.
-- [ ] T043 [US3] Mutar la clave `counterKey` del limiter en `backend/src/config/platformPanelConfig.js`, confirmar diff, ejecutar el test de aislamiento del rate limit, mostrar fallo por contador compartido y restaurar con `git checkout -- backend/src/config/platformPanelConfig.js`.
-- [ ] T044 [US3] Mutar la exclusión de secretos de la auditoría en `backend/src/services/plataforma.service.js`, confirmar diff, ejecutar el test de secretos, mostrar fallo por hash/token en `detalle` y restaurar con `git checkout -- backend/src/services/plataforma.service.js`.
-- [ ] T045 [US3] Mutar la exclusión de secretos de logs en `backend/src/routes/plataforma.js`, confirmar diff, ejecutar el test de captura de `console.*`, mostrar fallo por secreto registrado y restaurar con `git checkout -- backend/src/routes/plataforma.js`.
-- [ ] T046 [US2] Mutar la autorización `platform_admin` de ambas rutas en `backend/src/routes/plataforma.js`, confirmar diff, ejecutar 401/403 contra la app real, mostrar fallo para rol no permitido y restaurar con `git checkout -- backend/src/routes/plataforma.js`.
-- [ ] T047 [US1] Mutar el bloqueo server-side del cambio obligatorio en `backend/src/middleware/auth.js`, confirmar diff, ejecutar el recorrido de rutas pendientes, mostrar acceso operativo indebido y restaurar con `git checkout -- backend/src/middleware/auth.js`.
-- [ ] T048 [US4] Mutar `FOR UPDATE` del alta de admin en `backend/src/services/plataforma.service.js`, confirmar diff, ejecutar concurrencia, mostrar dos altas aceptadas o condición de carrera y restaurar con `git checkout -- backend/src/services/plataforma.service.js`.
+- [ ] T041 [US1] Con árbol limpio (`git status --short` vacío), mutar el rollback de `backend/src/services/plataforma.service.js`, confirmar diff, ejecutar el test de atomicidad, mostrar fallo por filas residuales y restaurar solo ese archivo con `git checkout -- backend/src/services/plataforma.service.js`.
+- [ ] T042 [US3] Con árbol limpio (`git status --short` vacío), mutar la propagación fail-closed de `backend/src/services/auditoria.service.js`, confirmar diff, ejecutar el test de auditoría, mostrar fallo por alta sin auditoría y restaurar solo ese archivo con `git checkout -- backend/src/services/auditoria.service.js`.
+- [ ] T043 [US3] Con árbol limpio (`git status --short` vacío), mutar la clave `counterKey` del limiter en `backend/src/config/platformPanelConfig.js`, confirmar diff, ejecutar el test de aislamiento del rate limit, mostrar fallo por contador compartido y restaurar solo ese archivo con `git checkout -- backend/src/config/platformPanelConfig.js`.
+- [ ] T044 [US3] Con árbol limpio (`git status --short` vacío), mutar la exclusión de secretos de la auditoría en `backend/src/services/plataforma.service.js`, confirmar diff, ejecutar el test de secretos, mostrar fallo por hash/token en `detalle` y restaurar solo ese archivo con `git checkout -- backend/src/services/plataforma.service.js`.
+- [ ] T045 [US3] Con árbol limpio (`git status --short` vacío), mutar la exclusión de secretos de logs en `backend/src/routes/plataforma.js`, confirmar diff, ejecutar el test de captura de `console.*`, mostrar fallo por secreto registrado y restaurar solo ese archivo con `git checkout -- backend/src/routes/plataforma.js`.
+- [ ] T046 [US2] Con árbol limpio (`git status --short` vacío), mutar la autorización `platform_admin` de ambas rutas en `backend/src/routes/plataforma.js`, confirmar diff, ejecutar 401/403 contra la app real, mostrar fallo para rol no permitido y restaurar solo ese archivo con `git checkout -- backend/src/routes/plataforma.js`.
+- [ ] T047 [US1] Con árbol limpio (`git status --short` vacío), mutar el bloqueo server-side del cambio obligatorio en `backend/src/middleware/auth.js`, confirmar diff, ejecutar el recorrido de rutas pendientes, mostrar acceso operativo indebido y restaurar solo ese archivo con `git checkout -- backend/src/middleware/auth.js`.
+- [ ] T048 [US4] Con árbol limpio (`git status --short` vacío), mutar `FOR UPDATE` del alta de admin en `backend/src/services/plataforma.service.js`, confirmar diff, ejecutar concurrencia, mostrar dos altas aceptadas o condición de carrera y restaurar solo ese archivo con `git checkout -- backend/src/services/plataforma.service.js`.
 
 ---
 
-## Phase 8: Cross-surface authentication and concurrency
+## Phase 8: Frontend mutation validation
 
-- [ ] T049 [P] Escribir y ejecutar en `backend/src/test/auth-pending-routes.integration.test.js` un test que recorra todas las rutas HTTP autenticadas y espere 403 con código estable para un usuario pendiente, excepto login, me y change-password; incluir una conexión Socket.IO autenticada y verificar el mismo bloqueo.
-- [ ] T050 [P] Escribir y ejecutar en `backend/src/test/platform-client-admin.integration.test.js` dos altas simultáneas del mismo nombre y username; verificar una sola creación, un código estable de conflicto, mapeo de `23505` y cero filas parciales.
+**Purpose**: Demostrar que cada garantía del modal y de la recarga depende de una
+aserción concreta. Antes de cada mutación debe verificarse árbol limpio; después se
+confirma el diff, se ejecuta el test dirigido y se restaura solo `frontend/plataforma.html`.
+
+- [ ] T057 [US1] Con árbol limpio (`git status --short` vacío), mutar la asignación dinámica de token/código para quitar `textContent` en `frontend/plataforma.html`, confirmar `git --no-pager diff`, ejecutar el test frontend, mostrar el fallo correcto y restaurar solo ese archivo con `git checkout -- frontend/plataforma.html`.
+- [ ] T058 [US1] Con árbol limpio (`git status --short` vacío), mutar la acción de copiar contraseña en `frontend/plataforma.html`, confirmar diff, ejecutar el test frontend, mostrar el fallo correcto y restaurar solo ese archivo con `git checkout -- frontend/plataforma.html`.
+- [ ] T059 [US1] Con árbol limpio (`git status --short` vacío), mutar la limpieza del secreto del DOM al cerrar el modal en `frontend/plataforma.html`, confirmar diff, ejecutar el test frontend, mostrar el fallo correcto y restaurar solo ese archivo con `git checkout -- frontend/plataforma.html`.
+- [ ] T060 [US1] Con árbol limpio (`git status --short` vacío), mutar la limpieza de variables del resultado al cerrar el modal en `frontend/plataforma.html`, confirmar diff, ejecutar el test frontend, mostrar el fallo correcto y restaurar solo ese archivo con `git checkout -- frontend/plataforma.html`.
+
+---
+
+## Phase 9: Cross-surface authentication and concurrency
+
+- [ ] T049 [P] Escribir primero y ejecutar en `backend/src/test/realtime.integration.test.js` el test del handshake Socket.IO con JWT cuyo `tv` es vigente pero cuyo marcador persistido está pendiente; verificar el formato de rechazo actual y `error.data.code = 'PASSWORD_CHANGE_REQUIRED'`.
+- [ ] T050 [P] Escribir y ejecutar en `backend/src/test/platform-client-admin.integration.test.js` tres altas simultáneas separadas: mismo nombre/otro username debe producir `CLIENT_NAME_TAKEN`, mismo username/otro nombre `USERNAME_TAKEN`, y payload idéntico `CLIENT_NAME_TAKEN`; verificar una sola creación, mapeo de `23505` y cero filas parciales.
 - [ ] T051 [P] Añadir a `backend/src/test/platform-client-admin.integration.test.js` el test de migración que consulte `information_schema`/`pg_attribute` y compruebe explícitamente `NOT NULL` y `DEFAULT false` del marcador.
+- [ ] T063 Implementar la extensión del middleware Socket.IO existente en `backend/index.js`: consultar el marcador persistido además de reutilizar la validación vigente de `tv` de `backend/src/middleware/auth.js` cuando sea compartible, y rechazar con el formato actual y `data.code = 'PASSWORD_CHANGE_REQUIRED'`.
+- [ ] T064 [P] Escribir primero en `frontend/shared/socket-auth.test.js` el test de `connect_error` con `PASSWORD_CHANGE_REQUIRED`: debe desactivar reconexión, conservar el token y redirigir al cambio de contraseña sin llamar `cerrarSesion()`; confirmar que otros códigos conservan `shouldEndSession`.
+- [ ] T065 Implementar en `frontend/shared/socket-auth.js` y las vistas que registran `connect_error` el manejo especial de `PASSWORD_CHANGE_REQUIRED`, desactivando reconexión, conservando el token y redirigiendo al cambio de contraseña; mantener el comportamiento actual de `shouldEndSession` para otros errores.
+- [ ] T066 [US1] Con árbol limpio (`git status --short` vacío), mutar el manejo de `PASSWORD_CHANGE_REQUIRED` en `frontend/shared/socket-auth.js`, confirmar diff, ejecutar `frontend/shared/socket-auth.test.js`, mostrar el fallo correcto y restaurar solo ese archivo con `git checkout -- frontend/shared/socket-auth.js`.
+- [ ] T067 [P] Escribir y ejecutar en `backend/src/test/auth-pending-routes.integration.test.js` el recorrido de todas las rutas HTTP autenticadas con usuario pendiente: esperar 403 y `PASSWORD_CHANGE_REQUIRED` salvo login, me y change-password, que deben conservarse permitidos.
 
 ---
 
-## Phase 9: Deployment and Polish
+## Phase 10: Deployment and Polish
 
-- [ ] T052 [P] Documentar en `specs/021-alta-cliente-admin/quickstart.md` el despliegue: backup previo, consultas para detectar duplicados por `lower(clientes.nombre)` y `lower(usuarios.username)`, resolución aprobada y ejecución de la migración 020.
+- [ ] T052 [P] Documentar en `specs/021-alta-cliente-admin/quickstart.md` el despliegue: backup previo, verificación obligatoria de duplicados por `lower(clientes.nombre)` y `lower(usuarios.username)`, abortar/corregir antes de migrar y ejecución de la migración 020.
 - [ ] T053 [P] Actualizar `README.md` y `specs/021-alta-cliente-admin/contracts/platform-client-admin.md` con endpoints, cambio obligatorio, conflictos y procedimiento de migración.
 - [ ] T054 [P] Revisar `backend/src/test/usuarios.test.js`, `backend/src/test/auth.test.js`, tests del panel y scripts de provisión para asegurar regresión sin fugas.
-- [ ] T055 Ejecutar la suite completa en una ventana limpia con `TEST_DATABASE_URL`, exigir exactamente 0 skipped y 0 fallos en los 32 tests de Feature 021, y ejecutar además la regresión específica de tests con mayúsculas (`Acme`/`acme` y `Admin`/`admin`).
+- [ ] T055 Ejecutar la suite nombrada de Feature 021 en una ventana limpia con `TEST_DATABASE_URL`, exigir 0 skipped y 0 fallos; conservar además la métrica histórica de regresión “todo sin cambios (32)” y ejecutar los casos con mayúsculas (`Acme`/`acme` y `Admin`/`admin`).
 - [ ] T056 Ejecutar `git diff --check`, verificar migraciones repetibles, lista de archivos y ausencia de secretos en código, logs de prueba y documentación.
 
 ---
@@ -190,6 +212,8 @@ que falla por la razón correcta y restaurar inmediatamente con `git checkout --
 - T005, T007 y T009 en Foundational.
 - T011-T014, T022-T024, T028-T031 y T035-T037 en sus respectivas fases.
 - T049-T051 después de las implementaciones correspondientes.
+- T057-T060 después de completar el modal y su test; cada mutación requiere árbol limpio
+  y restauración exclusiva del archivo mutado.
 - T052-T054 en Polish.
 
 ## Implementation Strategy

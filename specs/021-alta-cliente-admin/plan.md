@@ -4,15 +4,15 @@
 
 **Input**: Feature specification from `specs/021-alta-cliente-admin/spec.md`
 
-**Note**: This template is filled in by the `/speckit-plan` command; its definition describes the execution workflow.
 
 ## Summary
 
 Crear clientes y administradores iniciales desde el panel de plataforma mediante dos
 rutas explícitas, una transacción que incluya auditoría fail-closed, contraseña
 temporal de entrega única y estado persistido de cambio obligatorio. Reutilizar
-autenticación, bcrypt, JWT y `token_version`; añadir migraciones para el estado de
-primer login y unicidad case-insensitive.
+autenticación, bcrypt, JWT y `token_version`; añadir migración 020 para el estado de
+primer login y unicidad case-insensitive. La migración abortará ante duplicados
+históricos por `lower()` y el despliegue deberá verificarlos antes.
 
 ## Technical Context
 
@@ -30,7 +30,7 @@ primer login y unicidad case-insensitive.
 
 **Performance Goals**: Complete a single administrative alta within normal panel interaction latency; no bulk creation is required.
 
-**Constraints**: Raw JWT Authorization header, tenant isolation, no plaintext secrets in persistence/logs/audit, fail-closed audit, no download, default 5 requests/15 minutes/user.
+**Constraints**: Raw JWT Authorization header, tenant isolation, no plaintext secrets in persistence/logs/audit, fail-closed audit, no download, default 5 requests/15 minutes/user, Socket.IO handshake rejection with `PASSWORD_CHANGE_REQUIRED` for persisted pending-password state, and no client reconnect loop.
 
 **Scale/Scope**: One client plus one initial admin per request; existing global uniqueness and platform-admin panel.
 
@@ -64,6 +64,7 @@ specs/[###-feature]/
 ### Source Code (repository root)
 ```text
 backend/
+├── index.js
 ├── src/
 │   ├── routes/plataforma.js
 │   ├── services/plataforma.service.js
@@ -75,6 +76,8 @@ backend/
 ├── migrations/
 └── scripts/run-migrations.js
 frontend/
+├── shared/
+│   └── socket-auth.js
 └── plataforma.html
 specs/021-alta-cliente-admin/
 ├── plan.md
@@ -88,7 +91,18 @@ specs/021-alta-cliente-admin/
 **Structure Decision**: Preserve the existing single backend/static-frontend layout.
 Platform routes and services own the transaction; authentication middleware owns
 persisted session restrictions; migrations own schema changes; integration tests use
-the existing temporary migration database helper.
+the existing temporary migration database helper. The existing Socket.IO handshake
+middleware in `backend/index.js` extends its current JWT/`tv` validation with the
+persisted password-change marker and returns the current handshake error shape with
+`data.code = 'PASSWORD_CHANGE_REQUIRED'`. The client `connect_error` path disables
+reconnection and preserves the token for that code, while retaining current
+`shouldEndSession` handling for other errors. `change-password` returns the new JWT
+with updated `tv`, so the client continues without re-login.
+The deployment runbook must execute duplicate checks on `lower(clientes.nombre)` and
+`lower(usuarios.username)` before applying migration 020; migration 020 itself aborts
+if either query returns rows. Concurrent client creation relies on unique lower-case
+indexes and maps 23505 deterministically; existing-client admin creation locks the
+client row with `SELECT ... FOR UPDATE`.
 
 ## Complexity Tracking
 

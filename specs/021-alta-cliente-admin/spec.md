@@ -211,10 +211,10 @@ la ruta y nunca del cuerpo.
   permitido.
 - **FR-004a**: El sistema MUST comparar `clientes.nombre` y `usuarios.username` sin
   distinguir mayúsculas. Debe aplicar índices únicos sobre `lower(nombre)` y
-  `lower(username)` mediante una migración idempotente, después de detectar y
-  resolver cualquier colisión histórica, para garantizar la unicidad también bajo
-  solicitudes concurrentes. La comprobación previa dentro de la transacción es
-  complementaria y no reemplaza el índice.
+  `lower(username)` mediante una migración idempotente. La migración MUST abortar
+  sin crear índices si detecta cualquier colisión histórica por `lower()`; la
+  resolución debe completarse y verificarse antes del despliegue. La comprobación
+  previa dentro de la transacción es complementaria y no reemplaza el índice.
 - **FR-004b**: El sistema MUST rechazar los usernames normalizados
   `platform_admin`, `plataforma` y `root`, y el nombre de cliente normalizado
   `plataforma`, con un error de aplicación sanitizado y sin revelar constraints.
@@ -231,9 +231,10 @@ la ruta y nunca del cuerpo.
   consultando el estado persistido en la base y no solo un claim del JWT, las rutas
   operativas, administrativas y de cliente. El frontend debe mostrar una pantalla
   de cambio obligatorio y no mostrar el dashboard hasta recibir confirmación de
-  cambio exitoso. El cambio exitoso MUST incrementar `token_version`, invalidar las
-  sesiones anteriores y emitir o requerir una sesión nueva sin la obligación
-  pendiente.
+  cambio exitoso. Las rutas HTTP bloqueadas MUST responder 403 con el código estable
+  `PASSWORD_CHANGE_REQUIRED`. El cambio exitoso MUST incrementar `token_version`, invalidar las
+  sesiones anteriores y devolver un JWT nuevo con `tv` actualizado para continuar
+  sin re-login y sin la obligación pendiente.
 - **FR-007**: El sistema MUST devolver una lista blanca que no incluya hashes,
   contraseñas persistidas, tokens de sesión ni datos internos de la transacción.
 - **FR-008**: Cliente, usuario y auditoría MUST confirmarse o revertirse como una
@@ -268,6 +269,17 @@ la ruta y nunca del cuerpo.
   igualdad exacta, la prueba de integración debe usar ese valor normalizado; si se
   permite que el usuario escriba variantes con espacios o mayúsculas, el login
   deberá aplicar la misma normalización antes de consultar.
+- **FR-018**: En el handshake de Socket.IO el servidor MUST consultar el estado
+  persistido de cambio obligatorio, además de la validación vigente de `tv`. Si
+  está pendiente, MUST rechazar la conexión con el mismo formato de error de los
+  rechazos actuales y `data.code = 'PASSWORD_CHANGE_REQUIRED'`; el cliente MUST
+  mostrar el flujo de cambio, desactivar la reconexión y no reintentar en bucle.
+- **FR-019**: Las altas concurrentes MUST mantener la unicidad case-insensitive.
+  Para el mismo nombre con distinto username prevalece `CLIENT_NAME_TAKEN`; para
+  distinto nombre con el mismo username prevalece `USERNAME_TAKEN`; para payload
+  idéntico prevalece `CLIENT_NAME_TAKEN` y no se crea ninguna fila parcial. La
+  ruta de admin existente MUST bloquear el cliente con `FOR UPDATE`, y cualquier
+  `23505` residual debe mapearse a un código sanitizado estable.
 
 ### Key Entities
 
@@ -288,11 +300,13 @@ la ruta y nunca del cuerpo.
 | Alta válida | Crear cliente y admin en PostgreSQL real | Una fila de cliente, una de usuario `admin`, relación correcta |
 | Normalización | Bordes en nombres, username en mayúsculas y respuesta | Valores persistidos sin bordes; username en minúsculas y respuesta normalizada |
 | Unicidad case-insensitive | `Acme` vs `acme`; username `Admin` vs `admin` | Segundo intento rechazado aun bajo concurrencia |
+| Concurrencia por conflicto | Mismo nombre/otro username; mismo username/otro nombre; payload idéntico | `CLIENT_NAME_TAKEN`, `USERNAME_TAKEN`, `CLIENT_NAME_TAKEN`, respectivamente; cero filas parciales |
 | Reservados | `platform_admin`, `plataforma`, `root` y cliente `plataforma` | Error sanitizado y cero filas parciales |
 | Login normalizado | Login con username devuelto por el alta | Login actual encuentra la cuenta creada y autentica correctamente |
 | Admin existente | `POST /api/plataforma/clientes/:id/admin` | Crea admin solo si el cliente existe y aún no tiene admin |
 | Contraseña | Comparar temporal contra hash persistido | El hash valida la contraseña y no contiene texto plano |
 | Primera sesión | Login temporal y cambio obligatorio | 200 con sesión restringida; estado persistido bloquea rutas operativas |
+| Socket.IO pendiente | Handshake con usuario pendiente | Rechazo `PASSWORD_CHANGE_REQUIRED`; cliente sin reintento infinito |
 | Atomicidad | Fallar en el 2.º paso de 2 y contar antes/después | Cero filas nuevas en cliente, usuario y auditoría |
 | Auditoría fail-closed | Forzar error de inserción de auditoría | Rollback completo y no 2xx |
 | Autorización | Sin token, `admin`, `operario1`, `platform_admin` | 401, 403, 403 y éxito solo para platform admin |
@@ -319,14 +333,19 @@ la ruta y nunca del cuerpo.
   su hash y no aparece en logs, auditoría ni respuestas posteriores.
 - **SC-005**: El 100% de los primeros accesos de prueba exige cambio de contraseña y
   el servidor lo verifica contra la base, bloquea rutas operativas, incrementa
-  `token_version` e invalida sesiones anteriores; después del cambio la contraseña
-  temporal deja de ser válida.
+  `token_version` e invalida sesiones anteriores; `change-password` devuelve el
+  token nuevo con `tv` actualizado, el cliente continúa con ese token sin re-login,
+  apaga el marcador y rechaza una contraseña nueva igual a la temporal; después
+  del cambio la contraseña temporal deja de ser válida.
 - **SC-006**: El límite configurado rechaza el siguiente alta después del máximo y
   mantiene contadores independientes por usuario.
 - **SC-007**: El test de mutaciones del modal falla para cada eliminación de
   `textContent`, copia o limpieza de secretos.
 - **SC-008**: La suite de regresión de gestión de usuarios, autenticación, panel y
   fabricación de dispositivos permanece sin fallos atribuibles a esta feature.
+- **SC-009**: La suite nombrada de Feature 021 termina con 0 fallos y 0 skipped
+  cuando se ejecuta con `TEST_DATABASE_URL`; la métrica histórica "todo sin cambios
+  (32)" se conserva como comparación de regresión.
 
 ## Assumptions
 
@@ -344,8 +363,8 @@ la ruta y nunca del cuerpo.
   global mediante constraints sensibles a mayúsculas en el esquema actual; no
   existen índices case-insensitive sobre `lower(...)`. La decisión de esta feature
   es agregar una migración idempotente con índices únicos sobre
-  `lower(clientes.nombre)` y `lower(usuarios.username)`, previa detección y
-  resolución explícita de colisiones históricas. La API deberá traducir el
+  `lower(clientes.nombre)` y `  lower(usuarios.username)`. La migración abortará si detecta colisiones históricas;
+  el despliegue deberá detectarlas y resolverlas antes de ejecutarla. La API deberá traducir el
   conflicto de nombre de cliente a un código distinto del conflicto de username,
   sin exponer nombres de constraints ni mensajes de PostgreSQL.
 - El username se almacenará normalizado en minúsculas y sin espacios exteriores;
@@ -367,7 +386,13 @@ la ruta y nunca del cuerpo.
   configurable de forma independiente, siguiendo la convención de la Feature 020.
 - El frontend tratará la bandera del primer login como una sesión restringida,
   mostrará únicamente el cambio obligatorio y conservará el token hasta recibir la
-  respuesta exitosa que incremente `token_version`.
+  respuesta exitosa que incremente `token_version`; usará el JWT nuevo devuelto por
+  `change-password`, sin realizar un segundo login.
+- El handshake de Socket.IO en `backend/index.js` reutiliza la validación de `tv` de
+  `backend/src/middleware/auth.js` cuando sea compartible y consulta además el
+  marcador persistido. Un usuario pendiente recibe el formato actual de rechazo con
+  `data.code = 'PASSWORD_CHANGE_REQUIRED'`; `connect_error` desactiva reconexión,
+  conserva el token y redirige al cambio de contraseña.
 - El formulario y la respuesta no permitirán que el solicitante elija la contraseña
   ni el rol del usuario inicial: siempre será `admin`.
 - Esta feature implementa y amplía RF14, RF16, RF17, RF20, RI01, RI06, RI08, RNF01,

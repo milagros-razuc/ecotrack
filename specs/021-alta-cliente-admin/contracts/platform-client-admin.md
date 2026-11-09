@@ -71,6 +71,19 @@ indicator when the persisted account marker is pending. The server allows only
 `GET /api/auth/me` and `POST /api/auth/change-password` for that session; operational,
 tenant, platform, and administrative routes are rejected after checking the marker.
 
-`POST /api/auth/change-password` clears the marker and increments `token_version`.
-The frontend displays only the forced-change screen until success, then replaces the
-session with the returned token or requires a fresh login.
+`POST /api/auth/change-password` rejects a new password equal to the temporary
+password, clears the persisted marker, increments `token_version`, and returns a
+new JWT containing the updated `tv`. The frontend replaces its session token with
+that returned JWT and continues without a second login.
+
+## Socket.IO pending-password contract
+
+The existing Socket.IO handshake middleware in `backend/index.js` continues to
+validate the JWT and current `tv`, then checks the persisted forced-change marker.
+For a pending account it rejects using the same error shape as current handshake
+rejections and sets `error.data.code` to `PASSWORD_CHANGE_REQUIRED`.
+
+The frontend `connect_error` handler must treat that code specially: disable
+reconnection, keep the current token, and redirect to the forced-change screen.
+It must not call `cerrarSesion()` or delete the token. Other error codes retain the
+existing `shouldEndSession` behavior.

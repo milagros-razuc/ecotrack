@@ -34,7 +34,10 @@ Expected outcomes:
    another platform admin has an independent counter.
 5. A temporary-password login returns a restricted session; operational requests are
    rejected until `change-password` clears the persisted marker and increments
-   `token_version`.
+   `token_version`; the returned JWT is used without a second login.
+6. A pending user is rejected by the Socket.IO handshake with
+   `error.data.code = PASSWORD_CHANGE_REQUIRED`; the client disables reconnection,
+   preserves the token, and redirects to password change.
 
 ## Frontend mutation checks
 
