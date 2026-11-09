@@ -127,6 +127,13 @@ const provisionarDispositivosSchema = z.object({
   cantidad: z.number().int().min(1).max(10).default(1),
 }).strict();
 
+const crearClienteAdminSchema = z.object({
+  nombre_cliente: z.string().trim().min(1).max(100),
+  username: z.string().trim().min(3).max(50),
+  nombre_admin: z.string().trim().min(1).max(100),
+  motivo: z.string().trim().min(3).max(200),
+}).strict();
+
 module.exports = {
   loginSchema,
   changePasswordSchema,
@@ -141,5 +148,6 @@ module.exports = {
   actualizarPerfilSchema,
   crearApiKeySchema,
   provisionarDispositivosSchema,
+  crearClienteAdminSchema,
   rangoFechasLecturasSchema,
 };

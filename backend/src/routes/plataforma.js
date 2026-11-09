@@ -1,11 +1,12 @@
 const express = require('express');
 const plataformaService = require('../services/plataforma.service');
 const validar = require('../middleware/validar');
-const { provisionarDispositivosSchema } = require('../schemas');
+const { crearClienteAdminSchema, provisionarDispositivosSchema } = require('../schemas');
 const { lastReadingWindowDays, rateLimits } = require('../config/platformPanelConfig');
 const rateLimit = require('express-rate-limit').rateLimit;
 const { PlatformValidationError } = plataformaService;
 const { PlatformProvisioningError } = plataformaService;
+const { PlatformConflictError } = plataformaService;
 
 const router = express.Router();
 function createReadLimiter(options = {}) {
@@ -49,6 +50,23 @@ router.get('/resumen', readLimiter, handleErrors(() => plataformaService.resumen
 router.get('/clientes', readLimiter, handleErrors(() => plataformaService.listarClientes()));
 router.get('/dispositivos', readLimiter, handleErrors((req) =>
   plataformaService.listarDispositivos(req.query, lastReadingWindowDays)));
+router.post('/clientes', validar(crearClienteAdminSchema), async (req, res, next) => {
+  try {
+    const result = await plataformaService.crearClienteAdmin({
+      nombreCliente: req.body.nombre_cliente,
+      username: req.body.username,
+      nombreAdmin: req.body.nombre_admin,
+      motivo: req.body.motivo,
+      usuario: req.usuario,
+    });
+    return res.set('Cache-Control', 'no-store').status(201).json(result);
+  } catch (error) {
+    if (error instanceof PlatformConflictError) {
+      return res.status(409).json({ error: error.message, code: error.code });
+    }
+    return next(error);
+  }
+});
 router.post('/dispositivos', provisionLimiter, validar(provisionarDispositivosSchema), async (req, res, next) => {
   try {
     const items = await plataformaService.fabricarDispositivos({
