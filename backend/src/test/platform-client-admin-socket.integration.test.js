@@ -97,15 +97,29 @@ test('el alta emite después del commit solo a platform-admins con payload míni
     const tenantEvents = [];
     tenantSocket.on(EVENT_NAME, (payload) => tenantEvents.push(payload));
     assert.notEqual(fixture.seed.users.a.cliente_id, fixture.seed.users.b.cliente_id);
-    const event = waitForEvent(platformSocket, EVENT_NAME);
+    const event = new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        platformSocket.off(EVENT_NAME, onEvent);
+        reject(new Error('no llegó cliente:creado a platform-admins'));
+      }, 2500);
+      const onEvent = async (payload) => {
+        clearTimeout(timer);
+        platformSocket.off(EVENT_NAME, onEvent);
+        try {
+          const { rows } = await queryPool.query(
+            'SELECT id, nombre FROM clientes WHERE id = $1',
+            [payload.cliente.id],
+          );
+          resolve({ payload, rows });
+        } catch (error) {
+          reject(error);
+        }
+      };
+      platformSocket.on(EVENT_NAME, onEvent);
+    });
     const response = await request(validBody(Date.now()));
     assert.equal(response.status, 201);
-    const payload = await event;
-
-    const { rows } = await queryPool.query(
-      'SELECT id, nombre FROM clientes WHERE id = $1',
-      [payload.cliente.id],
-    );
+    const { payload, rows } = await event;
     assert.deepEqual(rows, [{ id: payload.cliente.id, nombre: payload.cliente.nombre }]);
     await new Promise((resolve) => setTimeout(resolve, 400));
     assert.deepEqual(tenantEvents, []);
