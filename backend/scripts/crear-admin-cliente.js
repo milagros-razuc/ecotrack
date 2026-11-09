@@ -106,14 +106,13 @@ async function crearAdminCliente(rawInput) {
     }
 
     const userResult = await client.query(
-      `INSERT INTO usuarios (username, password_hash, nombre, rol, cliente_id)
-       VALUES ($1, $2, $3, 'admin', $4)
+      `INSERT INTO usuarios (username, password_hash, nombre, rol, cliente_id, must_change_password)
+       VALUES ($1, $2, $3, 'admin', $4, true)
        RETURNING id, username, nombre, rol, cliente_id`,
       [input.username, passwordHash, input.nombreAdmin, cliente.id],
     );
     const usuario = userResult.rows[0];
 
-    // TODO: cuando exista must_change_password, marcarlo para el primer login.
     await auditWriter(client, {
       clienteId: cliente.id,
       usuarioId: usuario.id,

@@ -50,13 +50,15 @@ test('crea el usuario y la auditoría en la misma transacción', async (context)
 
     assert.equal(result.username, 'admin.transaccional');
     const user = await pool.query(
-      'SELECT id, username, nombre, rol, cliente_id, password_hash FROM usuarios WHERE id = $1',
+      `SELECT id, username, nombre, rol, cliente_id, password_hash, must_change_password
+       FROM usuarios WHERE id = $1`,
       [result.id],
     );
     assert.equal(user.rows.length, 1);
     assert.equal(user.rows[0].rol, 'admin');
     assert.equal(user.rows[0].cliente_id, target.id);
     assert.equal(user.rows[0].password_hash.length, 60);
+    assert.equal(user.rows[0].must_change_password, true);
     assert.equal(await bcrypt.compare('UnaPasswordSegura12', user.rows[0].password_hash), true);
 
     const audit = await pool.query(
