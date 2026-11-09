@@ -8,7 +8,9 @@ const JWT_EXPIRES_IN = '12h';
 
 async function login(username, password) {
   const { rows } = await pool.query(
-    'SELECT * FROM usuarios WHERE username = $1',
+    `SELECT id, username, password_hash, nombre, rol, cliente_id, token_version,
+            must_change_password
+     FROM usuarios WHERE username = $1`,
     [username]
   );
   const usuario = rows[0];
@@ -67,22 +69,12 @@ async function cambiarPassword(id, passwordActual, passwordNueva) {
   }
 
   const nuevoHash = await bcrypt.hash(passwordNueva, 10);
-  let actualizado;
-  try {
-    ({ rows: actualizado } = await pool.query(
-      `UPDATE usuarios
-       SET password_hash = $1, must_change_password = false, token_version = token_version + 1
-       WHERE id = $2 RETURNING token_version, username, rol, cliente_id`,
-      [nuevoHash, id]
-    ));
-  } catch (error) {
-    if (error.code !== '42703') throw error;
-    ({ rows: actualizado } = await pool.query(
-      `UPDATE usuarios SET password_hash = $1, token_version = token_version + 1
-       WHERE id = $2 RETURNING token_version, username, rol, cliente_id`,
-      [nuevoHash, id]
-    ));
-  }
+  const { rows: actualizado } = await pool.query(
+    `UPDATE usuarios
+     SET password_hash = $1, must_change_password = false, token_version = token_version + 1
+     WHERE id = $2 RETURNING token_version, username, rol, cliente_id`,
+    [nuevoHash, id]
+  );
   const u = actualizado[0];
   getActiveRegistry()?.disconnectUserSockets(id);
 

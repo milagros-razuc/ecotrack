@@ -61,6 +61,9 @@ function isReservedUsername(value) {
 }
 
 function generateTemporaryPassword(length = 20) {
+  if (length < 16) {
+    throw new Error('La contraseña temporal debe tener al menos 16 caracteres');
+  }
   let password = '';
   for (let index = 0; index < length; index += 1) {
     password += TEMPORARY_PASSWORD_ALPHABET[crypto.randomInt(TEMPORARY_PASSWORD_ALPHABET.length)];

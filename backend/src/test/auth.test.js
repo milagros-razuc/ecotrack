@@ -24,6 +24,7 @@ const user = {
 };
 const queries = [];
 let missingColumnError = false;
+let updateMissingColumnError = false;
 
 const fakePool = {
   async query(sql, params = []) {
@@ -33,10 +34,16 @@ const fakePool = {
       error.code = '42703';
       throw error;
     }
-    if (sql.includes('SELECT * FROM usuarios WHERE username')) {
+    if (updateMissingColumnError && sql.includes('UPDATE usuarios')) {
+      updateMissingColumnError = false;
+      const error = new Error('column must_change_password does not exist');
+      error.code = '42703';
+      throw error;
+    }
+    if (sql.includes('FROM usuarios WHERE username')) {
       return { rows: params[0] === user.username ? [user] : [] };
     }
-    if (sql.includes('SELECT * FROM usuarios WHERE id')) return { rows: [user] };
+    if (sql.includes('FROM usuarios WHERE id')) return { rows: [user] };
     if (sql.includes('SELECT id, username, nombre, rol, creado_en')) {
       return { rows: [{ id: user.id, username: user.username, nombre: user.nombre, rol: user.rol }] };
     }
@@ -107,6 +114,15 @@ test('CP-RF20 cambio de contraseña exige la actual y devuelve hash nuevo solo i
 test('CP-RF20 cambio de contraseña rechaza contraseña actual incorrecta', async () => {
   const result = await authService.cambiarPassword(7, 'anterior-incorrecta', 'otra-123');
   assert.deepEqual(result, { error: 'La contraseña actual es incorrecta' });
+});
+
+test('Feature 021 cambiarPassword propaga un 42703 del UPDATE', async () => {
+  updateMissingColumnError = true;
+  await assert.rejects(
+    () => authService.cambiarPassword(7, 'nueva-123', 'otra-123'),
+    { code: '42703' },
+  );
+  updateMissingColumnError = false;
 });
 
 test('CP-RF20 token previo al cambio queda invalidado por token_version', async () => {
@@ -222,6 +238,11 @@ test('Feature 021 auth usa PostgreSQL real para restringir el primer login y com
         temporaryPassword,
       );
       assert.deepEqual(samePassword, { error: 'La nueva contraseña no puede ser igual a la temporal' });
+      const { rows: pendingState } = await realPool.query(
+        'SELECT must_change_password FROM usuarios WHERE id = $1',
+        [userId],
+      );
+      assert.equal(pendingState[0].must_change_password, true);
 
       const changed = await realAuthService.cambiarPassword(userId, temporaryPassword, 'Nueva-Segura-456');
       assert.equal(changed.ok, true);

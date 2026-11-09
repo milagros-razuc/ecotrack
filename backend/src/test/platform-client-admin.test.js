@@ -15,9 +15,16 @@ test('Feature 021 platform utilities normalize client and admin input', () => {
 });
 
 test('Feature 021 temporary password uses CSPRNG-safe unambiguous output', () => {
-  const password = generateTemporaryPassword();
-  assert.equal(typeof password, 'string');
-  assert.ok(password.length >= 16);
-  assert.match(password, /^[A-HJ-NP-Za-km-z2-9]+$/);
-  assert.doesNotMatch(password, /[0O1Il]/);
+  const passwords = Array.from({ length: 2000 }, () => generateTemporaryPassword());
+  for (const password of passwords) {
+    assert.equal(password.length, 20);
+    assert.match(password, /^[A-HJ-NP-Za-km-z2-9]+$/);
+    assert.doesNotMatch(password, /[0O1Il]/);
+  }
+  assert.notEqual(passwords[0], passwords[1]);
+});
+
+test('Feature 021 temporary password validates the requested length', () => {
+  assert.throws(() => generateTemporaryPassword(15), /16/);
+  assert.equal(generateTemporaryPassword(16).length, 16);
 });
