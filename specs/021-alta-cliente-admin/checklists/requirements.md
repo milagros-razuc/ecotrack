@@ -15,7 +15,7 @@
 
 - [x] No quedan marcadores `[NEEDS CLARIFICATION]`.
 - [x] Los requisitos son verificables y no ambiguos, incluyendo motivo, conflictos,
-  primer login y cliente de auditoría.
+  primer login, normalización, reservados y cliente de auditoría.
 - [x] Los criterios de éxito son medibles.
 - [x] Los criterios de éxito son verificables sin depender de una tecnología concreta.
 - [x] Cada historia tiene escenarios de aceptación, incluyendo el alta para cliente
@@ -28,7 +28,7 @@
 
 - [x] Cada requisito funcional tiene evidencia en la matriz de pruebas.
 - [x] Las historias cubren alta nueva y existente, autorización, atomicidad,
-  auditoría, rate limit, primer login y frontend sin descarga.
+  auditoría, rate limit, primer login, normalización, unicidad y frontend sin descarga.
 - [x] Los resultados esperados están reflejados en los criterios de éxito.
 - [x] La relación con las specs 018 y 020 está explícita.
 

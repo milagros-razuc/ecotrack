@@ -17,6 +17,14 @@ autorización y aislamiento del panel. No existe un `spec.md` de la Feature 020 
 Por lo tanto, esta funcionalidad no está cubierta por una US2 o US3 anterior y amplía
 el alcance administrativo del panel de plataforma.
 
+## Clarifications
+
+### Session 2026-11-09
+
+- Q: ¿Cómo debe distinguirse el alta de un cliente nuevo del alta de un administrador para un cliente existente? → A: El alta de cliente nuevo usa `POST /api/plataforma/clientes` con nombre del cliente, username, nombre visible y motivo. El alta para cliente existente usa `POST /api/plataforma/clientes/:id/admin` con username, nombre visible y motivo; el id va en la ruta y no en el cuerpo. En ambos payloads se hace `trim` de `nombre_cliente`, `username` y `nombre_admin`, se convierte `username` a minúsculas y la respuesta devuelve el username normalizado.
+- Q: ¿Qué debe devolver el primer login con contraseña temporal mientras el cambio obligatorio está pendiente? → A: Debe responder 200 con una sesión restringida y una bandera de cambio obligatorio; el servidor debe limitar esa sesión a los endpoints permitidos hasta completar el cambio.
+- Q: ¿Qué reglas exactas deben aplicar al nombre del cliente y al username del administrador? → A: Se reutilizan los límites actuales: nombre de cliente de 1 a 100 caracteres y username de 3 a 50 caracteres, sin cambiar el conjunto de caracteres permitido.
+
 ## Fuera de alcance
 
 - Crear clientes desde usuarios que no sean `platform_admin`.
@@ -62,8 +70,12 @@ que la respuesta muestra la contraseña temporal una sola vez.
    cierra, **Then** la contraseña temporal se elimina del DOM y de las variables del
    resultado, y no puede recuperarse desde el panel.
 4. **Given** una contraseña temporal ya entregada, **When** el usuario inicia sesión
-   por primera vez, **Then** debe cambiarla antes de acceder a las funciones
-   operativas; después del cambio, la contraseña temporal deja de ser válida.
+   por primera vez, **Then** recibe una sesión restringida con una indicación de
+   cambio obligatorio y debe cambiarla antes de acceder a las funciones operativas;
+   después del cambio, la contraseña temporal deja de ser válida.
+
+El alta de cliente nuevo se expone mediante `POST /api/plataforma/clientes` y recibe
+el nombre del cliente, username, nombre visible y motivo.
 
 ### User Story 2 - Rechazar solicitudes no autorizadas o inválidas (Priority: P1)
 
@@ -144,16 +156,26 @@ obligación de cambio en el primer acceso.
    mediante este flujo, **Then** se devuelve un error sanitizado y no se crea ningún
    cliente implícito.
 
+El alta para un cliente existente se expone mediante
+`POST /api/plataforma/clientes/:id/admin`; el identificador se toma exclusivamente de
+la ruta y nunca del cuerpo.
+
 ### Edge Cases
 
 - El nombre del cliente vacío, con espacios, demasiado corto, demasiado largo o con
   caracteres no permitidos debe rechazarse sin insertar filas.
+- Los nombres de cliente y usernames se comparan sin distinguir mayúsculas; por
+  ejemplo, `Acme` y `acme` representan el mismo cliente, y `Admin` y `admin` el
+  mismo username.
+- `platform_admin`, `plataforma` y `root` son usernames reservados, comparados en
+  minúsculas y rechazados con un error sanitizado. `plataforma` es también un nombre
+  de cliente reservado, comparado después de normalizar.
 - El username duplicado globalmente debe rechazarse sin crear un segundo cliente.
 - Un fallo de unicidad concurrente debe producir un error genérico y rollback.
-- En el modo de cliente nuevo, el endpoint debe rechazar cualquier campo adicional,
-  incluyendo `cliente_id`, `rol`, `password`, `password_hash` o una contraseña
-  elegida por el solicitante; `cliente_id` solo es válido en el modo explícito de
-  crear un administrador para un cliente existente.
+- `POST /api/plataforma/clientes` debe rechazar cualquier campo adicional, incluyendo
+  `cliente_id`, `rol`, `password`, `password_hash` o una contraseña elegida por el
+  solicitante. `POST /api/plataforma/clientes/:id/admin` debe rechazar `cliente_id`
+  en el cuerpo y tomar el id exclusivamente de la ruta.
 - El nombre del cliente y el username deben validar sus longitudes y formato; el
   `motivo` es obligatorio, se recorta y debe tener entre 3 y 200 caracteres.
 - La contraseña temporal debe cumplir la política vigente, generarse con CSPRNG
@@ -172,28 +194,42 @@ obligación de cambio en el primer acceso.
 
 ### Functional Requirements
 
-- **FR-001**: El sistema MUST ofrecer una operación del panel de plataforma para crear
-  un cliente y su primer usuario administrador en una única transacción.
-- **FR-002**: La operación MUST aceptar únicamente `{ nombre_cliente, username,
-  nombre_admin, motivo }` para un cliente nuevo, o `{ cliente_id, username,
-  nombre_admin, motivo }` para un cliente existente; `motivo` MUST recortarse y
-  tener entre 3 y 200 caracteres. No debe aceptar roles, contraseñas ni otros
-  identificadores o campos asignados por el cliente.
+- **FR-001**: `POST /api/plataforma/clientes` MUST crear un cliente y su primer
+  usuario administrador en una única transacción.
+- **FR-002**: `POST /api/plataforma/clientes` MUST aceptar únicamente `{ nombre_cliente,
+  username, nombre_admin, motivo }`; `POST /api/plataforma/clientes/:id/admin` MUST
+  aceptar únicamente `{ username, nombre_admin, motivo }`. En ambos casos `motivo`
+  MUST recortarse y tener entre 3 y 200 caracteres. `nombre_cliente`, `username` y
+  `nombre_admin` MUST recortarse; `username` MUST convertirse a minúsculas y la
+  respuesta MUST devolver ese username normalizado. Ninguna ruta debe aceptar roles,
+  contraseñas ni identificadores asignados por el cliente en el cuerpo.
 - **FR-003**: El sistema MUST exigir autenticación y autorización `platform_admin`;
   solicitudes sin sesión deben recibir 401 y otros roles 403.
-- **FR-004**: El sistema MUST validar el payload con límites explícitos y rechazar
-  campos adicionales con 400.
+- **FR-004**: El sistema MUST validar el payload con los límites existentes de
+  nombre de cliente de 1 a 100 caracteres y username de 3 a 50 caracteres, y
+  rechazar campos adicionales con 400 sin introducir un nuevo conjunto de caracteres
+  permitido.
+- **FR-004a**: El sistema MUST comparar `clientes.nombre` y `usuarios.username` sin
+  distinguir mayúsculas. Debe aplicar índices únicos sobre `lower(nombre)` y
+  `lower(username)` mediante una migración idempotente, después de detectar y
+  resolver cualquier colisión histórica, para garantizar la unicidad también bajo
+  solicitudes concurrentes. La comprobación previa dentro de la transacción es
+  complementaria y no reemplaza el índice.
+- **FR-004b**: El sistema MUST rechazar los usernames normalizados
+  `platform_admin`, `plataforma` y `root`, y el nombre de cliente normalizado
+  `plataforma`, con un error de aplicación sanitizado y sin revelar constraints.
 - **FR-005**: El sistema MUST generar la contraseña temporal en el servidor con un
   CSPRNG, con al menos 16 caracteres y un alfabeto explícito sin caracteres
   ambiguos (`0`, `O`, `1`, `I`, `l`), validarla contra la política vigente,
   hashearla antes de persistirla y devolverla únicamente en la respuesta inmediata
   de alta.
 - **FR-006**: El sistema MUST marcar la cuenta para cambio obligatorio de contraseña
-  en el primer login. Mientras esté pendiente, el servidor permitirá únicamente
-  `POST /api/auth/login`, `GET /api/auth/me` para la información mínima de sesión y
-  `POST /api/auth/change-password`; deberá bloquear en servidor, consultando el
-  estado persistido en la base y no solo un claim del JWT, las rutas operativas,
-  administrativas y de cliente. El frontend debe llevar al usuario a una pantalla
+  en el primer login. El login exitoso MUST responder 200 con una sesión restringida
+  y una bandera de cambio obligatorio. Mientras esté pendiente, el servidor permitirá
+  únicamente `POST /api/auth/login`, `GET /api/auth/me` para la información mínima
+  de sesión y `POST /api/auth/change-password`; deberá bloquear en servidor,
+  consultando el estado persistido en la base y no solo un claim del JWT, las rutas
+  operativas, administrativas y de cliente. El frontend debe mostrar una pantalla
   de cambio obligatorio y no mostrar el dashboard hasta recibir confirmación de
   cambio exitoso. El cambio exitoso MUST incrementar `token_version`, invalidar las
   sesiones anteriores y emitir o requerir una sesión nueva sin la obligación
@@ -227,6 +263,11 @@ obligación de cambio en el primer acceso.
 - **FR-016**: La funcionalidad MUST preservar la creación y gestión existente de
   usuarios dentro de un cliente y no debe permitir crear `platform_admin` desde el
   panel.
+- **FR-017**: El login debe encontrar al usuario recién creado usando el username
+  normalizado devuelto por el alta. Como el login actual consulta el username por
+  igualdad exacta, la prueba de integración debe usar ese valor normalizado; si se
+  permite que el usuario escriba variantes con espacios o mayúsculas, el login
+  deberá aplicar la misma normalización antes de consultar.
 
 ### Key Entities
 
@@ -245,8 +286,13 @@ obligación de cambio en el primer acceso.
 | Área | Caso mínimo | Evidencia esperada |
 |---|---|---|
 | Alta válida | Crear cliente y admin en PostgreSQL real | Una fila de cliente, una de usuario `admin`, relación correcta |
+| Normalización | Bordes en nombres, username en mayúsculas y respuesta | Valores persistidos sin bordes; username en minúsculas y respuesta normalizada |
+| Unicidad case-insensitive | `Acme` vs `acme`; username `Admin` vs `admin` | Segundo intento rechazado aun bajo concurrencia |
+| Reservados | `platform_admin`, `plataforma`, `root` y cliente `plataforma` | Error sanitizado y cero filas parciales |
+| Login normalizado | Login con username devuelto por el alta | Login actual encuentra la cuenta creada y autentica correctamente |
+| Admin existente | `POST /api/plataforma/clientes/:id/admin` | Crea admin solo si el cliente existe y aún no tiene admin |
 | Contraseña | Comparar temporal contra hash persistido | El hash valida la contraseña y no contiene texto plano |
-| Primera sesión | Login temporal y cambio obligatorio | Estado persistido bloquea rutas operativas; solo cambio de contraseña permitido |
+| Primera sesión | Login temporal y cambio obligatorio | 200 con sesión restringida; estado persistido bloquea rutas operativas |
 | Atomicidad | Fallar en el 2.º paso de 2 y contar antes/después | Cero filas nuevas en cliente, usuario y auditoría |
 | Auditoría fail-closed | Forzar error de inserción de auditoría | Rollback completo y no 2xx |
 | Autorización | Sin token, `admin`, `operario1`, `platform_admin` | 401, 403, 403 y éxito solo para platform admin |
@@ -295,9 +341,18 @@ obligación de cambio en el primer acceso.
   `cliente_id`; la feature conservará esos contratos y no confiará solo en claims
   para el bloqueo inicial.
 - `clientes.nombre` tiene unicidad global y `usuarios.username` tiene unicidad
-  global. La API deberá traducir el conflicto de nombre de cliente a un código
-  distinto del conflicto de username, sin exponer nombres de constraints ni
-  mensajes de PostgreSQL.
+  global mediante constraints sensibles a mayúsculas en el esquema actual; no
+  existen índices case-insensitive sobre `lower(...)`. La decisión de esta feature
+  es agregar una migración idempotente con índices únicos sobre
+  `lower(clientes.nombre)` y `lower(usuarios.username)`, previa detección y
+  resolución explícita de colisiones históricas. La API deberá traducir el
+  conflicto de nombre de cliente a un código distinto del conflicto de username,
+  sin exponer nombres de constraints ni mensajes de PostgreSQL.
+- El username se almacenará normalizado en minúsculas y sin espacios exteriores;
+  `nombre_cliente` y `nombre_admin` se almacenarán sin espacios exteriores. El
+  login actual usa igualdad exacta, por lo que encuentra la cuenta cuando recibe el
+  username normalizado devuelto por el alta; cualquier normalización de variantes
+  introducida en login debe conservar ese resultado.
 - El seed actual crea un cliente por defecto y usuarios iniciales, pero no existe
   un servicio público separado de alta de clientes ni se requiere una operación
   del broker/MQTT para crear un cliente; el alta es de persistencia, autenticación
@@ -310,6 +365,9 @@ obligación de cambio en el primer acceso.
   descargarla, y no se persiste en el frontend después del cierre.
 - El rate limit inicial será de 5 altas por usuario en una ventana de 15 minutos,
   configurable de forma independiente, siguiendo la convención de la Feature 020.
+- El frontend tratará la bandera del primer login como una sesión restringida,
+  mostrará únicamente el cambio obligatorio y conservará el token hasta recibir la
+  respuesta exitosa que incremente `token_version`.
 - El formulario y la respuesta no permitirán que el solicitante elija la contraseña
   ni el rol del usuario inicial: siempre será `admin`.
 - Esta feature implementa y amplía RF14, RF16, RF17, RF20, RI01, RI06, RI08, RNF01,
