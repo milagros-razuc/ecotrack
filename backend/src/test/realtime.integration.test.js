@@ -429,6 +429,28 @@ test('US2: token con tv desactualizado es rechazado en el handshake', async () =
   await expectRejected(connectWithToken(stale));
 });
 
+test('US2: token vigente con cambio de contraseña pendiente es rechazado en el handshake', async () => {
+  const target = await createTempUser('comun');
+  await fixture.pool.query('UPDATE usuarios SET must_change_password = true WHERE id = $1', [target.id]);
+  const socket = connectWithToken(fixture.signToken(target));
+  let timeoutId;
+  const timeout = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error('connect_error no recibido dentro de 2500 ms')), 2500);
+  });
+
+  try {
+    const [err] = await Promise.race([once(socket, 'connect_error'), timeout]);
+
+    assert.strictEqual(err.data.code, 'PASSWORD_CHANGE_REQUIRED');
+    assert.deepStrictEqual(Object.keys(err.data), ['code']);
+    assert.strictEqual(socket.connected, false);
+  } finally {
+    clearTimeout(timeoutId);
+    closeAll(socket);
+    await fixture.pool.query('DELETE FROM usuarios WHERE id = $1', [target.id]);
+  }
+});
+
 test('US3: el clienteId enviado por el navegador se ignora', async () => {
   await seedTemperatureThreshold(fixture.seed.devices.a);
   const clientBId = fixture.seed.clients.b.id;

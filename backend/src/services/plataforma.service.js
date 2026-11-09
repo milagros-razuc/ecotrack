@@ -1,10 +1,13 @@
 const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
 const net = require('net');
 const pool = require('../config/db');
 const dispositivosService = require('./dispositivos.service');
 const auditoriaService = require('./auditoria.service');
 const { hashFactorySecret } = require('./enrolamiento.service');
 
+const TEMPORARY_PASSWORD_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+const RESERVED_USERNAMES = new Set(['platform_admin', 'plataforma', 'root']);
 const DEVICE_ID_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const DEVICE_ID_LENGTH = 12;
 const MAX_DEVICE_ID_ATTEMPTS = 5;
@@ -22,6 +25,14 @@ class PlatformProvisioningError extends Error {
   constructor() {
     super(GENERIC_PROVISIONING_ERROR);
     this.name = 'PlatformProvisioningError';
+  }
+}
+
+class PlatformConflictError extends Error {
+  constructor(code, message) {
+    super(message);
+    this.name = 'PlatformConflictError';
+    this.code = code;
   }
 }
 
@@ -44,6 +55,107 @@ function generateDeviceId() {
 
 function generateDeviceSecret() {
   return crypto.randomBytes(32).toString('hex');
+}
+
+function normalizeClientName(value) {
+  return value.trim();
+}
+
+function normalizeUsername(value) {
+  return value.trim().toLowerCase();
+}
+
+function isReservedUsername(value) {
+  return RESERVED_USERNAMES.has(normalizeUsername(value));
+}
+
+function generateTemporaryPassword(length = 20) {
+  if (length < 16) {
+    throw new Error('La contraseña temporal debe tener al menos 16 caracteres');
+  }
+  let password = '';
+  for (let index = 0; index < length; index += 1) {
+    password += TEMPORARY_PASSWORD_ALPHABET[crypto.randomInt(TEMPORARY_PASSWORD_ALPHABET.length)];
+  }
+  return password;
+}
+
+async function crearClienteAdmin({ nombreCliente, username, nombreAdmin, motivo, usuario }) {
+  const normalizedClientName = normalizeClientName(nombreCliente);
+  const normalizedUsername = normalizeUsername(username);
+  const normalizedAdminName = nombreAdmin.trim();
+  if (isReservedUsername(normalizedUsername)) {
+    throw new PlatformConflictError('USERNAME_RESERVED', 'El username está reservado');
+  }
+
+  const client = await pool.connect();
+  const passwordTemporal = generateTemporaryPassword();
+  try {
+    await client.query('BEGIN');
+    let createdClient;
+    try {
+      ({ rows: [createdClient] } = await client.query(
+        `INSERT INTO clientes (nombre, es_plataforma)
+         VALUES ($1, false)
+         RETURNING id, nombre`,
+        [normalizedClientName],
+      ));
+    } catch (error) {
+      if (error.code === '23505') {
+        throw new PlatformConflictError('CLIENT_NAME_TAKEN', 'El nombre del cliente ya existe');
+      }
+      throw error;
+    }
+
+    const passwordHash = await bcrypt.hash(passwordTemporal, 10);
+    let createdUser;
+    try {
+      ({ rows: [createdUser] } = await client.query(
+        `INSERT INTO usuarios
+           (username, password_hash, nombre, rol, cliente_id, must_change_password)
+         VALUES ($1, $2, $3, 'admin', $4, true)
+         RETURNING id, username, nombre, rol`,
+        [normalizedUsername, passwordHash, normalizedAdminName, createdClient.id],
+      ));
+    } catch (error) {
+      if (error.code === '23505') {
+        throw new PlatformConflictError('USERNAME_TAKEN', 'El username ya existe');
+      }
+      throw error;
+    }
+
+    await auditoriaService.registrarEnTransaccion(client, {
+      clienteId: usuario.clienteId,
+      usuarioId: usuario.sub,
+      usuarioUsername: usuario.username,
+      actorTipo: 'platform_admin',
+      accion: 'crear_cliente',
+      entidad: 'cliente',
+      entidadId: String(createdClient.id),
+      detalle: JSON.stringify({
+        nombre_cliente: createdClient.nombre,
+        username: createdUser.username,
+        nombre_admin: createdUser.nombre,
+        motivo,
+      }),
+    });
+
+    await client.query('COMMIT');
+    return {
+      cliente: createdClient,
+      usuario: createdUser,
+      password_temporal: passwordTemporal,
+    };
+  } catch (error) {
+    try {
+      await client.query('ROLLBACK');
+    } catch {
+      // Preserve the original transaction error.
+    }
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 function nvsCsv({ deviceId, deviceSecret, serverHost }) {
@@ -257,9 +369,15 @@ module.exports = {
   DEVICE_FIELDS,
   PlatformValidationError,
   PlatformProvisioningError,
+  PlatformConflictError,
   validServerHost,
   generateDeviceId,
   generateDeviceSecret,
   nvsCsv,
   fabricarDispositivos,
+  normalizeClientName,
+  normalizeUsername,
+  isReservedUsername,
+  generateTemporaryPassword,
+  crearClienteAdmin,
 };

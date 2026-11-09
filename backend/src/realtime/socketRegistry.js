@@ -6,16 +6,21 @@ function userRoom(userId) {
   return `usuario:${userId}`;
 }
 
+function platformAdminRoom() {
+  return 'platform-admins';
+}
+
 function createSocketRegistry(io) {
   const socketsByUser = new Map();
   const expiryTimers = new Map();
 
-  function register(socket, { userId, clienteId, expiresAt }) {
+  function register(socket, { userId, clienteId, rol, expiresAt }) {
     socket.data.userId = userId;
     socket.data.clienteId = clienteId;
     if (clienteId !== null && clienteId !== undefined) {
       socket.join(clientRoom(clienteId));
     }
+    if (rol === 'platform_admin') socket.join(platformAdminRoom());
     socket.join(userRoom(userId));
 
     const sockets = socketsByUser.get(String(userId)) || new Set();
@@ -62,7 +67,19 @@ function createSocketRegistry(io) {
     io?.to(clientRoom(clienteId)).emit(event, payload);
   }
 
-  return { register, unregister, socketsForUser, hasExpiryTimer, disconnectUserSockets, emitToClient };
+  function emitToPlatformAdmins(event, payload) {
+    io?.to(platformAdminRoom()).emit(event, payload);
+  }
+
+  return {
+    register,
+    unregister,
+    socketsForUser,
+    hasExpiryTimer,
+    disconnectUserSockets,
+    emitToClient,
+    emitToPlatformAdmins,
+  };
 }
 
 let activeRegistry = null;
@@ -75,4 +92,11 @@ function getActiveRegistry() {
   return activeRegistry;
 }
 
-module.exports = { clientRoom, userRoom, createSocketRegistry, setActiveRegistry, getActiveRegistry };
+module.exports = {
+  clientRoom,
+  userRoom,
+  platformAdminRoom,
+  createSocketRegistry,
+  setActiveRegistry,
+  getActiveRegistry,
+};

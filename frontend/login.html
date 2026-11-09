@@ -23,6 +23,7 @@
   <!-- Configuración compartida -->
   <script src="shared/tailwind-config.js"></script>
   <script src="shared/role-routing.js"></script>
+  <script src="shared/first-login.js"></script>
   <link href="shared/common.css" rel="stylesheet"/>
 
   <style>
@@ -233,6 +234,61 @@
 
       </form>
 
+      <form
+        id="password-change-form"
+        class="hidden flex-col gap-stack-md"
+        novalidate
+      >
+        <div>
+          <h2 class="font-label-bold text-label-bold text-on-surface">Cambiá tu contraseña</h2>
+          <p class="text-body-sm text-on-surface-variant">Por seguridad, reemplazá tu contraseña temporal.</p>
+        </div>
+
+        <label class="font-label-bold text-label-bold text-on-surface-variant uppercase" for="current-password">
+          Contraseña actual
+        </label>
+        <input
+          id="current-password"
+          name="passwordActual"
+          class="login-input w-full px-4 py-3 rounded-lg bg-surface border border-outline-variant text-on-surface outline-none"
+          type="password"
+          autocomplete="current-password"
+          required
+        />
+
+        <label class="font-label-bold text-label-bold text-on-surface-variant uppercase" for="new-password">
+          Nueva contraseña
+        </label>
+        <input
+          id="new-password"
+          name="passwordNueva"
+          class="login-input w-full px-4 py-3 rounded-lg bg-surface border border-outline-variant text-on-surface outline-none"
+          type="password"
+          autocomplete="new-password"
+          required
+        />
+
+        <label class="font-label-bold text-label-bold text-on-surface-variant uppercase" for="confirm-password">
+          Confirmar nueva contraseña
+        </label>
+        <input
+          id="confirm-password"
+          name="passwordConfirmacion"
+          class="login-input w-full px-4 py-3 rounded-lg bg-surface border border-outline-variant text-on-surface outline-none"
+          type="password"
+          autocomplete="new-password"
+          required
+        />
+
+        <button
+          id="btn-change-password"
+          class="login-button w-full h-[48px] rounded-lg bg-primary text-on-primary font-label-bold text-label-bold uppercase tracking-wider flex items-center justify-center hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-70 disabled:cursor-not-allowed"
+          type="submit"
+        >
+          Cambiar contraseña
+        </button>
+      </form>
+
     </section>
 
 
@@ -276,6 +332,11 @@
     const loginForm = document.getElementById('login-form');
     const usernameInput = document.getElementById('username');
     const passwordInput = document.getElementById('password');
+    const passwordChangeForm = document.getElementById('password-change-form');
+    const currentPasswordInput = document.getElementById('current-password');
+    const newPasswordInput = document.getElementById('new-password');
+    const confirmPasswordInput = document.getElementById('confirm-password');
+    const changePasswordButton = document.getElementById('btn-change-password');
 
     const loginButton = document.getElementById('btn-login');
     const buttonText = document.getElementById('btn-text');
@@ -287,6 +348,8 @@
 
     const togglePasswordButton = document.getElementById('btn-toggle-password');
     const passwordIcon = document.getElementById('password-icon');
+    let tokenCambioPassword = null;
+    let sesionPendiente = null;
 
 
     // ─────────────────────────────────────────────────────────────
@@ -344,6 +407,25 @@
 
       buttonSpinner.classList.add('hidden');
       buttonIcon.classList.remove('hidden');
+    }
+
+    function mostrarFormularioCambioPassword(tokenTemporal) {
+      tokenCambioPassword = tokenTemporal;
+      loginForm.classList.add('hidden');
+      passwordChangeForm.classList.remove('hidden');
+      passwordChangeForm.classList.add('flex');
+      currentPasswordInput.focus();
+    }
+
+    function limpiarCambioPassword() {
+      currentPasswordInput.value = '';
+      newPasswordInput.value = '';
+      confirmPasswordInput.value = '';
+    }
+
+    function descartarSesionPendiente() {
+      tokenCambioPassword = null;
+      sesionPendiente = null;
     }
 
 
@@ -469,6 +551,18 @@
           return;
         }
 
+        if (ecotrackFirstLogin.debeCambiarPassword(data)) {
+          passwordInput.value = '';
+          sesionPendiente = {
+            username: data.username || username,
+            nombre: data.nombre || '',
+            rol: data.rol,
+          };
+          mostrarFormularioCambioPassword(data.token);
+          restaurarBoton();
+          return;
+        }
+
 
         // ─────────────────────────────────────────────
         // Guardar sesión
@@ -512,6 +606,67 @@
         restaurarBoton();
       }
 
+    });
+
+    passwordChangeForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      ocultarError();
+
+      const passwordActual = currentPasswordInput.value;
+      const passwordNueva = newPasswordInput.value;
+      const passwordConfirmacion = confirmPasswordInput.value;
+
+      if (!passwordActual || !passwordNueva || !passwordConfirmacion) {
+        mostrarError('Completá todos los campos');
+        return;
+      }
+
+      if (passwordNueva !== passwordConfirmacion) {
+        mostrarError('La nueva contraseña y su confirmación no coinciden');
+        limpiarCambioPassword();
+        return;
+      }
+
+      changePasswordButton.disabled = true;
+
+      try {
+        const response = await fetch(
+          `${API}/api/auth/change-password`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: tokenCambioPassword,
+            },
+            body: JSON.stringify({ passwordActual, passwordNueva }),
+          }
+        );
+        const data = await response.json();
+
+        if (!response.ok) {
+          if (response.status === 401 || response.status === 403) {
+            descartarSesionPendiente();
+            passwordChangeForm.classList.add('hidden');
+            passwordChangeForm.classList.remove('flex');
+            loginForm.classList.remove('hidden');
+          }
+          mostrarError(data.error || 'No se pudo cambiar la contraseña');
+          return;
+        }
+
+        const sesion = sesionPendiente;
+        localStorage.setItem('ecotrack_token', data.token);
+        localStorage.setItem('ecotrack_username', sesion.username);
+        localStorage.setItem('ecotrack_nombre', sesion.nombre);
+        localStorage.setItem('ecotrack_rol', sesion.rol || 'comun');
+        descartarSesionPendiente();
+        window.location.replace(ecotrackRoleRouting.destinoPorRol(sesion.rol || 'comun'));
+      } catch (error) {
+        mostrarError('No se pudo conectar al servidor');
+      } finally {
+        limpiarCambioPassword();
+        changePasswordButton.disabled = false;
+      }
     });
   </script>
 

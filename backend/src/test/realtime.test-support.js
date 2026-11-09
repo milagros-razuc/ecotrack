@@ -1,5 +1,7 @@
 const assert = require('assert');
+const fs = require('fs');
 const jwt = require('jsonwebtoken');
+const path = require('path');
 const { Pool } = require('pg');
 
 const TEST_JWT_SECRET = 'ecotrack-test-jwt-secret';
@@ -163,6 +165,10 @@ async function createRealtimeFixture() {
   const { iniciar } = require('../../index');
   const { procesarMensaje } = require('../mqtt/client');
   const instance = await iniciar({ port: 0, inicializarBase: true, iniciarMqtt: false });
+  await pool.query(fs.readFileSync(
+    path.resolve(__dirname, '../../migrations/020_client_admin.sql'),
+    'utf8',
+  ));
   const seed = await seedDatabase(pool);
 
   async function close() {

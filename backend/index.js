@@ -20,21 +20,32 @@ function crearServidor({ iniciarMqtt = true } = {}) {
   setActiveRegistry(socketRegistry);
 
   io.use(async (socket, next) => {
+    let payload;
     try {
       const token = socket.handshake.auth?.token;
-      const payload = await validarToken(token);
-      socket.data.usuario = payload;
-      next();
+      payload = await validarToken(token);
     } catch (err) {
       const authError = new Error('Error de autenticación');
       authError.data = { code: 'AUTHENTICATION_ERROR' };
-      next(authError);
+      return next(authError);
     }
+    if (payload.mustChangePassword === true) {
+      const pendingError = new Error('Error de autenticación');
+      pendingError.data = { code: 'PASSWORD_CHANGE_REQUIRED' };
+      return next(pendingError);
+    }
+    socket.data.usuario = payload;
+    next();
   });
 
   io.on('connection', (socket) => {
     const { sub: userId, clienteId } = socket.data.usuario;
-    socketRegistry.register(socket, { userId, clienteId, expiresAt: socket.data.usuario.exp });
+    socketRegistry.register(socket, {
+      userId,
+      clienteId,
+      rol: socket.data.usuario.rol,
+      expiresAt: socket.data.usuario.exp,
+    });
     console.log('Cliente WebSocket conectado:', socket.id);
     socket.on('disconnect', () => {
       socketRegistry.unregister(socket);

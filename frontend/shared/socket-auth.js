@@ -7,9 +7,13 @@
     return error?.data?.code === 'AUTHENTICATION_ERROR';
   }
 
+  function isPasswordChangeRequired(error) {
+    return error?.data?.code === 'PASSWORD_CHANGE_REQUIRED';
+  }
+
   function shouldEndSession(error, reason) {
     return isAuthenticationError(error) || reason === 'io server disconnect';
   }
 
-  return { isAuthenticationError, shouldEndSession };
+  return { isAuthenticationError, isPasswordChangeRequired, shouldEndSession };
 });
