@@ -30,6 +30,19 @@ function platformToken() {
   );
 }
 
+function userToken(user) {
+  return jwt.sign(
+    {
+      sub: user.id,
+      username: user.username,
+      rol: user.rol,
+      clienteId: user.cliente_id,
+      tv: user.token_version,
+    },
+    JWT_SECRET,
+  );
+}
+
 async function request(pathname, options = {}) {
   const headers = {
     Authorization: platformToken(),
@@ -147,7 +160,57 @@ test('T1: platform_admin lista dispositivos globales y admin tenant recibe 403 e
     const tenantResponse = await fetch(`${baseUrl}${pathname}`, {
       headers: { Authorization: fixture.signToken(fixture.seed.users.a) },
     });
+
     assert.equal(tenantResponse.status, 403, pathname);
+  }
+});
+
+test('F020 app real: POST de dispositivos aplica 401, 403 y 400', async () => {
+  const suffix = `${Date.now()}_${Math.random().toString(16).slice(2, 8)}`;
+  const { rows } = await fixture.pool.query(
+    `INSERT INTO usuarios
+       (username, password_hash, nombre, rol, cliente_id, token_version)
+     VALUES ($1, 'fixture-operario-hash', 'Fixture Operario', 'comun', $2, 1)
+     RETURNING id, username, rol, cliente_id, token_version`,
+    [`operario1_${suffix}`, platform.client.id],
+  );
+  const operario = rows[0];
+  const body = { motivo: 'prueba', cantidad: 1 };
+  const countRows = async () => {
+    const result = await fixture.pool.query(`
+      SELECT
+        (SELECT COUNT(*)::int FROM dispositivos) AS dispositivos,
+        (SELECT COUNT(*)::int FROM dispositivos_fabrica) AS dispositivos_fabrica
+    `);
+    return result.rows[0];
+  };
+  const post = (authorization, payload = body) => fetch(`${baseUrl}/api/plataforma/dispositivos`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(authorization ? { Authorization: authorization } : {}),
+    },
+    body: JSON.stringify(payload),
+  });
+
+  try {
+    const withoutSession = await post(null);
+    assert.equal(withoutSession.status, 401);
+
+    for (const [label, authorization] of [
+      ['admin', userToken(fixture.seed.users.a)],
+      ['operario1', userToken(operario)],
+    ]) {
+      const before = await countRows();
+      const response = await post(authorization);
+      assert.equal(response.status, 403, label);
+      assert.deepEqual(await countRows(), before, label);
+    }
+
+    const extraField = await post(platformToken(), { ...body, cliente_id: platform.client.id });
+    assert.equal(extraField.status, 400);
+  } finally {
+    await fixture.pool.query('DELETE FROM usuarios WHERE id = $1', [operario.id]);
   }
 });
 
