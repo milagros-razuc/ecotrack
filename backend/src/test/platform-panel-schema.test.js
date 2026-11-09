@@ -80,6 +80,7 @@ test('las migraciones nuevas declaran operaciones repetibles', () => {
   const platformClientMigration = fs.readFileSync(path.join(migrationsDir, '017_platform_client.sql'), 'utf8');
   const auditMigration = fs.readFileSync(path.join(migrationsDir, '018_audit_actor.sql'), 'utf8');
   const indexMigration = fs.readFileSync(path.join(migrationsDir, '019_platform_reading_index.sql'), 'utf8');
+  const clientAdminMigration = fs.readFileSync(path.join(migrationsDir, '020_client_admin.sql'), 'utf8');
   assert.match(roleMigration, /DROP CONSTRAINT IF EXISTS/i);
   assert.match(platformClientMigration, /ADD COLUMN IF NOT EXISTS/i);
   assert.match(platformClientMigration, /CREATE UNIQUE INDEX IF NOT EXISTS/i);
@@ -90,6 +91,9 @@ test('las migraciones nuevas declaran operaciones repetibles', () => {
   assert.match(indexMigration, /indisready/i);
   assert.match(indexMigration, /indpred\s+IS\s+NULL/i);
   assert.doesNotMatch(indexMigration, /CREATE INDEX IF NOT EXISTS/i);
+  assert.match(clientAdminMigration, /ADD COLUMN IF NOT EXISTS/i);
+  assert.match(clientAdminMigration, /CREATE UNIQUE INDEX IF NOT EXISTS/i);
+  assert.match(clientAdminMigration, /GROUP BY lower\s*\(/i);
 });
 
 test('la migración 019 es idempotente y reutiliza el índice existente', async () => {
@@ -115,14 +119,15 @@ test('la migración 019 es idempotente y reutiliza el índice existente', async 
   }
 });
 
-test('las migraciones 016 a 019 siguen a la lista real y no editan 014 o 015', () => {
+test('las migraciones 016 a 020 siguen a la lista real y no editan 014 o 015', () => {
   const names = migrationNames();
   assert.equal(names.indexOf('016_platform_admin_role.sql'), names.indexOf('015_firmware_version.sql') + 1);
-  assert.deepEqual(names.slice(-4), [
+  assert.deepEqual(names.slice(-5), [
     '016_platform_admin_role.sql',
     '017_platform_client.sql',
     '018_audit_actor.sql',
     '019_platform_reading_index.sql',
+    '020_client_admin.sql',
   ]);
   for (const migration of ['014_factory_devices.sql', '015_firmware_version.sql']) {
     const committed = execFileSync('git', ['show', `HEAD:backend/migrations/${migration}`], {
@@ -134,7 +139,7 @@ test('las migraciones 016 a 019 siguen a la lista real y no editan 014 o 015', (
   }
 });
 
-test('el helper aplica 016 a 019 sobre una base nueva inicializada por migrate.js y es repetible', async () => {
+test('el helper aplica 016 a 020 sobre una base nueva inicializada por migrate.js y es repetible', async () => {
   await withTemporaryMigrationDatabase(async ({ connectionString, runMigrations }) => {
     const pool = new Pool({ connectionString });
     try {
@@ -169,13 +174,14 @@ test('el helper aplica 016 a 019 sobre una base nueva inicializada por migrate.j
 
       const { rows: applied } = await migratedPool.query(
         'SELECT version FROM schema_migrations WHERE version = ANY($1::text[]) ORDER BY version',
-        [['016_platform_admin_role', '017_platform_client', '018_audit_actor', '019_platform_reading_index']],
+        [['016_platform_admin_role', '017_platform_client', '018_audit_actor', '019_platform_reading_index', '020_client_admin']],
       );
       assert.deepEqual(applied.map((row) => row.version), [
         '016_platform_admin_role',
         '017_platform_client',
         '018_audit_actor',
         '019_platform_reading_index',
+        '020_client_admin',
       ]);
     } finally {
       await migratedPool.end();
