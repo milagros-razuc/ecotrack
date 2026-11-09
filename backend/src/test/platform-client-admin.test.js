@@ -1,5 +1,6 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
+const crypto = require('node:crypto');
 const {
   normalizeClientName,
   normalizeUsername,
@@ -27,4 +28,16 @@ test('Feature 021 temporary password uses CSPRNG-safe unambiguous output', () =>
 test('Feature 021 temporary password validates the requested length', () => {
   assert.throws(() => generateTemporaryPassword(15), /16/);
   assert.equal(generateTemporaryPassword(16).length, 16);
+});
+
+test('Feature 021 temporary password llama a crypto.randomInt sobre el alfabeto de 57 caracteres', (t) => {
+  const calls = [];
+  t.mock.method(crypto, 'randomInt', (max) => {
+    calls.push(max);
+    return max - 1;
+  });
+  const password = generateTemporaryPassword();
+  assert.equal(calls.length, 20);
+  assert.ok(calls.every((max) => max === 57));
+  assert.equal(password, '9'.repeat(20));
 });
