@@ -16,41 +16,69 @@ indexes.
 
 ## Deploy migration 020 safely
 
-Before applying the migration, create a custom-format backup without placing a
-password in the command line or documentation:
+This procedure is for production. Recreate the dump immediately before the real
+deployment; do not reuse a test or stale dump. Store it outside the repository
+and do not place a password in the command line or documentation:
 
 ```powershell
-pg_dump --format=custom --file=ecotrack-before-020.dump --dbname="$env:TEST_DATABASE_URL"
+docker exec ecotrack_db pg_dump -U ecotrack_user -Fc -f /tmp/ecotrack-before-020.dump ecotrack
+docker cp ecotrack_db:/tmp/ecotrack-before-020.dump C:\secure-backups\ecotrack-before-020.dump
 ```
 
-Run both duplicate checks and stop to resolve any returned rows:
+Run both duplicate checks against production and stop to resolve any returned rows:
 
-```sql
+```powershell
+docker exec ecotrack_db psql -U ecotrack_user -d ecotrack -c @'
 SELECT lower(nombre) AS nombre_normalizado, COUNT(*)
 FROM clientes
 GROUP BY lower(nombre)
 HAVING COUNT(*) > 1;
+'@
 
+docker exec ecotrack_db psql -U ecotrack_user -d ecotrack -c @'
 SELECT lower(username) AS username_normalizado, COUNT(*)
 FROM usuarios
 GROUP BY lower(username)
 HAVING COUNT(*) > 1;
+'@
 ```
 
 Only after both queries return no rows, apply `020_client_admin.sql`. The
 migration is transactional and also repeats these checks, so it aborts without
 creating the indexes or marker when historical collisions remain.
 
-If a post-deployment rollback is required, stop application writes and restore the
-backup taken immediately before deployment:
+If the migration runner records applied versions in `schema_migrations` (or an
+equivalent table), remove the row for `020_client_admin` as part of either
+rollback path so the migration can be reapplied deliberately.
 
-```powershell
-pg_restore --clean --if-exists --dbname="$env:TEST_DATABASE_URL" ecotrack-before-020.dump
+### Rollback 1: schema-only (preferred)
+
+Stop application writes, revert the code for Feature 021 first, and only then
+remove the migration's schema objects:
+
+```sql
+DROP INDEX uq_usuarios_username_lower;
+DROP INDEX uq_clientes_nombre_lower;
+ALTER TABLE usuarios DROP COLUMN must_change_password;
 ```
 
-Then verify the application and schema before reopening writes. Do not remove
-`020_client_admin.sql` or edit an applied migration; future corrections require a
-new numbered migration.
+Do not run this schema rollback while Feature 021 code is deployed: doing so
+breaks login because the deployed code expects `must_change_password`.
+
+### Rollback 2: complete restore
+
+Use a complete restore only if the schema is damaged. It loses all data written
+after the backup was taken, so stop writes and confirm the data-loss impact
+before proceeding:
+
+```powershell
+docker cp C:\secure-backups\ecotrack-before-020.dump ecotrack_db:/tmp/ecotrack-before-020.dump
+docker exec ecotrack_db pg_restore --clean --if-exists -U ecotrack_user -d ecotrack /tmp/ecotrack-before-020.dump
+```
+
+After either rollback, verify the application and schema before reopening writes.
+Do not remove `020_client_admin.sql` or edit an applied migration; future
+corrections require a new numbered migration.
 
 ## Focused validation
 
