@@ -21,7 +21,10 @@
     <div class="max-w-container-max mx-auto">
       <header class="flex justify-between items-center mb-6">
         <h1 class="text-headline-md font-bold text-primary">Panel de plataforma</h1>
-        <span id="panel-error" class="text-error text-body-sm"></span>
+        <div class="flex items-center gap-3">
+          <button id="nuevo-dispositivo" class="bg-primary text-on-primary rounded px-4 py-2">Nuevo dispositivo</button>
+          <span id="panel-error" class="text-error text-body-sm"></span>
+        </div>
       </header>
       <section id="summary" class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6"></section>
       <div class="flex flex-wrap gap-3 mb-4">
@@ -34,6 +37,25 @@
       </div>
     </div>
   </main>
+  <div id="provision-modal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="provision-title">
+    <div class="bg-surface rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div class="flex justify-between items-center mb-4">
+        <h2 id="provision-title" class="text-headline-sm font-bold">Nuevo dispositivo</h2>
+        <button id="cerrar-provision" class="text-on-surface-variant" type="button" aria-label="Cerrar">Cerrar</button>
+      </div>
+      <form id="provision-form" class="space-y-4">
+        <label class="block">Motivo obligatorio
+          <textarea id="provision-motivo" class="border rounded w-full p-2" minlength="3" maxlength="200" required></textarea>
+        </label>
+        <label class="block">Cantidad (1 a 10)
+          <input id="provision-cantidad" class="border rounded w-full p-2" type="number" min="1" max="10" value="1" required/>
+        </label>
+        <p id="provision-error" class="text-error text-body-sm"></p>
+        <button class="bg-primary text-on-primary rounded px-4 py-2" type="submit">Fabricar</button>
+      </form>
+      <div id="provision-results" class="mt-4 space-y-4"></div>
+    </div>
+  </div>
   <script src="shared/app.js"></script>
   <script>
     async function loadPanel() {
@@ -61,6 +83,96 @@
     const firmware = document.getElementById('firmware');
     const devices = document.getElementById('devices');
     const panelError = document.getElementById('panel-error');
+    const provisionModal = document.getElementById('provision-modal');
+    const provisionForm = document.getElementById('provision-form');
+    const provisionMotivo = document.getElementById('provision-motivo');
+    const provisionCantidad = document.getElementById('provision-cantidad');
+    const provisionError = document.getElementById('provision-error');
+    const provisionResults = document.getElementById('provision-results');
+    let provisionItems = null;
+
+    function cerrarProvision() {
+      provisionItems = null;
+      provisionResults.replaceChildren();
+      provisionError.textContent = '';
+      provisionForm.reset();
+      provisionCantidad.value = '1';
+      provisionModal.classList.add('hidden');
+    }
+
+    function descargarNvs(item) {
+      const blob = new Blob([item.nvs_csv], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${item.codigo}.nvs.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function renderProvisionResults(items) {
+      provisionResults.replaceChildren();
+      const warning = document.createElement('p');
+      warning.className = 'text-error text-body-sm';
+      warning.textContent = 'El CSV contiene el secreto del dispositivo. Descargalo y borrá el archivo después de flashear.';
+      provisionResults.append(warning);
+      items.forEach((item) => {
+        const card = document.createElement('div');
+        card.className = 'border rounded p-3';
+        const code = document.createElement('strong');
+        code.textContent = item.codigo;
+        const token = document.createElement('p');
+        token.textContent = `Token de reclamo: ${item.token_reclamo}`;
+        const copy = document.createElement('button');
+        copy.type = 'button';
+        copy.className = 'border rounded px-3 py-1 mr-2';
+        copy.textContent = 'Copiar token';
+        copy.addEventListener('click', async () => {
+          await navigator.clipboard.writeText(item.token_reclamo);
+        });
+        const download = document.createElement('button');
+        download.type = 'button';
+        download.className = 'bg-primary text-on-primary rounded px-3 py-1';
+        download.textContent = 'Descargar CSV';
+        download.addEventListener('click', () => descargarNvs(item));
+        card.append(code, token, copy, download);
+        provisionResults.append(card);
+      });
+    }
+
+    async function fabricarDispositivos(event) {
+      event.preventDefault();
+      provisionError.textContent = '';
+      const response = await fetch(`${API}/api/plataforma/dispositivos`, {
+        method: 'POST',
+        headers: { Authorization: token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          motivo: provisionMotivo.value,
+          cantidad: Number(provisionCantidad.value),
+        }),
+      });
+      const accion = ecotrackPlatformHttp.accionPorEstadoHttp(response);
+      if (accion.accion === 'cerrar-sesion') return manejarNoAutorizado();
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        provisionError.textContent = body.error || 'No se pudieron fabricar los dispositivos';
+        return;
+      }
+      provisionItems = body.items;
+      renderProvisionResults(provisionItems);
+      try {
+        await Promise.all([loadPanel(), loadSummary()]);
+      } catch (error) {
+        panelError.textContent = error.message;
+      }
+    }
+
+    document.getElementById('nuevo-dispositivo').addEventListener('click', () => {
+      provisionModal.classList.remove('hidden');
+      provisionMotivo.focus();
+    });
+    document.getElementById('cerrar-provision').addEventListener('click', cerrarProvision);
+    provisionForm.addEventListener('submit', fabricarDispositivos);
     document.getElementById('filtrar').addEventListener('click', loadPanel);
     initShell().then(() => {
       // Este guard mejora la UX; la autorización real la aplica el backend.

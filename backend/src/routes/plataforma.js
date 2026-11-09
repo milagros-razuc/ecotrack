@@ -1,8 +1,11 @@
 const express = require('express');
 const plataformaService = require('../services/plataforma.service');
+const validar = require('../middleware/validar');
+const { provisionarDispositivosSchema } = require('../schemas');
 const { lastReadingWindowDays, rateLimits } = require('../config/platformPanelConfig');
 const rateLimit = require('express-rate-limit').rateLimit;
 const { PlatformValidationError } = plataformaService;
+const { PlatformProvisioningError } = plataformaService;
 
 const router = express.Router();
 function createReadLimiter(options = {}) {
@@ -16,13 +19,27 @@ function createReadLimiter(options = {}) {
   });
 }
 
+function createProvisionLimiter(options = {}) {
+  return rateLimit({
+    windowMs: rateLimits.provision.windowMs,
+    max: rateLimits.provision.max,
+    keyGenerator: (req) => String(req.usuario?.sub),
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Límite de solicitudes excedido.' },
+    ...options,
+  });
+}
+
 const readLimiter = createReadLimiter();
+const provisionLimiter = createProvisionLimiter();
 function handleErrors(handler) {
   return async (req, res, next) => {
     try {
       res.json(await handler(req));
     } catch (error) {
       if (error instanceof PlatformValidationError) return res.status(400).json({ error: error.message });
+      if (error instanceof PlatformProvisioningError) return res.status(500).json({ error: error.message });
       next(error);
     }
   };
@@ -32,6 +49,21 @@ router.get('/resumen', readLimiter, handleErrors(() => plataformaService.resumen
 router.get('/clientes', readLimiter, handleErrors(() => plataformaService.listarClientes()));
 router.get('/dispositivos', readLimiter, handleErrors((req) =>
   plataformaService.listarDispositivos(req.query, lastReadingWindowDays)));
+router.post('/dispositivos', provisionLimiter, validar(provisionarDispositivosSchema), async (req, res, next) => {
+  try {
+    const items = await plataformaService.fabricarDispositivos({
+      ...req.body,
+      usuario: req.usuario,
+    });
+    res.set('Cache-Control', 'no-store').status(201).json({ items });
+  } catch (error) {
+    if (error instanceof PlatformProvisioningError) {
+      return res.status(500).json({ error: error.message });
+    }
+    return next(error);
+  }
+});
 
 module.exports = router;
 module.exports.createReadLimiter = createReadLimiter;
+module.exports.createProvisionLimiter = createProvisionLimiter;

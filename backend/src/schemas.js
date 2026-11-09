@@ -122,6 +122,11 @@ const crearApiKeySchema = z.object({
   nombre: z.string().trim().min(1, 'El nombre es obligatorio').max(100, 'El nombre es demasiado largo'),
 });
 
+const provisionarDispositivosSchema = z.object({
+  motivo: z.string().trim().min(3).max(200),
+  cantidad: z.number().int().min(1).max(10).default(1),
+}).strict();
+
 module.exports = {
   loginSchema,
   changePasswordSchema,
@@ -135,5 +140,6 @@ module.exports = {
   firmwareVersionMqttSchema,
   actualizarPerfilSchema,
   crearApiKeySchema,
+  provisionarDispositivosSchema,
   rangoFechasLecturasSchema,
 };

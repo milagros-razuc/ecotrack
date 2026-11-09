@@ -17,6 +17,24 @@ async function registrar({ clienteId, usuarioId, usuarioUsername, accion, entida
   }
 }
 
+async function registrarEnTransaccion(client, {
+  clienteId,
+  usuarioId,
+  usuarioUsername,
+  actorTipo = 'tenant',
+  accion,
+  entidad,
+  entidadId,
+  detalle,
+}) {
+  await client.query(
+    `INSERT INTO auditoria
+       (cliente_id, usuario_id, usuario_username, actor_tipo, accion, entidad, entidad_id, detalle)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+    [clienteId, usuarioId, usuarioUsername, actorTipo, accion, entidad, entidadId, detalle || null],
+  );
+}
+
 async function registrarOperacionDispositivo({ clienteId, accion, codigo }) {
   if (clienteId == null) return;
   await registrar({
@@ -90,4 +108,4 @@ async function listar({ clienteId, entidad, accion, pagina, limite, fechaDesde, 
   };
 }
 
-module.exports = { registrar, registrarOperacionDispositivo, listar };
+module.exports = { registrar, registrarEnTransaccion, registrarOperacionDispositivo, listar };

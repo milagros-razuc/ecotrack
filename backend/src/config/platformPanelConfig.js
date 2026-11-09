@@ -44,6 +44,19 @@ const rateLimits = {
     ),
     counterKey: 'platform-read',
   },
+  provision: {
+    max: parsePositiveInteger(
+      'PLATFORM_PROVISION_RATE_LIMIT_MAX',
+      process.env.PLATFORM_PROVISION_RATE_LIMIT_MAX,
+      5,
+    ),
+    windowMs: parseWindowMilliseconds(
+      'PLATFORM_PROVISION_RATE_LIMIT_WINDOW_MS',
+      process.env.PLATFORM_PROVISION_RATE_LIMIT_WINDOW_MS,
+      RATE_LIMIT_WINDOW_DEFAULT_MS,
+    ),
+    counterKey: 'platform-provision',
+  },
 };
 
 module.exports = {
