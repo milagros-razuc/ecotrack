@@ -8,8 +8,6 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
@@ -22,12 +20,10 @@ services:
   mosquitto:
     build: ./mosquitto
     container_name: ecotrack_mqtt
-    ports:
-      - "8883:8883"
     volumes:
-      - ./mosquitto/config/certs/ecotrack-ca.crt:/mosquitto/config/certs/ecotrack-ca.crt:ro
-      - ./mosquitto/config/certs/broker.crt:/mosquitto/config/certs/broker.crt:ro
-      - ./mosquitto/config/certs/broker.key:/mosquitto/config/certs/broker.key:ro
+      - ${MOSQUITTO_CERTS_DIR:-./mosquitto/config/certs}/ecotrack-ca.crt:/mosquitto/config/certs/ecotrack-ca.crt:ro
+      - ${MOSQUITTO_CERTS_DIR:-./mosquitto/config/certs}/broker.crt:/mosquitto/config/certs/broker.crt:ro
+      - ${MOSQUITTO_CERTS_DIR:-./mosquitto/config/certs}/broker.key:/mosquitto/config/certs/broker.key:ro
       - mosquitto_data:/mosquitto/data
     restart: unless-stopped
 
@@ -35,9 +31,13 @@ services:
     build: ./backend
     container_name: ecotrack_backend
     env_file:
-      - ./backend/.env
+      - ${BACKEND_ENV_FILE:-./backend/.env}
     environment:
       DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB}
+      DB_USER: ${POSTGRES_USER}
+      DB_PASS: ${POSTGRES_PASSWORD}
       MQTT_HOST: mosquitto
       MQTT_PUBLIC_HOST: ${MQTT_PUBLIC_HOST:?set MQTT_PUBLIC_HOST in root .env}
       MQTT_PORT: 8883
@@ -47,7 +47,7 @@ services:
       DYNSEC_ADMIN_PASS: ${DYNSEC_ADMIN_PASS}
       CORS_ORIGIN: ${CORS_ORIGIN:-https://localhost,http://localhost:8080}
     volumes:
-      - ./mosquitto/config/certs/ecotrack-ca.crt:/run/secrets/ecotrack-ca.crt:ro
+      - ${MOSQUITTO_CERTS_DIR:-./mosquitto/config/certs}/ecotrack-ca.crt:/run/secrets/ecotrack-ca.crt:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -57,10 +57,9 @@ services:
     image: caddy:2-alpine
     environment:
       PUBLIC_HOST: ${MQTT_PUBLIC_HOST:?set MQTT_PUBLIC_HOST in root .env}
-    ports:
-      - "443:443"
+      WEB_PUBLIC_HOST: ${WEB_PUBLIC_HOST:-localhost}
     volumes:
-      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ${CADDYFILE_PATH:-./caddy/Caddyfile}:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
     depends_on:
       - backend

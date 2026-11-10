@@ -1,0 +1,14 @@
+(app_proxy) {
+    @backend path /api/* /socket.io/* /health
+    handle @backend {
+        reverse_proxy backend:3000
+    }
+
+    handle {
+        reverse_proxy frontend:80
+    }
+}
+
+{$WEB_PUBLIC_HOST}, {$MQTT_PUBLIC_HOST} {
+    import app_proxy
+}

@@ -2,9 +2,15 @@ node_modules
 __pycache__/
 *.pyc
 .env
+.env.*
+!.env.*.example
+!.env.example
 
 .env
 backend/.env
+backend/.env.*
+!backend/.env.*.example
+!backend/.env.example
 mosquitto/config/passwd
 codigo-esp32-mosquitto/esp32Secret.h
 codigo-esp32-mosquitto/enroll_ca.h
@@ -15,6 +21,7 @@ mosquitto/config/certs/broker.key
 mosquitto/config/passwd.test
 codigo-esp32-mosquitto/certs/*.key
 factory-output/
+deploy/certs/
 factory-*.csv
 factory-*.bin
 *.nvs.bin

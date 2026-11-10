@@ -9,6 +9,9 @@ Desarrollado como proyecto de tesis — Ingeniería en Sistemas, UdeMM.
 
 ## Arquitectura
 
+Los pasos para separar configuración local y producción en Azure están en
+[`docs/deployment-environments.md`](docs/deployment-environments.md).
+
 ```
 ESP32 (DHT11 + LDR)
        │

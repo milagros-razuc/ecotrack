@@ -1,0 +1,23 @@
+{
+    default_sni {$PUBLIC_HOST}
+}
+(app_proxy) {
+    @backend path /api/* /socket.io/* /health
+    handle @backend {
+        reverse_proxy backend:3000
+    }
+
+    handle {
+        reverse_proxy frontend:80
+    }
+}
+
+{$PUBLIC_HOST} {
+    tls internal
+    import app_proxy
+}
+
+localhost {
+    tls internal
+    import app_proxy
+}
