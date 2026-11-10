@@ -1,10 +1,12 @@
 const fs = require('fs');
 const { execFileSync } = require('child_process');
+const path = require('path');
 const mqtt = require('../backend/node_modules/mqtt');
 
 const container = process.env.DYNSEC_CONTAINER || 'ecotrack_mqtt';
-const envPath = process.env.DYNSEC_ENV_FILE || `${process.cwd()}\\.env`;
-const caPath = `${process.cwd()}\\mosquitto\\config\\certs\\ecotrack-ca.crt`;
+const envPath = process.env.DYNSEC_ENV_FILE || path.join(process.cwd(), '.env');
+const caPath = process.env.DYNSEC_CA_PATH
+  || path.join(process.cwd(), 'mosquitto', 'config', 'certs', 'ecotrack-ca.crt');
 
 function readEnv(name) {
   const line = fs.readFileSync(envPath, 'utf8')
