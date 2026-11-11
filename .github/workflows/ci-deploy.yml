@@ -1,0 +1,109 @@
+name: CI and production deploy
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ecotrack_test
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d ecotrack_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      TEST_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5433/ecotrack_test
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - name: Install dependencies
+        working-directory: backend
+        run: npm ci
+      - name: Prepare disposable test schema
+        working-directory: backend
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: '5433'
+          DB_NAME: ecotrack_test
+          DB_USER: postgres
+          DB_PASS: postgres
+        run: |
+          node -e 'require("./src/config/migrate")().then(() => require("./src/config/db").end()).catch(error => { console.error(error); process.exit(1); })'
+          node scripts/run-migrations.js
+      - name: Run backend and frontend tests
+        working-directory: backend
+        run: npm run test:ci
+      - name: Validate production Compose and shell scripts
+        run: |
+          cp .env.production.example .env.production
+          cp backend/.env.production.example backend/.env.production
+          docker compose -p ecotrack-prod --env-file .env.production \
+            -f docker-compose.yml -f compose.production.yml config --quiet
+          bash -n scripts/backup-production.sh scripts/deploy-production-vm.sh
+
+  deploy:
+    needs: test
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      github.event_name != 'pull_request' &&
+      vars.DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-24.04
+    environment: production
+    concurrency:
+      group: ecotrack-production
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+      - name: Sign in to Azure with OIDC
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Deploy the tested commit to the VM
+        shell: bash
+        run: |
+          printf 'target_sha=%s\n' "$GITHUB_SHA" > "$RUNNER_TEMP/ecotrack-run-command.sh"
+          cat scripts/deploy-production-vm.sh >> "$RUNNER_TEMP/ecotrack-run-command.sh"
+          az vm run-command invoke \
+            --resource-group rg-ecotrack-demo \
+            --name ecotrack-vm \
+            --command-id RunShellScript \
+            --scripts @"$RUNNER_TEMP/ecotrack-run-command.sh" \
+            --output json > "$RUNNER_TEMP/ecotrack-run-result.json"
+          python3 - <<'PY'
+          import json
+          import os
+          import sys
+
+          with open(os.path.join(os.environ['RUNNER_TEMP'], 'ecotrack-run-result.json'), encoding='utf-8') as result:
+              messages = '\n'.join(item.get('message', '') for item in json.load(result).get('value', []))
+          marker = f"ECOTRACK_DEPLOY_OK sha={os.environ['GITHUB_SHA']}"
+          if marker not in messages:
+              print(messages[-4000:])
+              sys.exit('Azure Run Command did not confirm a healthy deployment')
+          print(marker)
+          PY

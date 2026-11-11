@@ -5,6 +5,7 @@
   "scripts": {
     "start": "node index.js",
     "test": "node --test --test-timeout=30000 --test-concurrency=1 src/test/*.test.js ../frontend/shared/*.test.js",
+    "test:ci": "node scripts/run-ci-tests.js",
     "test:coverage": "node --experimental-test-coverage --test --test-timeout=30000 --test-concurrency=1 src/test/*.test.js"
   },
   "dependencies": {

@@ -173,10 +173,44 @@ and verification of the Mosquitto JSON; do this before relying on automation.
 
 ## CI/CD progression
 
-First validate the manual production deployment. Then add GitHub Actions to run
-the backend checks and Compose validation on pull requests. Deployments can be
-triggered from `main` after merge. Keep production `.env` files and certificate
-keys on the VM; do not put them in GitHub Actions. Prefer Azure OIDC with a
-role scoped to this VM for the deployment job instead of opening SSH to hosted
-runner address ranges. Protect the GitHub `production` environment so only the
-intended branch can deploy.
+The workflow in `.github/workflows/ci-deploy.yml` runs tests with a disposable
+PostgreSQL database and validates production Compose on pull requests and
+`main`. Its deployment job is skipped until the repository variable
+`DEPLOY_ENABLED` is set to `true`. The workflow never needs an inbound SSH rule
+for GitHub runners. The detailed requirements are in
+`docs/specs/azure-vm-cicd.md`.
+
+Before enabling deployment:
+
+1. In Azure, create a **user-assigned managed identity** named
+   `id-ecotrack-github` in `rg-ecotrack-demo`, North Central US. This identity
+   is for GitHub; keep the VM's existing system-assigned identity for Blob
+   backups. Record the new identity's **Client ID** and **Tenant ID**.
+2. On the new identity, add a **Federated credential** for GitHub Actions. Set
+   organization `milagros-razuc`, repository `ecotrack`, entity type
+   **Environment**, environment `production`, and the default audience
+   `api://AzureADTokenExchange`. Its subject must be exactly
+   `repo:milagros-razuc/ecotrack:environment:production`.
+3. In `ecotrack-vm` > **Access control (IAM)**, assign **Virtual Machine
+   Contributor** to `id-ecotrack-github` at the **VM scope**, not the resource
+   group or subscription. Azure Run Command uses this role to execute the
+   deployment script. Review a narrower custom role after the first successful
+   release.
+4. In GitHub repository **Settings > Environments**, create `production`.
+   Restrict deployment branches to `main` and require a reviewer. Under that
+   environment's secrets, add `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, and
+   `AZURE_SUBSCRIPTION_ID`. These are identifiers, not passwords, but keeping
+   them in the protected environment makes the OIDC setup explicit.
+5. Confirm the CI job passes on `main`. Then in **Settings > Secrets and
+   variables > Actions > Variables**, add repository variable
+   `DEPLOY_ENABLED=true`. Every subsequent push to `main` will run CI and, if
+   it passes, request the production environment review before deployment.
+   You can also start the workflow manually from GitHub Actions on `main`.
+
+The deployment job sends `scripts/deploy-production-vm.sh` with the tested
+commit SHA through Azure Run Command. On the VM it backs up PostgreSQL and
+Mosquitto to Blob, fast-forwards the checkout to that SHA, validates Compose,
+rebuilds the containers, and checks origin HTTPS at `/health`. A failure stops
+the job and requires diagnosis; it does not automatically restore an older
+database. Keep `.env.production`, `backend/.env.production`, and MQTT keys on
+the VM, outside Git.
