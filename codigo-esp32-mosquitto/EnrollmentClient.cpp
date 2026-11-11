@@ -5,10 +5,17 @@
 
 #include "enroll_ca.h"
 
+#if __has_include("enrollment_port.local.h")
+#include "enrollment_port.local.h"
+#endif
+
 namespace {
 constexpr unsigned long kEnrollmentBaseBackoffMs = 90000;
 constexpr unsigned long kEnrollmentMaxBackoffMs = 900000;
-constexpr uint16_t kEnrollmentPort = 443;
+#ifndef ECOTRACK_ENROLLMENT_PORT
+#define ECOTRACK_ENROLLMENT_PORT 443
+#endif
+constexpr uint16_t kEnrollmentPort = ECOTRACK_ENROLLMENT_PORT;
 
 String jsonString(const String& body, const char* key) {
   const String marker = "\"" + String(key) + "\":\"";

@@ -13,7 +13,10 @@ backend/.env.*
 !backend/.env.example
 mosquitto/config/passwd
 codigo-esp32-mosquitto/esp32Secret.h
+codigo-esp32-mosquitto/ecotrack_ca.h
+codigo-esp32-mosquitto/certs/ecotrack_ca.crt
 codigo-esp32-mosquitto/enroll_ca.h
+codigo-esp32-mosquitto/enrollment_port.local.h
 codigo-esp32-mosquitto/build
 *.key
 mosquitto/config/certs/broker.crt

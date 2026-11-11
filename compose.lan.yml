@@ -1,0 +1,8 @@
+services:
+  mosquitto:
+    ports:
+      - "${LOCAL_LAN_IP:?set LOCAL_LAN_IP in .env.local}:8883:8883"
+
+  caddy:
+    ports:
+      - "${LOCAL_LAN_IP:?set LOCAL_LAN_IP in .env.local}:8443:443"

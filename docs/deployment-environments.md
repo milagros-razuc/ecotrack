@@ -11,6 +11,8 @@ student-credit budget.
   volumes, and application configuration.
 - `compose.local.yml` publishes local-only ports on `127.0.0.1` for PostgreSQL,
   MQTT, and HTTPS.
+- `compose.lan.yml` optionally publishes MQTT on the workstation LAN address
+  and HTTPS on port `8443` for an ESP32 on the same network.
 - `compose.production.yml` publishes only MQTT (`8883`) and Caddy (`80`/`443`).
   PostgreSQL, the API, and nginx remain inside the Docker network.
 - `caddy/Caddyfile.local` uses Caddy's local CA for `localhost` and the local
@@ -39,12 +41,31 @@ Compose loads that file implicitly and it can accidentally affect production.
 4. Start the local environment:
 
    ```sh
-   docker compose -p ecotrack-local --env-file .env.local \
+   docker compose -p ecotrack --env-file .env.local \
      -f docker-compose.yml -f compose.local.yml up -d --build
    ```
 
 5. Open `https://localhost`. Caddy's local CA may need to be trusted on the
    workstation. Do not use the local MQTT CA or Caddy CA in production.
+
+For ESP32 enrolment on the local network, set `LOCAL_LAN_IP` in `.env.local` to
+the workstation's current LAN IPv4 address and start with the LAN overlay:
+
+```sh
+docker compose -p ecotrack --env-file .env.local \
+  -f docker-compose.yml -f compose.local.yml -f compose.lan.yml up -d --build
+```
+
+For Arduino IDE, keep the ignored `enrollment_port.local.h` file in the sketch
+folder with `#define ECOTRACK_ENROLLMENT_PORT 8443` and compile/upload the
+sketch. Without that local file, the firmware defaults to `443` for production.
+Keep the factory `serverHost` set
+to the workstation LAN IP (without a port), and flash the firmware while
+preserving NVS. The device must trust the local Caddy root in `enroll_ca.h`
+and the local MQTT CA in `ecotrack_ca.h`. A previously flashed firmware built
+for port 443 must be reflashed before local enrolment can work. If the Mac's
+LAN address changes, update `LOCAL_LAN_IP`, the factory host, and the local
+certificates that contain the IP address.
 
 ## Azure production setup
 
