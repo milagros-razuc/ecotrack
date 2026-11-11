@@ -24,12 +24,14 @@ may update the existing Azure VM through Azure Run Command using GitHub OIDC.
 - **CD-2:** Pull requests cannot obtain Azure deployment credentials. The job
   accepts only `main`, uses OIDC, and targets only `ecotrack-vm`.
 - **CD-3:** The VM makes a verified backup before changing the checkout, then
-  fast-forwards to the exact commit that passed CI, rebuilds Compose services,
+  fast-forwards to the exact commit that passed CI, builds the backend, applies
+  pending SQL migrations to the production database, rebuilds Compose services,
   and checks the origin HTTPS `/health` endpoint.
 - **CD-4:** Real environment files, MQTT keys, and database data remain on the
   VM. No credential is passed through Azure Run Command or committed to Git.
 - **CD-5:** A failed backup, non-fast-forward update, Compose validation,
-  build, or health check fails the deployment job and leaves diagnostic output.
+  build, migration, or health check fails the deployment job and leaves
+  diagnostic output.
 
 ## Acceptance
 

@@ -210,7 +210,8 @@ Before enabling deployment:
 The deployment job sends `scripts/deploy-production-vm.sh` with the tested
 commit SHA through Azure Run Command. On the VM it backs up PostgreSQL and
 Mosquitto to Blob, fast-forwards the checkout to that SHA, validates Compose,
-rebuilds the containers, and checks origin HTTPS at `/health`. A failure stops
+builds the backend, applies pending SQL migrations, rebuilds the containers,
+and checks origin HTTPS at `/health`. A failure stops
 the job and requires diagnosis; it does not automatically restore an older
 database. Keep `.env.production`, `backend/.env.production`, and MQTT keys on
 the VM, outside Git.

@@ -24,6 +24,9 @@ cd "$repo"
 compose=(docker compose -p ecotrack-prod --env-file .env.production \
   -f docker-compose.yml -f compose.production.yml)
 "${compose[@]}" config --quiet
+"${compose[@]}" build backend
+"${compose[@]}" run --rm --no-deps -e ALLOW_NON_TEST_DB=1 \
+  backend node scripts/run-migrations.js
 "${compose[@]}" up -d --build
 
 healthy=0
