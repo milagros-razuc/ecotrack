@@ -9,6 +9,6 @@
     }
 }
 
-{$WEB_PUBLIC_HOST}, {$MQTT_PUBLIC_HOST} {
+{$WEB_PUBLIC_HOST}, {$PUBLIC_HOST} {
     import app_proxy
 }
