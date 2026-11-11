@@ -21,6 +21,7 @@ services:
     build: ./mosquitto
     container_name: ecotrack_mqtt
     volumes:
+      - ${MOSQUITTO_PASSWD_FILE:-./mosquitto/config/passwd}:/mosquitto/config/passwd:ro
       - ${MOSQUITTO_CERTS_DIR:-./mosquitto/config/certs}/ecotrack-ca.crt:/mosquitto/config/certs/ecotrack-ca.crt:ro
       - ${MOSQUITTO_CERTS_DIR:-./mosquitto/config/certs}/broker.crt:/mosquitto/config/certs/broker.crt:ro
       - ${MOSQUITTO_CERTS_DIR:-./mosquitto/config/certs}/broker.key:/mosquitto/config/certs/broker.key:ro

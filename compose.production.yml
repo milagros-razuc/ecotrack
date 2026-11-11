@@ -2,8 +2,6 @@ services:
   mosquitto:
     ports:
       - "8883:8883"
-    volumes:
-      - ${MOSQUITTO_PASSWD_FILE:?set MOSQUITTO_PASSWD_FILE in .env.production}:/mosquitto/config/passwd:ro
 
   caddy:
     ports:

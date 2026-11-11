@@ -91,7 +91,7 @@ certificates that contain the IP address.
 
    Create `deploy/secrets/mosquitto/passwd` with `mosquitto_passwd -c` for the
    static `backend` user. Enter the same password as `MQTT_PASS` in
-   `backend/.env.production`. The production Compose overlay mounts this file
+   `backend/.env.production`. The shared Compose file mounts this file
    read-only. The file must be readable by the `mosquitto` user inside the
    container; do not pass its password with `-b` or commit the file.
 
