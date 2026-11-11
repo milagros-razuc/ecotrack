@@ -12,6 +12,8 @@ backend/.env.*
 !backend/.env.*.example
 !backend/.env.example
 mosquitto/config/passwd
+codigo-esp32-mosquitto/ecotrack_ca.h
+codigo-esp32-mosquitto/certs/ecotrack-ca.crt
 codigo-esp32-mosquitto/esp32Secret.h
 codigo-esp32-mosquitto/ecotrack_ca.h
 codigo-esp32-mosquitto/certs/ecotrack_ca.crt
@@ -25,6 +27,7 @@ mosquitto/config/passwd.test
 codigo-esp32-mosquitto/certs/*.key
 factory-output/
 deploy/certs/
+deploy/secrets/
 factory-*.csv
 factory-*.bin
 *.nvs.bin

@@ -89,6 +89,12 @@ certificates that contain the IP address.
    chmod 600 .env.production backend/.env.production
    ```
 
+   Create `deploy/secrets/mosquitto/passwd` with `mosquitto_passwd -c` for the
+   static `backend` user. Enter the same password as `MQTT_PASS` in
+   `backend/.env.production`. The production Compose overlay mounts this file
+   read-only. The file must be readable by the `mosquitto` user inside the
+   container; do not pass its password with `-b` or commit the file.
+
 4. Create production MQTT certificates for `mqtt.ecotrack.ar` under
    `deploy/certs/mosquitto/config/certs`. This directory is ignored by Git.
    The broker certificate must include `mqtt.ecotrack.ar` as a SAN. Keep the
