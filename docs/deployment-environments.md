@@ -123,6 +123,54 @@ Never run `docker compose down -v` in production: the named PostgreSQL volume
 contains the application data. Make a database backup before destructive
 maintenance or deleting the VM/resource group.
 
+## Production backups to Azure Blob
+
+The production VM uses its system-assigned managed identity to write to the
+private `backups` container in the `stecotrackbackup1311` storage account. It
+needs **Storage Blob Data Contributor** on that container. The account uses
+Standard LRS, so a second copy outside the region is recommended for a later
+disaster-recovery phase. Back up both PostgreSQL and Mosquitto Dynamic Security
+state: losing the latter would lose device clients and ACLs even if the
+database were restored.
+
+On the VM, after pulling the commit that contains the script, run one manual
+backup. The script requires root because Docker access is restricted. It
+checks the PostgreSQL archive with `pg_restore --list` and validates the JSON
+before uploading. It retains local copies in `/var/backups/ecotrack` so a
+failed upload can be investigated and retried. Do not include the MQTT CA key
+in this automated backup; keep its separately secured copy offline.
+
+```sh
+cd /home/ecotrackadmin/ecotrack
+sudo env ECOTRACK_BACKUP_STORAGE_ACCOUNT=stecotrackbackup1311 \
+  bash scripts/backup-production.sh
+sudo ls -lh /var/backups/ecotrack
+AZCOPY_AUTO_LOGIN_TYPE=MSI azcopy list \
+  'https://stecotrackbackup1311.blob.core.windows.net/backups'
+```
+
+Once the manual run succeeds and both new objects appear in Blob Storage,
+schedule it daily on the VM with root's crontab. The VM uses UTC by default;
+`03:15` UTC is `00:15` in Argentina. First check with `timedatectl` and adjust
+the expression if the VM's timezone differs.
+
+```sh
+sudo crontab -e
+```
+
+Add this single line:
+
+```cron
+15 3 * * * ECOTRACK_BACKUP_STORAGE_ACCOUNT=stecotrackbackup1311 /usr/bin/flock -n /run/lock/ecotrack-backup.lock /bin/bash /home/ecotrackadmin/ecotrack/scripts/backup-production.sh >> /var/log/ecotrack-backup.log 2>&1
+```
+
+Check it with `sudo crontab -l` and inspect failures with
+`sudo tail -n 80 /var/log/ecotrack-backup.log`. Local files and Azure blobs
+currently have no automatic retention policy; review disk use and create an
+Azure Blob lifecycle rule after deciding how many daily backups to keep. A
+backup is only proven recoverable after a test restore into a separate database
+and verification of the Mosquitto JSON; do this before relying on automation.
+
 ## CI/CD progression
 
 First validate the manual production deployment. Then add GitHub Actions to run
