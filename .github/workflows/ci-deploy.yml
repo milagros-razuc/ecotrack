@@ -60,6 +60,17 @@ jobs:
           docker compose -p ecotrack-prod --env-file .env.production \
             -f docker-compose.yml -f compose.production.yml config --quiet
           bash -n scripts/backup-production.sh scripts/deploy-production-vm.sh
+          if sh scripts/deploy-production-vm.sh >"$RUNNER_TEMP/deploy-shell-check.log" 2>&1; then
+            echo 'Deployment script unexpectedly succeeded without target_sha' >&2
+            exit 1
+          fi
+          grep -q 'The target Git commit is required' "$RUNNER_TEMP/deploy-shell-check.log"
+          {
+            printf 'target_sha=sentinel\n'
+            sed -n '1,/^set -Eeuo pipefail$/p' scripts/deploy-production-vm.sh
+            printf 'test "$target_sha" = sentinel\n'
+          } > "$RUNNER_TEMP/deploy-shell-bootstrap.sh"
+          sh "$RUNNER_TEMP/deploy-shell-bootstrap.sh"
 
   deploy:
     needs: test
@@ -86,7 +97,7 @@ jobs:
       - name: Deploy the tested commit to the VM
         shell: bash
         run: |
-          printf 'target_sha=%s\n' "$GITHUB_SHA" > "$RUNNER_TEMP/ecotrack-run-command.sh"
+          printf 'export target_sha=%s\n' "$GITHUB_SHA" > "$RUNNER_TEMP/ecotrack-run-command.sh"
           cat scripts/deploy-production-vm.sh >> "$RUNNER_TEMP/ecotrack-run-command.sh"
           az vm run-command invoke \
             --resource-group rg-ecotrack-demo \

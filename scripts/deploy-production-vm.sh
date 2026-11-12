@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
 # Sent by GitHub Actions through Azure Run Command; runs as root on the VM.
+# RunShellScript can invoke the generated file with sh, ignoring this shebang.
+if [ -z "${BASH_VERSION:-}" ]; then
+  export target_sha
+  exec /bin/bash "$0" "$@"
+fi
 set -Eeuo pipefail
 
 : "${target_sha:?The target Git commit is required}"

@@ -32,6 +32,8 @@ may update the existing Azure VM through Azure Run Command using GitHub OIDC.
 - **CD-5:** A failed backup, non-fast-forward update, Compose validation,
   build, migration, or health check fails the deployment job and leaves
   diagnostic output.
+- **CD-6:** The script sent through Azure Run Command executes with Bash even
+  when the VM agent starts the generated file with `sh`.
 
 ## Acceptance
 
