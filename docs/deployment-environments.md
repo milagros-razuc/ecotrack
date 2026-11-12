@@ -215,3 +215,18 @@ and checks origin HTTPS at `/health`. A failure stops
 the job and requires diagnosis; it does not automatically restore an older
 database. Keep `.env.production`, `backend/.env.production`, and MQTT keys on
 the VM, outside Git.
+
+The production VM checkout must be on `main` before and after every deployment.
+If a temporary test uses another branch on the VM, finish by checking that the
+worktree has no unsaved tracked changes and returning to `main`:
+
+```sh
+cd /home/ecotrackadmin/ecotrack
+git status --short
+git switch main
+git status --short --branch
+```
+
+Do not discard test changes to make the switch succeed; save them in a separate
+branch or copy them to a development machine first. The deployment script
+rejects any other checked-out branch and reports its name.

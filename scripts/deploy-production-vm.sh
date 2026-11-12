@@ -13,7 +13,14 @@ set -Eeuo pipefail
 }
 
 repo=/home/ecotrackadmin/ecotrack
-test "$(sudo -H -u ecotrackadmin git -C "$repo" symbolic-ref --short HEAD)" = main
+branch=$(sudo -H -u ecotrackadmin git -C "$repo" symbolic-ref --quiet --short HEAD) || {
+  printf 'VM checkout has no active branch; return it to main before deploying.\n' >&2
+  exit 1
+}
+if [[ "$branch" != main ]]; then
+  printf 'VM checkout is on %s; return it to main after temporary tests before deploying.\n' "$branch" >&2
+  exit 1
+fi
 sudo -H -u ecotrackadmin git -C "$repo" fetch origin main
 sudo -H -u ecotrackadmin git -C "$repo" merge-base --is-ancestor HEAD "$target_sha"
 sudo -H -u ecotrackadmin git -C "$repo" merge-base --is-ancestor "$target_sha" origin/main

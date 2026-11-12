@@ -34,6 +34,8 @@ may update the existing Azure VM through Azure Run Command using GitHub OIDC.
   diagnostic output.
 - **CD-6:** The script sent through Azure Run Command executes with Bash even
   when the VM agent starts the generated file with `sh`.
+- **CD-7:** The production VM checkout is on `main` after temporary tests. A
+  deployment fails with a useful diagnostic if another branch is checked out.
 
 ## Acceptance
 
