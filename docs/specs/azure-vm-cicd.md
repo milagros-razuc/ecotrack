@@ -1,6 +1,12 @@
 # Specification: CI and guarded Azure VM deployment
 
-**Status:** Implementation prepared; Azure identity and GitHub environment setup pending.
+> **Documento de origen conservado.** Se mantiene el texto y el detalle de
+> requisitos de CI/CD. El estado que figura abajo corresponde al borrador
+> inicial y es histórico, no un indicador del despliegue actual. Para el estado
+> reconciliado y su evidencia, consultá la [spec SDD 022](../../specs/022-azure-deployment-cicd/spec.md)
+> y la [matriz de aceptación](../../specs/022-azure-deployment-cicd/evidence/acceptance.md).
+
+**Status at time captured:** Implementation prepared; Azure identity and GitHub environment setup pending.
 **Scope:** One public GitHub repository, one existing production VM, no staging VM.
 
 ## Goal
@@ -53,3 +59,10 @@ federated identity's Azure role to this VM, restrict the GitHub environment to
 migrations may not be reversible, so the workflow does not automatically roll
 back a failed release. Restore from the pre-deployment backup only after
 diagnosing the failure.
+
+## Implementation references
+
+The implementation is in [`.github/workflows/ci-deploy.yml`](../../.github/workflows/ci-deploy.yml),
+[`scripts/deploy-production-vm.sh`](../../scripts/deploy-production-vm.sh), and
+[`scripts/backup-production.sh`](../../scripts/backup-production.sh). Current
+acceptance status and dated evidence are recorded in the [SDD 022](../../specs/022-azure-deployment-cicd/spec.md).

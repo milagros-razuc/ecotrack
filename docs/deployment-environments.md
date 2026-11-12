@@ -69,6 +69,16 @@ certificates that contain the IP address.
 
 ## Azure production setup
 
+> **Estado de la guía (2026-11-12):** este apartado conserva pasos de
+> aprovisionamiento inicial como referencia. El historial de despliegue registra
+> que la VM, los dominios, los certificados y la configuración productiva ya
+> están en uso. No vuelvas a ejecutar estos pasos como una lista de cambios sobre
+> producción sin comprobar primero el estado actual y contar con autorización.
+> La evidencia disponible es histórica; esta auditoría no consultó Azure en vivo.
+> El contrato de dominios y proxy está en
+> [domains-and-cloudflare.md](../specs/022-azure-deployment-cicd/contracts/domains-and-cloudflare.md);
+> los modos DNS/proxy actuales tampoco se verificaron en Cloudflare durante esta auditoría.
+
 1. Wait for Cloudflare to show the zone as **Active**. Use these records for the
    Azure VM's static public IPv4 address:
 
@@ -184,54 +194,36 @@ Azure Blob lifecycle rule after deciding how many daily backups to keep. A
 backup is only proven recoverable after a test restore into a separate database
 and verification of the Mosquitto JSON; do this before relying on automation.
 
-## CI/CD progression
+## CI/CD de producción
 
-The workflow in `.github/workflows/ci-deploy.yml` runs tests with a disposable
-PostgreSQL database and validates production Compose on pull requests and
-`main`. Its deployment job is skipped until the repository variable
-`DEPLOY_ENABLED` is set to `true`. The workflow never needs an inbound SSH rule
-for GitHub runners. The detailed requirements are in
-`docs/specs/azure-vm-cicd.md`.
+El workflow [`.github/workflows/ci-deploy.yml`](../.github/workflows/ci-deploy.yml)
+ejecuta CI con PostgreSQL descartable y valida Compose de producción. El job de
+despliegue, protegido por el entorno `production`, usa OIDC y Azure Run Command;
+no necesita una regla SSH entrante para los runners. El estado del workflow y sus
+requisitos están en la [spec SDD 022](../specs/022-azure-deployment-cicd/spec.md)
+y su [contrato](../specs/022-azure-deployment-cicd/contracts/ci-deploy.md).
 
-Before enabling deployment:
+El historial de despliegue consultado el 2026-11-12 registra que la identidad
+federada, el entorno `production`, los nombres de Azure Environment secrets y la
+aprobación del entorno ya se utilizaron; también registra el éxito de la
+[ejecución #6](https://github.com/milagros-razuc/ecotrack/actions/runs/43155066867)
+para `9fd27f0`. Esto no confirma que esos ajustes o la VM sigan hoy en ese mismo
+estado: antes de una operación, consultá la ejecución más reciente, su SHA y el
+estado actual de la VM. La [matriz de evidencia SDD](../specs/022-azure-deployment-cicd/evidence/acceptance.md)
+separa esas observaciones históricas de las verificaciones pendientes.
 
-1. In Azure, create a **user-assigned managed identity** named
-   `id-ecotrack-github` in `rg-ecotrack-demo`, North Central US. This identity
-   is for GitHub; keep the VM's existing system-assigned identity for Blob
-   backups. Record the new identity's **Client ID** and **Tenant ID**.
-2. On the new identity, add a **Federated credential** for GitHub Actions. Set
-   organization `milagros-razuc`, repository `ecotrack`, entity type
-   **Environment**, environment `production`, and the default audience
-   `api://AzureADTokenExchange`. Its subject must be exactly
-   `repo:milagros-razuc/ecotrack:environment:production`.
-3. In `ecotrack-vm` > **Access control (IAM)**, assign **Virtual Machine
-   Contributor** to `id-ecotrack-github` at the **VM scope**, not the resource
-   group or subscription. Azure Run Command uses this role to execute the
-   deployment script. Review a narrower custom role after the first successful
-   release.
-4. In GitHub repository **Settings > Environments**, create `production`.
-   Restrict deployment branches to `main` and require a reviewer. Under that
-   environment's secrets, add `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, and
-   `AZURE_SUBSCRIPTION_ID`. These are identifiers, not passwords, but keeping
-   them in the protected environment makes the OIDC setup explicit.
-5. Confirm the CI job passes on `main`. Then in **Settings > Secrets and
-   variables > Actions > Variables**, add repository variable
-   `DEPLOY_ENABLED=true`. Every subsequent push to `main` will run CI and, if
-   it passes, request the production environment review before deployment.
-   You can also start the workflow manually from GitHub Actions on `main`.
+En cada despliegue, el script [scripts/deploy-production-vm.sh](../scripts/deploy-production-vm.sh)
+exige que el checkout de la VM esté en `main`, respalda PostgreSQL y Mosquitto
+Dynamic Security antes de actualizar, hace fast-forward al SHA probado, aplica
+migraciones, reconstruye los servicios y comprueba HTTPS `/health` en el origen.
+Un fallo requiere diagnóstico; no hay rollback automático de migraciones.
+Conservá `.env.production`, `backend/.env.production` y las claves MQTT en la VM,
+fuera del repositorio.
 
-The deployment job sends `scripts/deploy-production-vm.sh` with the tested
-commit SHA through Azure Run Command. On the VM it backs up PostgreSQL and
-Mosquitto to Blob, fast-forwards the checkout to that SHA, validates Compose,
-builds the backend, applies pending SQL migrations, rebuilds the containers,
-and checks origin HTTPS at `/health`. A failure stops
-the job and requires diagnosis; it does not automatically restore an older
-database. Keep `.env.production`, `backend/.env.production`, and MQTT keys on
-the VM, outside Git.
+### Regla operativa: checkout de la VM
 
-The production VM checkout must be on `main` before and after every deployment.
-If a temporary test uses another branch on the VM, finish by checking that the
-worktree has no unsaved tracked changes and returning to `main`:
+El checkout productivo de la VM debe quedar en `main` después de cualquier
+prueba temporal. Antes de cambiar de rama, verificá y preservá el trabajo local:
 
 ```sh
 cd /home/ecotrackadmin/ecotrack
@@ -240,6 +232,6 @@ git switch main
 git status --short --branch
 ```
 
-Do not discard test changes to make the switch succeed; save them in a separate
-branch or copy them to a development machine first. The deployment script
-rejects any other checked-out branch and reports its name.
+No descartes cambios de una prueba para forzar el cambio de rama; guardalos en
+una rama separada o copialos a una máquina de desarrollo. El script de despliegue
+rechaza otra rama activa e informa cuál encontró.

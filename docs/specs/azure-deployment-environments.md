@@ -1,8 +1,15 @@
 # Specification: local and Azure production environments
 
-**Status:** Proposed for review  
-**Source:** Requirements stated in the EcoTrack deployment conversation, captured before the SDD replacement branch's implementation commit.  
-**Scope:** Prepare configuration and operator instructions for local development and one Azure production VM. This does not create Azure resources or deploy the application.
+> **Documento de origen conservado.** Se mantiene el texto y el detalle técnico
+> de esta propuesta. Su estado, alcance y seguimiento describen el momento en
+> que se escribió; no son el estado actual de producción. Para el estado y la
+> evidencia fechada, consultá la [spec SDD 022](../../specs/022-azure-deployment-cicd/spec.md)
+> y su [matriz de aceptación](../../specs/022-azure-deployment-cicd/evidence/acceptance.md).
+> Las instrucciones operativas actuales están en la [guía de despliegue](../deployment-environments.md).
+
+**Status at time captured:** Proposed for review
+**Source:** Requirements stated in the EcoTrack deployment conversation, captured before the SDD replacement branch's implementation commit.
+**Scope at time captured:** Prepare configuration and operator instructions for local development and one Azure production VM. This does not create Azure resources or deploy the application.
 
 ## Context
 
@@ -91,7 +98,7 @@ though MQTT itself connects directly to Mosquitto.
 - Adding a second VM, a staging database, Azure Key Vault, or a managed database.
 - Running a production migration or starting containers on Azure.
 
-## Follow-up scope
+## Follow-up scope at time captured
 
 1. Review and merge this environment configuration after validating the local
    Compose profile.
