@@ -118,6 +118,19 @@ certificates that contain the IP address.
    works, change the `app` record to Proxied and set Cloudflare SSL/TLS to
    **Full (strict)**. Leave `mqtt` DNS only. Test `/health`, enrolment, and MQTT
    from the intended clients.
+8. After applying the numbered migrations, create the platform administrator
+   once. `PLATFORM_ADMIN_USER` and `PLATFORM_ADMIN_PASS` in
+   `backend/.env.production` supply the initial credentials; setting them does
+   not create a database user by itself. Run this on the VM:
+
+   ```sh
+   sudo docker exec ecotrack_backend \
+     node scripts/seed-platform-admin.js --allow-non-test-db
+   ```
+
+   Sign in at `https://app.ecotrack.ar/login.html` and change the initial
+   password when prompted. The seed is idempotent: rerunning it does not reset
+   an existing user's password.
 
 Never run `docker compose down -v` in production: the named PostgreSQL volume
 contains the application data. Make a database backup before destructive

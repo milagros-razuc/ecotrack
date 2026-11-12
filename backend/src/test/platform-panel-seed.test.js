@@ -37,7 +37,12 @@ function fakePool({ client = null, user = null } = {}) {
       if (sql.startsWith('SELECT id, rol, cliente_id')) return { rows: state.user ? [state.user] : [] };
       if (sql.startsWith('INSERT INTO usuarios')) {
         state.insertedUsers += 1;
-        state.user = { id: 2, rol: 'platform_admin', cliente_id: 1 };
+        state.user = {
+          id: 2,
+          rol: 'platform_admin',
+          cliente_id: 1,
+          must_change_password: /must_change_password\)\s*VALUES\s*\([^)]*true\)/i.test(sql),
+        };
         return { rows: [] };
       }
       throw new Error(`Consulta inesperada: ${sql}`);
@@ -73,6 +78,7 @@ test('el seed es idempotente y crea un cliente y usuario una sola vez', async ()
   await seedPlatformAdmin({ pool, environment });
   assert.equal(pool.state.insertedClients, 1);
   assert.equal(pool.state.insertedUsers, 1);
+  assert.equal(pool.state.user.must_change_password, true);
 });
 
 test('el seed nunca imprime ni contiene la clave en su salida', async () => {

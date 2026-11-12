@@ -223,6 +223,9 @@ confirmar que ninguna respuesta contiene campos secretos.
 - **FR-025**: Las pruebas de integración MUST reutilizar las guardas existentes
   para `TEST_DATABASE_URL` y su aislamiento. No se agregará una guarda nueva ni
   se aceptará ejecutar accidentalmente contra la base de desarrollo.
+- **FR-026**: El seed administrativo MUST crear al `platform_admin` con cambio de
+  contraseña obligatorio en el primer ingreso. Las variables de entorno aportan
+  las credenciales iniciales, pero no crean la cuenta sin ejecutar el seed.
 
 ### Key Entities
 
