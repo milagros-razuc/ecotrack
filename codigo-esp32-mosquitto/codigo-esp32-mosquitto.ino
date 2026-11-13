@@ -9,7 +9,7 @@
 #include "FirmwareRecoveryPolicy.h"
 #include "ReadingBuffer.h"
 #include "SetupPortal.h"
-#include "ecotrack_ca.h"
+#include "FirmwareProfile.h"
 #define DHTPIN 4
 #define DHTTYPE DHT11
 #define LDRPIN 34

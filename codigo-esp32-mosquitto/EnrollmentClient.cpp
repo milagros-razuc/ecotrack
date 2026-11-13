@@ -3,9 +3,9 @@
 #include <HTTPClient.h>
 #include <WiFiClientSecure.h>
 
-#include "enroll_ca.h"
+#include "FirmwareProfile.h"
 
-#if __has_include("enrollment_port.local.h")
+#if !ECOTRACK_FIRMWARE_PRODUCTION && __has_include("enrollment_port.local.h")
 #include "enrollment_port.local.h"
 #endif
 
