@@ -10,13 +10,13 @@ description: "Tareas de especificación e implementación para el selector WiFi 
 
 ## Phase 1: Spec review
 
-- [ ] T001 Revisar y aprobar alcance, criterios de aceptación y contrato local de `/networks` antes de cambiar firmware o HTML embebido.
+- [x] T001 Revisar y aprobar alcance, criterios de aceptación y contrato local de `/networks` antes de cambiar firmware o HTML embebido.
 - [ ] T002 Confirmar los navegadores/dispositivos cliente y una placa representativa para aceptación física.
 
 ## Phase 2: Implementación tras aprobar la spec
 
-- [ ] T003 Implementar el selector visible y la entrada manual de SSID en `codigo-esp32-mosquitto/SetupPortalPage.h`, conservando valores existentes al refrescar resultados.
-- [ ] T004 Alinear `GET /networks` en `codigo-esp32-mosquitto/SetupPortal.cpp` con `contracts/scan-networks.md`, incluyendo respuestas distinguibles para vacío, no disponible y error de escaneo.
-- [ ] T005 Actualizar `research.md`, el contrato y `quickstart.md` si la evidencia de placa o navegador cambia alguna decisión de la spec.
+- [x] T003 Implementar el selector visible y la entrada manual de SSID en `codigo-esp32-mosquitto/SetupPortalPage.h`, conservando valores existentes al refrescar resultados.
+- [x] T004 Alinear `GET /networks` en `codigo-esp32-mosquitto/SetupPortal.cpp` con `contracts/scan-networks.md`, incluyendo respuestas distinguibles para vacío, no disponible y error de escaneo.
+- [x] T005 Revisar consistencia entre `research.md`, el contrato y `quickstart.md`; no surgió evidencia de placa/navegador que requiera ajustar la decisión de diseño.
 - [ ] T006 Realizar la validación en ESP32 y navegadores acordados, y registrar evidencia no sensible en `quickstart.md`.
-- [ ] T007 Revisar el cambio para confirmar que no altera SoftAP WPA2, clave compartida, timeout, recuperación BOOT, guardado, NVS ni MQTT/TLS.
+- [x] T007 Revisar el cambio para confirmar que no altera SoftAP WPA2, clave compartida, timeout, recuperación BOOT, guardado, NVS ni MQTT/TLS.

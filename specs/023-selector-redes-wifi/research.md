@@ -1,13 +1,13 @@
 # Research: Selección de redes WiFi en el portal ESP32
 
-## Estado actual inspeccionado
+## Baseline inspeccionado antes de la implementación
 
-- `SetupPortalPage.h` usa un `<input list="networks">` con `<datalist>` y carga el endpoint `/networks` al abrir la página y al pulsar “Buscar redes cercanas”.
-- `SetupPortal.cpp` ejecuta `WiFi.scanNetworks(false, true)`, omite SSID vacíos, deduplica por nombre, devuelve hasta 20 SSID y responde `[]` con HTTP 409 mientras se conecta a WiFi/MQTT.
-- La interfaz no comprueba `response.ok` antes de interpretar JSON, no distingue una respuesta HTTP 409 de un escaneo vacío y depende del comportamiento nativo del `datalist` para mostrar sugerencias.
+- Antes del cambio, `SetupPortalPage.h` usaba un `<input list="networks">` con `<datalist>` y cargaba el endpoint `/networks` al abrir la página y al pulsar “Buscar redes cercanas”.
+- Antes del cambio, `SetupPortal.cpp` ejecutaba `WiFi.scanNetworks(false, true)`, omitía SSID vacíos, deduplicaba por nombre, devolvía hasta 20 SSID y respondía `[]` con HTTP 409 mientras se conectaba a WiFi/MQTT.
+- La interfaz anterior no comprobaba `response.ok` antes de interpretar JSON, no distinguía una respuesta HTTP 409 de un escaneo vacío y dependía del comportamiento nativo del `datalist` para mostrar sugerencias.
 - No se encontró en los archivos inspeccionados evidencia de una captura de hardware/navegador que determine si el origen del reporte es fallo del escaneo o presentación de opciones.
 
-## Decisiones de diseño propuestas
+## Decisiones aprobadas para esta implementación
 
 | Tema | Decisión | Motivo |
 |---|---|---|
@@ -17,6 +17,8 @@
 | Seguridad y ciclo de vida | Mantener Feature 019 sin cambios | El problema reportado es la búsqueda/presentación de SSID. |
 | Alcance de nombres | Mantener deduplicación, límite actual y entrada manual para redes no listadas | Evita rediseñar el escaneo de radio sin evidencia de que sea necesario. |
 
-## Pendiente para implementación
+## Resultado de implementación y validación pendiente
 
-Confirmar durante la verificación física si el endpoint devuelve SSID en la placa afectada. Si devuelve `[]` pese a redes visibles, revisar el resultado negativo/diagnóstico de `WiFi.scanNetworks` y la compatibilidad del modo de radio. Si el endpoint devuelve nombres pero el control no los presenta, el cambio de interfaz satisface la causa observada.
+La interfaz ahora presenta un selector explícito y conserva el campo manual. El endpoint devuelve un objeto con `networks`, distingue 409 `scan_unavailable` y 503 `scan_failed`, y la página informa estados separados del estado de conexión.
+
+Durante la verificación física confirmar que el endpoint devuelve SSID en la placa afectada. Si devuelve una lista vacía pese a redes visibles, registrar la placa, core Arduino-ESP32, bandas/configuración de las redes y navegador; revisar el resultado real de `WiFi.scanNetworks` y el modo de radio antes de ampliar el alcance.

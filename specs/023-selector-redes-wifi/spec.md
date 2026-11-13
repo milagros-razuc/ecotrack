@@ -4,7 +4,7 @@
 
 **Created**: 2026-11-13
 
-**Status**: Draft
+**Status**: Implemented; physical acceptance pending
 
 **Input**: El usuario informa que las redes WiFi no aparecen en el selector del sitio que despliega el ESP32.
 

@@ -49,10 +49,17 @@ String jsonString(const String& value) {
 void listNetworks() {
   markActivity();
   if (currentStatus == "WIFI_CONNECTING" || currentStatus == "MQTT_CONNECTING") {
-    web.send(409, "application/json", "[]");
+    noCache();
+    web.send(409, "application/json; charset=utf-8", "{\"error\":\"scan_unavailable\"}");
     return;
   }
   const int count = WiFi.scanNetworks(false, true);
+  if (count < 0) {
+    WiFi.scanDelete();
+    noCache();
+    web.send(503, "application/json; charset=utf-8", "{\"error\":\"scan_failed\"}");
+    return;
+  }
   String result = "[";
   int shown = 0;
   for (int i = 0; i < count && shown < 20; ++i) {
@@ -68,8 +75,11 @@ void listNetworks() {
   }
   WiFi.scanDelete();
   result += ']';
+  String body = "{\"networks\":";
+  body += result;
+  body += '}';
   noCache();
-  web.send(200, "application/json; charset=utf-8", result);
+  web.send(200, "application/json; charset=utf-8", body);
 }
 
 void showForm() {

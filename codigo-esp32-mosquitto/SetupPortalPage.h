@@ -17,8 +17,8 @@ static const char kSetupPortalPage[] PROGMEM = R"ECOTRACK(
     h1{margin:0 0 8px;font-size:1.7rem}p{line-height:1.5;color:#52645a}
     fieldset{border:0;padding:0;margin:24px 0 0}legend{font-weight:700;margin-bottom:12px}
     label{display:block;font-size:.9rem;font-weight:600;margin:14px 0 5px}
-    input:not([type=checkbox]){width:100%;font:inherit;padding:11px;border:1px solid #baccc0;border-radius:9px}
-    input:focus{outline:2px solid #358755;outline-offset:1px}
+    input:not([type=checkbox]),select{width:100%;font:inherit;padding:11px;border:1px solid #baccc0;border-radius:9px;background:white;color:inherit}
+    input:focus,select:focus{outline:2px solid #358755;outline-offset:1px}
     .check{display:flex;gap:8px;align-items:center;font-weight:400}
     small{color:#607268}button{background:#236c42;color:white;border:0;border-radius:9px;padding:13px 18px;font:inherit;font-weight:700;width:100%;margin-top:24px}
     button.secondary{background:#e8f2ea;color:#236c42;margin-top:9px;padding:9px}
@@ -31,8 +31,13 @@ static const char kSetupPortalPage[] PROGMEM = R"ECOTRACK(
   <p>Ingresá el nombre y la contraseña de tu red WiFi.</p>
   <form id="config">
     <fieldset><legend>Red WiFi</legend>
-      <label for="ssid">Nombre de red (SSID)</label><input id="ssid" name="ssid" list="networks" maxlength="32" required value="{{SSID}}"><datalist id="networks"></datalist>
+      <label for="networkSelect">Redes encontradas</label>
+      <select id="networkSelect" aria-describedby="scan-status">
+        <option value="">Seleccioná una red detectada</option>
+      </select>
       <button class="secondary" id="scan" type="button">Buscar redes cercanas</button>
+      <p id="scan-status" role="status" aria-live="polite">Buscando redes WiFi…</p>
+      <label for="ssid">Nombre de red (SSID)</label><input id="ssid" name="ssid" maxlength="32" required value="{{SSID}}">
       <label for="wifiPass">Contraseña WiFi</label><input id="wifiPass" name="wifiPass" type="password" maxlength="63" autocomplete="new-password" placeholder="Dejar vacía para conservar">
       <label class="check"><input id="openWifi" name="openWifi" type="checkbox" value="1"> La red no tiene contraseña</label>
     </fieldset>
@@ -44,16 +49,40 @@ static const char kSetupPortalPage[] PROGMEM = R"ECOTRACK(
 </main>
 <script>
   const form=document.getElementById('config'), status=document.getElementById('status'), button=document.getElementById('submit');
+  const scanButton=document.getElementById('scan'), scanStatus=document.getElementById('scan-status');
+  const networkSelect=document.getElementById('networkSelect'), ssidInput=document.getElementById('ssid');
+  function replaceNetworks(names, selectedSsid){
+    const options=[new Option('Seleccioná una red detectada','')];
+    names.forEach(name=>options.push(new Option(name,name)));
+    networkSelect.replaceChildren(...options);
+    networkSelect.value=names.includes(selectedSsid)?selectedSsid:'';
+  }
   async function scan(){
-    const list=document.getElementById('networks');
+    if(scanButton.disabled)return;
+    const selectedSsid=ssidInput.value;
+    scanButton.disabled=true;
+    scanStatus.textContent='Buscando redes WiFi…';
+    replaceNetworks([],selectedSsid);
     try{
       const response=await fetch('/networks',{cache:'no-store'});
-      const names=await response.json();
-      list.replaceChildren(...names.map(name=>{const option=document.createElement('option');option.value=name;return option}));
-      status.textContent=names.length?'Redes encontradas. Elegí una o escribí el nombre manualmente.':'No se encontraron redes. Podés escribir el nombre manualmente.';
-    }catch(_){status.textContent='No se pudieron buscar redes; escribí el nombre manualmente.'}
+      const result=await response.json();
+      if(response.status===409&&result.error==='scan_unavailable'){
+        scanStatus.textContent='No se pueden buscar redes durante la conexión. Podés escribir el nombre manualmente.';
+        return;
+      }
+      if(!response.ok||!Array.isArray(result.networks)){
+        throw new Error(result.error||'scan_failed');
+      }
+      replaceNetworks(result.networks,selectedSsid);
+      scanStatus.textContent=result.networks.length
+        ?'Redes encontradas. Elegí una o escribí el nombre manualmente.'
+        :'No se encontraron redes. Podés escribir el nombre manualmente.';
+    }catch(_){scanStatus.textContent='No se pudieron buscar redes; escribí el nombre manualmente.'}
+    finally{scanButton.disabled=false}
   }
-  document.getElementById('scan').addEventListener('click',scan);
+  scanButton.addEventListener('click',scan);
+  networkSelect.addEventListener('change',()=>{if(networkSelect.value)ssidInput.value=networkSelect.value});
+  ssidInput.addEventListener('input',()=>{if(ssidInput.value!==networkSelect.value)networkSelect.value=''});
   async function refresh(){
     try{
       const response=await fetch('/status',{cache:'no-store'}), value=await response.text();
