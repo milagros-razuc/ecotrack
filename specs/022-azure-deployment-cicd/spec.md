@@ -42,7 +42,7 @@ As a maintainer, I need pull requests and `main` to receive automated checks and
 
 1. **Given** a pull request, **When** the workflow runs, **Then** CI has no production deployment credentials and does not deploy.
 2. **Given** an eligible `main` commit and a passing CI job, **When** deployment is enabled, **Then** the protected `production` environment gates OIDC-authenticated Azure Run Command.
-3. **Given** a deployment, **When** the VM script runs, **Then** it verifies the VM checkout is on `main`, backs up before updating, fast-forwards only to the tested commit, applies migrations, rebuilds services, and confirms origin HTTPS health for that SHA.
+3. **Given** a deployment, **When** the VM script runs, **Then** it verifies the VM checkout is on `main`, backs up before updating, deploys the exact tested commit (including a clean reset when local `main` has diverged), applies migrations, rebuilds services, and confirms origin HTTPS health for that SHA.
 4. **Given** a temporary VM test on another branch, **When** the test ends, **Then** the production checkout is returned to `main` without discarding uncommitted work.
 5. **Given** a failed backup, update, migration, build, or health check, **When** deployment exits, **Then** the failure is visible and no automatic database rollback is claimed.
 

@@ -11,13 +11,14 @@
 1. The workflow checks out the tested commit and passes its full SHA to the VM script.
 2. The VM checkout has an active `main` branch; the script fails with a diagnostic if another branch is active.
 3. The current release is backed up before checkout or schema changes.
-4. The target SHA is an ancestor of the VM's `origin/main` and is fast-forwarded only.
+4. The target SHA must be an ancestor of the VM's `origin/main`; if local `main` has diverged but the checkout is clean, deployment resets `main` to the tested SHA.
 5. Production Compose configuration is validated, backend is built, pending SQL migrations run, and services are rebuilt.
 6. The VM checks origin HTTPS `/health` and emits `ECOTRACK_DEPLOY_OK sha=<tested-sha>` only after success.
 
 ## Failure behavior
 
 - A failed backup, ancestry check, Compose validation, build, migration, or health check fails the deployment.
+- A dirty VM checkout (tracked unstaged or staged changes) fails the deployment so temporary work is preserved for review.
 - The workflow does not automatically roll back database migrations. Operators diagnose the failure and decide separately whether to restore.
 - A temporary test on a non-`main` branch must end with a safe return to `main`; do not discard uncommitted work to force the switch.
 
