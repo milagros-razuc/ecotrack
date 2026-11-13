@@ -23,6 +23,9 @@
       <header class="flex justify-between items-center mb-6">
         <h1 class="text-headline-md font-bold text-primary">Panel de plataforma</h1>
         <div class="flex items-center gap-3">
+          <button id="btn-dark" onclick="toggleDark()" class="p-2 text-on-surface-variant hover:bg-surface-container-high rounded-full transition-colors" title="Activar tema oscuro" aria-label="Activar tema oscuro" aria-pressed="false" type="button">
+            <span class="material-symbols-outlined">dark_mode</span>
+          </button>
           <button id="nuevo-dispositivo" class="bg-primary text-on-primary rounded px-4 py-2">Nuevo dispositivo</button>
           <button id="nuevo-cliente" class="bg-primary text-on-primary rounded px-4 py-2">Nuevo cliente</button>
           <span id="panel-error" class="text-error text-body-sm"></span>

@@ -7,7 +7,8 @@
 ## Summary
 
 Implementar tema claro/oscuro y corregir la adaptación móvil en las seis páginas
-autenticadas, reutilizando el shell compartido. La solución centraliza el estado del
+autenticadas originales, incorporando también `plataforma.html` al control y estado
+compartidos del tema. La solución centraliza el estado del
 tema en `frontend/shared/app.js`, expone colores semánticos como variables CSS en
 `frontend/shared/common.css`, mantiene el fallback de clases existentes y hace que
 Chart.js lea colores calculados del tema. La persistencia de la elección manual se
@@ -41,9 +42,10 @@ permisos, aislamiento multi-cliente ni flujo de negocio; evitar scroll horizonta
 documento en 360 px; usar variables CSS para colores; persistencia protegida con
 `try/catch`
 
-**Scale/Scope**: Seis páginas autenticadas: dashboard, histórico, configuración,
-auditoría, usuarios y api-keys; sidebar compartido, modales, tablas, gráficos,
-formularios, toasts, alertas y pop-ups
+**Scale/Scope**: Siete páginas autenticadas para el tema: dashboard, histórico,
+configuración, auditoría, usuarios, api-keys y plataforma; seis páginas con matriz
+responsive original; sidebar compartido, modales, tablas, gráficos, formularios,
+toasts, alertas y pop-ups
 
 ## Constitution Check
 

@@ -16,6 +16,10 @@ del sistema operativo. El botón permite activar oscuro o volver a claro, y la
 elección manual se conserva en el navegador. Esta decisión reemplaza únicamente el
 fallback basado en sistema descrito originalmente.
 
+La vista `plataforma.html`, incorporada después de esta feature, también forma parte
+del alcance de tema. Debe exponer el control compartido y conservar la elección
+manual como las demás vistas autenticadas.
+
 La variación observada antes del cambio provenía de dos fuentes: sin valor guardado,
 el código consultaba el tema del sistema; con `ecotrack_dark` en `localStorage`,
 prevalecía la última elección manual, incluso si era oscuro. Por eso el resultado
@@ -52,7 +56,7 @@ Como usuario autenticado, quiero alternar entre tema claro y oscuro desde cualqu
 1. **Given** que no existe una elección guardada, **When** el usuario abre el dashboard, **Then** se muestra el tema claro, cualquiera sea la preferencia del sistema operativo.
 2. **Given** que no existe una elección guardada, **When** el usuario presiona el control de tema, **Then** puede activar el tema oscuro; al presionarlo de nuevo puede volver al claro.
 3. **Given** que el dashboard está en un tema, **When** el usuario activa el control de tema, **Then** todas las superficies visibles cambian al tema opuesto sin recargar y el control actualiza su etiqueta o indicador accesible.
-4. **Given** que el usuario eligió manualmente un tema, **When** navega entre dashboard, histórico, configuración, auditoría, usuarios y api-keys o recarga una de ellas, **Then** se conserva esa elección independientemente de la preferencia del sistema.
+4. **Given** que el usuario eligió manualmente un tema, **When** navega entre dashboard, histórico, configuración, auditoría, usuarios, api-keys y plataforma o recarga una de ellas, **Then** se conserva esa elección independientemente de la preferencia del sistema.
 5. **Given** que el usuario borra la elección guardada, **When** vuelve a abrir el dashboard, **Then** se muestra el tema claro.
 
 ---
@@ -103,11 +107,11 @@ Como usuario del dashboard, quiero que el tema oscuro sea legible y consistente 
 
 ### Functional Requirements
 
-- **FR-001**: El dashboard MUST permitir alternar entre tema claro y oscuro desde una acción visible y accesible en cada página autenticada que actualmente exponga acciones de encabezado.
+- **FR-001**: Todas las páginas autenticadas, incluida `plataforma.html`, MUST permitir alternar entre tema claro y oscuro desde una acción visible y accesible.
 - **FR-002**: El sistema MUST usar tema claro cuando el usuario no tenga una elección manual guardada, independientemente de la preferencia del sistema operativo.
 - **FR-003**: El sistema MUST recordar la elección manual del usuario en el navegador y aplicarla de forma consistente al navegar y recargar las páginas autenticadas.
 - **FR-004**: El sistema MUST actualizar el nombre, estado o indicador accesible del control de tema para que refleje la acción disponible y el tema efectivo.
-- **FR-005**: El tema oscuro MUST cubrir dashboard, histórico, configuración, auditoría, usuarios, api-keys, sidebar, perfil, modales, tablas, gráficos, formularios, toasts, alertas y pop-ups.
+- **FR-005**: El tema oscuro MUST cubrir dashboard, histórico, configuración, auditoría, usuarios, api-keys, plataforma, sidebar, perfil, modales, tablas, gráficos, formularios, toasts, alertas y pop-ups.
 - **FR-006**: El tema oscuro MUST conservar contraste legible para texto, información, controles, estados de interacción, datos de tablas, leyendas y etiquetas de gráficos.
 - **FR-007**: El sistema MUST mantener intactas la autenticación, la autorización por rol, el aislamiento por cliente y las acciones existentes al aplicar el tema o los ajustes responsive.
 - **FR-008**: Todas las páginas autenticadas MUST poder utilizarse en un viewport móvil de 360 px de ancho sin scroll horizontal del documento.
@@ -121,7 +125,7 @@ Como usuario del dashboard, quiero que el tema oscuro sea legible y consistente 
 ### Key Entities
 
 - **Preferencia de tema**: Elección manual clara u oscura asociada al navegador del usuario; cuando no existe, se utiliza tema claro.
-- **Página autenticada**: Dashboard, histórico, configuración, auditoría, usuarios y api-keys, sujetas a disponibilidad según rol.
+- **Página autenticada**: Dashboard, histórico, configuración, auditoría, usuarios, api-keys y plataforma, sujetas a disponibilidad según rol.
 - **Superficie de interfaz**: Componente visible o interactivo que debe conservar legibilidad y operabilidad, como sidebar, tabla, gráfico, modal, formulario, alerta, toast o pop-up.
 - **Matriz de verificación responsive**: Evidencia de revisión por página, viewport y tema, con resultado y observaciones.
 
@@ -129,16 +133,16 @@ Como usuario del dashboard, quiero que el tema oscuro sea legible y consistente 
 
 ### Measurable Outcomes
 
-- **SC-001**: El 100% de las páginas autenticadas (dashboard, histórico, configuración, auditoría, usuarios y api-keys) se verifica en 360 px y 1280 px, tanto en tema claro como oscuro, con la matriz de verificación registrada.
+- **SC-001**: El 100% de las páginas autenticadas (dashboard, histórico, configuración, auditoría, usuarios, api-keys y plataforma) se verifica en 360 px y 1280 px, tanto en tema claro como oscuro, con la matriz de verificación registrada.
 - **SC-002**: En el 100% de las verificaciones móviles, el documento no presenta scroll horizontal; cualquier desplazamiento necesario de tabla o gráfico queda contenido en su superficie.
 - **SC-003**: El 100% de los componentes incluidos en el alcance (sidebar, modales, tablas, gráficos, formularios, toasts, alertas y pop-ups) mantiene texto y controles legibles en ambos temas, sin elementos visibles con estilo de tema opuesto.
-- **SC-004**: En una prueba de navegación que recorra las seis páginas autenticadas, la elección manual del tema se conserva en las seis páginas y después de recargar.
+- **SC-004**: En una prueba de navegación que recorra las siete páginas autenticadas, la elección manual del tema se conserva en todas las páginas y después de recargar.
 - **SC-005**: Con una elección manual ausente, el tema mostrado es claro en el 100% de las páginas verificadas, independientemente de la preferencia del sistema.
 - **SC-006**: Al menos el 90% de los usuarios de prueba puede completar una tarea principal de cada página disponible para su rol en menos de 5 minutos y sin capacitación específica, manteniendo RNF14.
 
 ## Assumptions
 
-- La lista de páginas autenticadas a verificar es: `index.html`, `historico.html`, `configuracion.html`, `auditor.html`, `usuarios.html` y `api-keys.html`; `usuarios.html` y `api-keys.html` se validan con un usuario admin.
+- La lista de páginas autenticadas a verificar es: `index.html`, `historico.html`, `configuracion.html`, `auditor.html`, `usuarios.html`, `api-keys.html` y `plataforma.html`; `usuarios.html` y `api-keys.html` se validan con un usuario admin y `plataforma.html` con `platform_admin`.
 - El login queda fuera del selector de tema porque la solicitud se limita al dashboard web autenticado; no se rediseña ni se cambia su flujo.
 - Se reutilizarán la configuración de tema, los estilos compartidos, los botones existentes y los contenedores responsive antes de agregar mecanismos nuevos.
 - Los anchos representativos de aceptación son 360 px para celular y 1280 px para escritorio; también se revisarán puntos intermedios cuando una corrección lo requiera.

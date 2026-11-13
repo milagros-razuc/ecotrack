@@ -10,6 +10,8 @@
   `prefers-color-scheme`.
 - El control de tema debe estar sincronizado después de cargar el shell y exponer
   un nombre/etiqueta accesible que describa la acción.
+- `plataforma.html` también debe exponer `#btn-dark` y compartir la preferencia de
+  tema de `localStorage` con el resto de las páginas autenticadas.
 - Cambiar el tema no navega, no recarga y no cambia autenticación, rol ni datos.
 
 ## Colores

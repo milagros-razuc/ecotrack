@@ -99,6 +99,7 @@ description: "Task list for implementing the dark theme and responsive dashboard
 - [X] T025 [P] Ejecutar linting, validaciones disponibles y comprobaciones de sintaxis sobre los archivos HTML/CSS/JS modificados, y corregir solo errores introducidos por esta feature
 - [X] T026 Revisar el diff final contra `specs/007-tema-oscuro-responsive/spec.md`, `specs/007-tema-oscuro-responsive/contracts/ui-theme-responsive.md` y `specs/007-tema-oscuro-responsive/data-model.md`, confirmando que no se agregaron librerías nuevas
 - [X] T027 Actualizar el contrato, la especificación y el quickstart para fijar el tema claro como fallback, y quitar de `frontend/shared/app.js` la consulta a `prefers-color-scheme`
+- [X] T028 Agregar a `frontend/plataforma.html` un control `#btn-dark` visible y accesible, sincronizado por `frontend/shared/app.js`, y ampliar la cobertura de tema de las siete páginas autenticadas
 
 ---
 

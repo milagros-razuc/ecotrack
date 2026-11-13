@@ -30,7 +30,7 @@ Una fila representa una combinación verificable:
 
 | Campo | Valores |
 |---|---|
-| `page` | dashboard, histórico, configuración, auditoría, usuarios, api-keys |
+| `page` | dashboard, histórico, configuración, auditoría, usuarios, api-keys, plataforma |
 | `viewport` | 360 px, 1280 px |
 | `theme` | claro, oscuro |
 | `documentHorizontalOverflow` | debe ser falso |

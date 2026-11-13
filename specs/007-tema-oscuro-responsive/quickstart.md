@@ -15,8 +15,9 @@
 2. Presionar el control de tema para activar oscuro; comprobar que `ecotrack_dark`
    queda en `dark`, navegar y recargar. Presionarlo otra vez para volver a claro y
    comprobar que queda en `light`.
-3. Alternar el control en dashboard, navegar por las seis páginas y recargar;
-   verificar que el tema manual se conserva.
+3. Alternar el control en dashboard, navegar por las siete páginas (incluida
+   `plataforma.html` como `platform_admin`) y recargar; verificar que el tema manual
+   se conserva.
 4. Inspeccionar sidebar, tarjetas, tablas, gráficos, formularios, modales, toasts,
    alertas, pop-ups, estados vacíos, foco, hover y disabled en ambos temas.
 5. Si el almacenamiento está bloqueado, comprobar que el cambio de tema sigue
@@ -25,7 +26,7 @@
 ## Validación responsive
 
 Para cada página (`index.html`, `historico.html`, `configuracion.html`,
-`auditor.html`, `usuarios.html`, `api-keys.html`):
+`auditor.html`, `usuarios.html`, `api-keys.html`, `plataforma.html`):
 
 1. Seleccionar viewport 360 x 800 y luego 1280 x 800.
 2. Ejecutar las acciones principales de la página y abrir sus superficies
@@ -45,7 +46,7 @@ Para cada página (`index.html`, `historico.html`, `configuracion.html`,
 
 ## Resultado esperado
 
-- 24 combinaciones (6 páginas x 2 viewports x 2 temas) verificadas.
+- 28 combinaciones (7 páginas x 2 viewports x 2 temas) a verificar.
 - Cero overflow horizontal del documento en 360 px.
 - Tema efectivo e indicador consistentes en todas las páginas.
 - Colores de canvas legibles y coherentes con las variables del tema.
@@ -53,7 +54,7 @@ Para cada página (`index.html`, `historico.html`, `configuracion.html`,
 ## Evidencia de validación
 
 Validación ejecutada el 2026-10-30 con navegador Chromium, usuario admin y servidor
-estático local. Las 24 combinaciones pasaron sin overflow horizontal del documento
+estático local. Las 24 combinaciones originales pasaron sin overflow horizontal del documento
 (`scrollWidth = clientWidth`):
 
 | Página | 360 px claro | 360 px oscuro | 1280 px claro | 1280 px oscuro |
@@ -64,8 +65,10 @@ estático local. Las 24 combinaciones pasaron sin overflow horizontal del docume
 | Auditoría | PASS | PASS | PASS | PASS |
 | Usuarios | PASS | PASS | PASS | PASS |
 | API keys | PASS | PASS | PASS | PASS |
+| Plataforma | PENDIENTE | PENDIENTE | PENDIENTE | PENDIENTE |
 
 Las tablas conservaron el desplazamiento dentro de sus contenedores. El tema del
 tema claro se aplicó sin preferencia guardada, independientemente de la preferencia
 del sistema; al alternar se guardó `light` o `dark`, se actualizó el control
-accesible y la elección persistió al navegar a otra página.
+accesible y la elección persistió al navegar a otra página. La vista de plataforma
+se agregó luego y su verificación visual responsive queda pendiente.
