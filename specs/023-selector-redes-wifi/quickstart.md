@@ -1,5 +1,9 @@
 # Quickstart: Verificar el selector de redes WiFi
 
+## Aceptación reportada
+
+El 2026-11-13, el usuario confirmó: “Listo, quedó funcionando”. No se especificaron el modelo de placa ni el navegador/dispositivo cliente.
+
 ## Preparación
 
 1. Cargar en un ESP32 el firmware con identidad de fábrica ya preparada.

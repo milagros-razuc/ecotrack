@@ -18,5 +18,5 @@ description: "Tareas de especificación e implementación para el selector WiFi 
 - [x] T003 Implementar el selector visible y la entrada manual de SSID en `codigo-esp32-mosquitto/SetupPortalPage.h`, conservando valores existentes al refrescar resultados.
 - [x] T004 Alinear `GET /networks` en `codigo-esp32-mosquitto/SetupPortal.cpp` con `contracts/scan-networks.md`, incluyendo respuestas distinguibles para vacío, no disponible y error de escaneo.
 - [x] T005 Revisar consistencia entre `research.md`, el contrato y `quickstart.md`; no surgió evidencia de placa/navegador que requiera ajustar la decisión de diseño.
-- [ ] T006 Realizar la validación en ESP32 y navegadores acordados, y registrar evidencia no sensible en `quickstart.md`.
+- [x] T006 Registrar la aceptación del usuario de que el selector funciona en `quickstart.md`; placa y navegador no especificados.
 - [x] T007 Revisar el cambio para confirmar que no altera SoftAP WPA2, clave compartida, timeout, recuperación BOOT, guardado, NVS ni MQTT/TLS.
