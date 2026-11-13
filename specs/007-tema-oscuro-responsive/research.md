@@ -3,12 +3,11 @@
 ## Decisión 1: Estado del tema en el shell compartido
 
 - **Decision**: Resolver el tema efectivo al inicio de `frontend/shared/app.js`,
-  priorizando una preferencia manual válida; si no existe, consultar
-  `window.matchMedia('(prefers-color-scheme: dark)')`; aplicar la clase al elemento
-  raíz y sincronizar todos los controles después de inyectar el sidebar.
+  priorizando una preferencia manual válida y usando claro fijo si no existe; aplicar
+  la clase al elemento raíz y sincronizar todos los controles después de inyectar el sidebar.
 - **Rationale**: Todas las páginas autenticadas ya cargan `app.js`, por lo que se
   evita duplicar lógica y se mantiene el comportamiento al navegar directamente a
-  cualquier URL.
+  cualquier URL. El fallback fijo elimina diferencias por configuración del sistema.
 - **Alternatives considered**: Implementar un script independiente por página
   (duplica estados y puede divergir); usar solo CSS `prefers-color-scheme` (no
   permite persistir una elección manual).
@@ -17,7 +16,7 @@
 
 - **Decision**: Encapsular lectura, escritura y eliminación de la preferencia en
   helpers con `try/catch`; aceptar únicamente valores reconocibles y continuar con
-  el tema del sistema o claro si el almacenamiento falla.
+  tema claro si el almacenamiento falla.
 - **Rationale**: `localStorage` puede estar bloqueado, lleno o lanzar excepciones en
   contextos restringidos. El fallo no debe impedir el uso del dashboard.
 - **Alternatives considered**: Acceder directamente a `localStorage` (ya existe,

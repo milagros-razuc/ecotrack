@@ -6,7 +6,20 @@
 
 **Status**: Draft
 
-**Input**: User description: "Antes de escribir la spec, leé la constitution y lo ya implementado en el repo; reutilizá lo existente y marcá qué parte ya está hecha y qué falta. Quiero (a) un tema oscuro para todo el dashboard web y (b) verificar y corregir el uso en celular. Historias de usuario: alternar entre tema claro y oscuro desde el dashboard y recordar la elección, por defecto la preferencia del sistema; el tema oscuro cubre todas las páginas y superficies; en celular todas las páginas funcionan sin scroll horizontal, con controles tocables y tablas/gráficos adaptables o desplazables dentro de su contenedor. Criterios de aceptación: lista de páginas verificadas en ancho celular y escritorio, en ambos temas. Fuera de alcance: rediseño de la interfaz."
+**Input**: Solicitud inicial: "Antes de escribir la spec, leé la constitution y lo ya implementado en el repo; reutilizá lo existente y marcá qué parte ya está hecha y qué falta. Quiero (a) un tema oscuro para todo el dashboard web y (b) verificar y corregir el uso en celular. Historias de usuario: alternar entre tema claro y oscuro desde el dashboard y recordar la elección, por defecto la preferencia del sistema; el tema oscuro cubre todas las páginas y superficies; en celular todas las páginas funcionan sin scroll horizontal, con controles tocables y tablas/gráficos adaptables o desplazables dentro de su contenedor. Criterios de aceptación: lista de páginas verificadas en ancho celular y escritorio, en ambos temas. Fuera de alcance: rediseño de la interfaz."
+
+### Decisión de producto vigente (2026-11-13)
+
+La solicitud posterior establece tema claro por defecto: si no existe una elección
+manual válida en `ecotrack_dark`, se inicia en claro, sin consultar la preferencia
+del sistema operativo. El botón permite activar oscuro o volver a claro, y la
+elección manual se conserva en el navegador. Esta decisión reemplaza únicamente el
+fallback basado en sistema descrito originalmente.
+
+La variación observada antes del cambio provenía de dos fuentes: sin valor guardado,
+el código consultaba el tema del sistema; con `ecotrack_dark` en `localStorage`,
+prevalecía la última elección manual, incluso si era oscuro. Por eso el resultado
+podía diferir entre navegadores/perfiles o después de haber usado el botón.
 
 ## Contexto y estado actual
 
@@ -16,7 +29,7 @@ La implementación existente ya aporta parte de la solución y debe reutilizarse
 - **Ya implementado**: la preferencia manual se guarda en `localStorage` mediante la clave `ecotrack_dark`.
 - **Ya implementado**: hay overrides oscuros compartidos para fondos, textos, bordes, filas alternadas y el pop-up de alerta.
 - **Ya implementado**: las páginas tienen meta viewport; varias tablas ya están dentro de contenedores `overflow-x-auto`; los gráficos usan Chart.js con configuración responsive en las vistas que los incluyen.
-- **Pendiente**: cuando no existe una elección guardada, la interfaz no deriva el tema de la preferencia del sistema operativo; actualmente parte de claro.
+- **Ya implementado**: la clase `.dark` se determina desde una elección manual válida; el fallback debe ser claro de forma fija, sin depender del sistema operativo.
 - **Pendiente**: el estado inicial de todos los botones/íconos de tema debe sincronizarse con el tema efectivo y mantenerse consistente al navegar entre páginas.
 - **Pendiente**: revisar y completar contraste y superficies no cubiertas (formularios, modales, tablas, gráficos, alertas, pop-ups y estados de interacción) en cada página.
 - **Pendiente**: verificar cada página en anchos móvil y escritorio, corregir desbordes del viewport y asegurar controles táctiles; cualquier desplazamiento de tablas o gráficos debe quedar confinado a su contenedor.
@@ -32,15 +45,15 @@ Como usuario autenticado, quiero alternar entre tema claro y oscuro desde cualqu
 
 **Why this priority**: Es la capacidad principal solicitada y debe funcionar antes de validar la cobertura visual de cada vista.
 
-**Independent Test**: Abrir una página autenticada sin preferencia guardada, comprobar el tema del sistema, alternar el control, navegar a otra página y recargar; la elección manual debe conservarse y el control debe representar el estado actual.
+**Independent Test**: Abrir una página autenticada sin preferencia guardada, comprobar tema claro independientemente del sistema, alternar a oscuro y volver a claro, navegar a otra página y recargar; la última elección manual debe conservarse y el control debe representar el estado actual.
 
 **Acceptance Scenarios**:
 
-1. **Given** que no existe una elección guardada, **When** el usuario abre el dashboard, **Then** se muestra el tema claro u oscuro que indique la preferencia del sistema operativo.
-2. **Given** que no existe una elección guardada y el sistema no expone preferencia oscura, **When** el usuario abre el dashboard, **Then** se muestra el tema claro.
+1. **Given** que no existe una elección guardada, **When** el usuario abre el dashboard, **Then** se muestra el tema claro, cualquiera sea la preferencia del sistema operativo.
+2. **Given** que no existe una elección guardada, **When** el usuario presiona el control de tema, **Then** puede activar el tema oscuro; al presionarlo de nuevo puede volver al claro.
 3. **Given** que el dashboard está en un tema, **When** el usuario activa el control de tema, **Then** todas las superficies visibles cambian al tema opuesto sin recargar y el control actualiza su etiqueta o indicador accesible.
-4. **Given** que el usuario eligió manualmente un tema, **When** navega entre dashboard, histórico, configuración, auditoría, usuarios y api-keys o recarga una de ellas, **Then** se conserva esa elección independientemente de la preferencia posterior del sistema.
-5. **Given** que el usuario borra la elección guardada, **When** vuelve a abrir el dashboard, **Then** se vuelve a aplicar la preferencia vigente del sistema.
+4. **Given** que el usuario eligió manualmente un tema, **When** navega entre dashboard, histórico, configuración, auditoría, usuarios y api-keys o recarga una de ellas, **Then** se conserva esa elección independientemente de la preferencia del sistema.
+5. **Given** que el usuario borra la elección guardada, **When** vuelve a abrir el dashboard, **Then** se muestra el tema claro.
 
 ---
 
@@ -79,8 +92,8 @@ Como usuario del dashboard, quiero que el tema oscuro sea legible y consistente 
 
 ### Edge Cases
 
-- El sistema operativo cambia de preferencia mientras no existe una elección manual: la siguiente aplicación del tema debe reflejar la preferencia vigente sin sobrescribir una elección manual existente.
-- El navegador no permite leer o guardar la preferencia local: la interfaz debe seguir funcionando y usar la preferencia del sistema o el tema claro como fallback visible, sin presentar un estado incoherente.
+- El sistema operativo cambia de preferencia: no afecta al dashboard; una elección manual guardada conserva prioridad y la ausencia de elección usa claro.
+- El navegador no permite leer o guardar la preferencia local: la interfaz debe seguir funcionando con tema claro al iniciar y permitir cambiar el tema durante esa sesión, sin presentar un estado incoherente.
 - El usuario llega directamente a una página autenticada distinta del dashboard: esa página debe aplicar el mismo tema antes de que el contenido sea utilizable.
 - Un texto, identificador de dispositivo, token de API o mensaje largo no debe ensanchar el documento; debe ajustarse o permanecer desplazable dentro de su superficie.
 - Un modal abierto, un pop-up de alerta o un panel lateral no debe crear scroll horizontal del documento en celular.
@@ -91,7 +104,7 @@ Como usuario del dashboard, quiero que el tema oscuro sea legible y consistente 
 ### Functional Requirements
 
 - **FR-001**: El dashboard MUST permitir alternar entre tema claro y oscuro desde una acción visible y accesible en cada página autenticada que actualmente exponga acciones de encabezado.
-- **FR-002**: El sistema MUST usar la preferencia del sistema operativo cuando el usuario no tenga una elección manual guardada.
+- **FR-002**: El sistema MUST usar tema claro cuando el usuario no tenga una elección manual guardada, independientemente de la preferencia del sistema operativo.
 - **FR-003**: El sistema MUST recordar la elección manual del usuario en el navegador y aplicarla de forma consistente al navegar y recargar las páginas autenticadas.
 - **FR-004**: El sistema MUST actualizar el nombre, estado o indicador accesible del control de tema para que refleje la acción disponible y el tema efectivo.
 - **FR-005**: El tema oscuro MUST cubrir dashboard, histórico, configuración, auditoría, usuarios, api-keys, sidebar, perfil, modales, tablas, gráficos, formularios, toasts, alertas y pop-ups.
@@ -107,7 +120,7 @@ Como usuario del dashboard, quiero que el tema oscuro sea legible y consistente 
 
 ### Key Entities
 
-- **Preferencia de tema**: Elección manual clara u oscura asociada al navegador del usuario; cuando no existe, se utiliza la preferencia del sistema.
+- **Preferencia de tema**: Elección manual clara u oscura asociada al navegador del usuario; cuando no existe, se utiliza tema claro.
 - **Página autenticada**: Dashboard, histórico, configuración, auditoría, usuarios y api-keys, sujetas a disponibilidad según rol.
 - **Superficie de interfaz**: Componente visible o interactivo que debe conservar legibilidad y operabilidad, como sidebar, tabla, gráfico, modal, formulario, alerta, toast o pop-up.
 - **Matriz de verificación responsive**: Evidencia de revisión por página, viewport y tema, con resultado y observaciones.
@@ -120,7 +133,7 @@ Como usuario del dashboard, quiero que el tema oscuro sea legible y consistente 
 - **SC-002**: En el 100% de las verificaciones móviles, el documento no presenta scroll horizontal; cualquier desplazamiento necesario de tabla o gráfico queda contenido en su superficie.
 - **SC-003**: El 100% de los componentes incluidos en el alcance (sidebar, modales, tablas, gráficos, formularios, toasts, alertas y pop-ups) mantiene texto y controles legibles en ambos temas, sin elementos visibles con estilo de tema opuesto.
 - **SC-004**: En una prueba de navegación que recorra las seis páginas autenticadas, la elección manual del tema se conserva en las seis páginas y después de recargar.
-- **SC-005**: Con una elección manual ausente, el tema mostrado coincide con la preferencia del sistema en el 100% de las páginas verificadas.
+- **SC-005**: Con una elección manual ausente, el tema mostrado es claro en el 100% de las páginas verificadas, independientemente de la preferencia del sistema.
 - **SC-006**: Al menos el 90% de los usuarios de prueba puede completar una tarea principal de cada página disponible para su rol en menos de 5 minutos y sin capacitación específica, manteniendo RNF14.
 
 ## Assumptions
@@ -129,7 +142,7 @@ Como usuario del dashboard, quiero que el tema oscuro sea legible y consistente 
 - El login queda fuera del selector de tema porque la solicitud se limita al dashboard web autenticado; no se rediseña ni se cambia su flujo.
 - Se reutilizarán la configuración de tema, los estilos compartidos, los botones existentes y los contenedores responsive antes de agregar mecanismos nuevos.
 - Los anchos representativos de aceptación son 360 px para celular y 1280 px para escritorio; también se revisarán puntos intermedios cuando una corrección lo requiera.
-- La preferencia manual del usuario tiene prioridad sobre cambios posteriores de la preferencia del sistema hasta que sea eliminada.
+- La preferencia manual del usuario tiene prioridad y se conserva hasta eliminarla; sin elección manual, el tema inicial es siempre claro.
 - No se modifican endpoints, datos, permisos, gráficos de negocio ni la estructura visual general; solo se corrigen inconsistencias necesarias para tema y adaptación responsive.
 
 ## Trazabilidad de requisitos

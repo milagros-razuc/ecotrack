@@ -113,16 +113,6 @@ function borrarPreferenciaTema() {
   borrarDatoLocalStorage(THEME_STORAGE_KEY);
 }
 
-function preferenciaSistemaOscura() {
-  try {
-    return typeof window.matchMedia === 'function'
-      && window.matchMedia('(prefers-color-scheme: dark)').matches;
-  } catch (error) {
-    console.warn('No se pudo consultar la preferencia del sistema:', error);
-    return false;
-  }
-}
-
 function aplicarTema(theme) {
   const isDark = theme === 'dark';
   document.documentElement.classList.toggle('dark', isDark);
@@ -151,7 +141,7 @@ function sincronizarControlesTema() {
 }
 
 const savedTheme = leerPreferenciaTema();
-aplicarTema(savedTheme || (preferenciaSistemaOscura() ? 'dark' : 'light'));
+aplicarTema(savedTheme || 'light');
 
 function toggleDark() {
   const nextTheme = temaActual() === 'dark' ? 'light' : 'dark';

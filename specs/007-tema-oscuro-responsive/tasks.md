@@ -37,13 +37,13 @@ description: "Task list for implementing the dark theme and responsive dashboard
 
 ## Phase 3: User Story 1 - Alternar y recordar el tema (Priority: P1) 🎯 MVP
 
-**Goal**: Aplicar el tema efectivo desde la preferencia manual o del sistema, alternarlo sin recargar y mantener sincronizados todos los controles.
+**Goal**: Aplicar el tema claro por defecto o la preferencia manual guardada, alternarlo sin recargar y mantener sincronizados todos los controles.
 
-**Independent Test**: Sin `ecotrack_dark`, comprobar claro/oscuro según `prefers-color-scheme`; alternar el control, navegar por las seis páginas y recargar; luego bloquear el almacenamiento y comprobar que el cambio sigue funcionando durante la sesión sin excepciones no controladas.
+**Independent Test**: Sin `ecotrack_dark`, comprobar tema claro con el sistema configurado tanto en claro como en oscuro; alternar el control, navegar por las seis páginas y recargar; luego bloquear el almacenamiento y comprobar que el cambio sigue funcionando durante la sesión sin excepciones no controladas.
 
 ### Implementation for User Story 1
 
-- [X] T007 [US1] Implementar en `frontend/shared/app.js` la resolución inicial del tema priorizando `ecotrack_dark`, usando `window.matchMedia('(prefers-color-scheme: dark)')` cuando no haya preferencia manual y usando claro como fallback
+- [X] T007 [US1] Implementar en `frontend/shared/app.js` la resolución inicial del tema priorizando `ecotrack_dark` y usando claro fijo cuando no haya preferencia manual
 - [X] T008 [US1] Actualizar `toggleDark()` en `frontend/shared/app.js` para persistir con el helper protegido, aplicar o quitar `.dark`, emitir el cambio para gráficos y sincronizar todos los controles sin recargar
 - [X] T009 [US1] Sincronizar estado, icono, `title` y `aria-label` de todos los botones `#btn-dark` desde `frontend/shared/app.js`, incluyendo los botones presentes antes y después de `initShell()` en `frontend/index.html`, `frontend/historico.html`, `frontend/configuracion.html`, `frontend/auditor.html`, `frontend/usuarios.html` y `frontend/api-keys.html`
 - [X] T010 [US1] Ajustar los documentos raíz de `frontend/index.html`, `frontend/historico.html`, `frontend/configuracion.html`, `frontend/auditor.html`, `frontend/usuarios.html` y `frontend/api-keys.html` para evitar un estado inicial contradictorio con el tema resuelto por `app.js`, sin alterar autenticación ni navegación
@@ -98,6 +98,7 @@ description: "Task list for implementing the dark theme and responsive dashboard
 - [X] T024 Verificar en las seis páginas que no se modificaron autenticación, autorización, aislamiento por cliente, navegación por rol ni contratos backend, revisando `frontend/shared/app.js`, `frontend/shared/sidebar.html` y las vistas afectadas
 - [X] T025 [P] Ejecutar linting, validaciones disponibles y comprobaciones de sintaxis sobre los archivos HTML/CSS/JS modificados, y corregir solo errores introducidos por esta feature
 - [X] T026 Revisar el diff final contra `specs/007-tema-oscuro-responsive/spec.md`, `specs/007-tema-oscuro-responsive/contracts/ui-theme-responsive.md` y `specs/007-tema-oscuro-responsive/data-model.md`, confirmando que no se agregaron librerías nuevas
+- [X] T027 Actualizar el contrato, la especificación y el quickstart para fijar el tema claro como fallback, y quitar de `frontend/shared/app.js` la consulta a `prefers-color-scheme`
 
 ---
 
@@ -128,7 +129,7 @@ description: "Task list for implementing the dark theme and responsive dashboard
 ## Parallel Example: User Story 1
 
 ```text
-Task T007: Resolver tema inicial y preferencia del sistema en frontend/shared/app.js
+Task T007: Resolver tema inicial manual o claro en frontend/shared/app.js
 Task T009: Sincronizar controles de tema en frontend/shared/app.js y las seis páginas
 ```
 
@@ -157,7 +158,7 @@ Task T020: Tema de auditoría, usuarios y api-keys en sus archivos HTML
 
 1. Completar Setup y Foundational.
 2. Implementar US1 en `shared/app.js` y las seis entradas HTML.
-3. Validar preferencia del sistema, persistencia, navegación y fallback con almacenamiento bloqueado.
+3. Validar tema claro por defecto, persistencia, navegación y fallback con almacenamiento bloqueado.
 4. Entregar el toggle funcional antes de abordar correcciones responsive y cobertura visual completa.
 
 ### Incremental Delivery

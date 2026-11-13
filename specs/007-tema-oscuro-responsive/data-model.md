@@ -7,12 +7,12 @@ Representa la elección visual del usuario en el navegador.
 | Campo | Tipo lógico | Regla |
 |---|---|---|
 | `mode` | `light` o `dark` | Único valor persistible aceptado |
-| `source` | `manual` o `system` | `manual` cuando existe elección guardada; `system` como fallback |
+| `source` | `manual` o `default` | `manual` cuando existe elección guardada; `default` para tema claro |
 | `storageAvailable` | booleano | Si es falso, la sesión continúa sin persistencia |
 
 No se agrega entidad de backend ni se envía este dato a la API. La preferencia
-manual tiene prioridad sobre `prefers-color-scheme`; sin preferencia manual se
-recalcula desde el sistema al iniciar una página.
+manual se conserva al iniciar una página. Sin preferencia manual se aplica tema
+claro; no se consulta `prefers-color-scheme`.
 
 ## Superficie de interfaz
 

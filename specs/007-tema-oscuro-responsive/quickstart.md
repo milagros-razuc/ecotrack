@@ -9,10 +9,12 @@
 
 ## Validación de tema
 
-1. Eliminar `ecotrack_dark` desde Application/Storage y fijar la preferencia del
-   sistema en claro; abrir cada página autenticada y comprobar tema claro.
-2. Repetir con preferencia del sistema en oscuro; comprobar tema oscuro sin elección
-   manual.
+1. Eliminar `ecotrack_dark` desde Application/Storage; abrir cada página autenticada
+   con el sistema configurado en claro y luego en oscuro, y comprobar tema claro en
+   ambos casos.
+2. Presionar el control de tema para activar oscuro; comprobar que `ecotrack_dark`
+   queda en `dark`, navegar y recargar. Presionarlo otra vez para volver a claro y
+   comprobar que queda en `light`.
 3. Alternar el control en dashboard, navegar por las seis páginas y recargar;
    verificar que el tema manual se conserva.
 4. Inspeccionar sidebar, tarjetas, tablas, gráficos, formularios, modales, toasts,
@@ -64,5 +66,6 @@ estático local. Las 24 combinaciones pasaron sin overflow horizontal del docume
 | API keys | PASS | PASS | PASS | PASS |
 
 Las tablas conservaron el desplazamiento dentro de sus contenedores. El tema del
-sistema se aplicó sin preferencia guardada; al alternar se guardó `light` o `dark`,
-se actualizó el control accesible y la elección persistió al navegar a otra página.
+tema claro se aplicó sin preferencia guardada, independientemente de la preferencia
+del sistema; al alternar se guardó `light` o `dark`, se actualizó el control
+accesible y la elección persistió al navegar a otra página.

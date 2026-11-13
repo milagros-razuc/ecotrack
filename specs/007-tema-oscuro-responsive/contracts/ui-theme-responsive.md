@@ -6,8 +6,8 @@
   oscuro o ausencia de `dark` para claro.
 - La preferencia manual se guarda con la clave existente `ecotrack_dark` solo si
   el navegador permite usar almacenamiento local.
-- Sin preferencia manual, el tema efectivo coincide con
-  `prefers-color-scheme: dark`; si esa consulta no está disponible, se usa claro.
+- Sin preferencia manual válida, el tema efectivo es claro, sin consultar
+  `prefers-color-scheme`.
 - El control de tema debe estar sincronizado después de cargar el shell y exponer
   un nombre/etiqueta accesible que describa la acción.
 - Cambiar el tema no navega, no recarga y no cambia autenticación, rol ni datos.
