@@ -21,8 +21,9 @@ sesiones.
 Socket.IO, HTML/Tailwind/JavaScript
 
 **Storage**: PostgreSQL 15. La migración nueva es
-`backend/migrations/021_password_reset.sql`; `token_version` ya existe y no se
-modifica.
+`backend/migrations/021_password_reset.sql`, que agrega únicamente
+`password_temporal_expira`; `must_change_password` y `token_version` ya existen
+y se reutilizan.
 
 **Testing**: `node --test`; integración con `TEST_DATABASE_URL` mediante el runner
 de `backend/scripts/run-migrations.js`
@@ -60,8 +61,9 @@ auditoría; respuesta `Cache-Control: no-store`; aislamiento por JWT; no email;
 
 `backend/scripts/run-migrations.js` descubre archivos `NNN_*.sql` desde
 `backend/migrations`, aplica desde la migración 016 y registra cada versión en
-`schema_migrations`. La migración 021 debe usar `BEGIN;`, `COMMIT;` y operaciones
-idempotentes (`ADD COLUMN IF NOT EXISTS`). `backend/src/test/platform-panel-schema.test.js`
+`schema_migrations`. La migración 021 debe usar `BEGIN;`, `COMMIT;` y agregar
+idempotentemente solo `password_temporal_expira`; `must_change_password` y
+`token_version` ya forman parte del esquema existente. `backend/src/test/platform-panel-schema.test.js`
 debe incluir 021 en la lista, orden y comprobación de repetición.
 
 ## Endpoint mounting design

@@ -16,8 +16,10 @@ const plataformaRouter = require('./routes/plataforma');
 const publicRouter = require('./routes/public.routes');
 const errorHandler = require('./middleware/errorHandler');
 const verificarToken = require('./middleware/auth');
+const verificarRol = require('./middleware/rol');
 const extraerCliente = require('./middleware/cliente');
 const requirePlatformAdmin = require('./middleware/platformAdmin');
+const resetPasswordHandler = require('./routes/reset-password');
 
 const { apiPublicaPorIp } = require('./middleware/rateLimiter');
 const { obtenerOrigenesPermitidos } = require('./config/cors');
@@ -48,6 +50,12 @@ app.use('/api/dispositivos', verificarToken, extraerCliente, dispositivosRouter)
 app.use('/api/lecturas', verificarToken, extraerCliente, lecturasRouter);
 app.use('/api/alertas', verificarToken, extraerCliente, alertasRouter);
 app.use('/api/umbrales', verificarToken, extraerCliente, umbralesRouter);
+app.post(
+  '/api/usuarios/:id/reset-password',
+  verificarToken,
+  verificarRol('admin', 'platform_admin'),
+  resetPasswordHandler,
+);
 app.use('/api/usuarios', verificarToken, extraerCliente, usuariosRouter);
 app.use('/api/auditoria', verificarToken, extraerCliente, auditoriaRouter);
 

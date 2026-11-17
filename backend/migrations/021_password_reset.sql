@@ -1,7 +1,6 @@
 BEGIN;
 
 ALTER TABLE usuarios
-  ADD COLUMN IF NOT EXISTS debe_cambiar_password BOOLEAN NOT NULL DEFAULT false,
   ADD COLUMN IF NOT EXISTS password_temporal_expira TIMESTAMPTZ NULL;
 
 COMMIT;

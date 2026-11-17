@@ -11,6 +11,7 @@ const {
 const {
   TEMPORARY_PASSWORD_ALPHABET,
   generarPasswordTemporal,
+  puedeResetear,
 } = require('../services/password-reset.service');
 
 const root = path.resolve(__dirname, '../../..');
@@ -54,5 +55,14 @@ test('la migración y el servicio no recrean token_version', () => {
   const migration = fs.readFileSync(path.join(root, 'backend/migrations/021_password_reset.sql'), 'utf8');
   const service = fs.readFileSync(path.join(root, 'backend/src/services/password-reset.service.js'), 'utf8');
   assert.doesNotMatch(migration, /token_version/i);
-  assert.doesNotMatch(service, /token_version/i);
+  assert.match(service, /token_version\s*=\s*token_version\s*\+\s*1/i);
+});
+
+test('puedeResetear permite a un admin resetear comun del mismo cliente', () => {
+  const admin = { id: 1, rol: 'admin', cliente_id: 10 };
+  assert.equal(puedeResetear(admin, { id: 2, rol: 'comun', cliente_id: 10 }), true);
+  assert.equal(puedeResetear(admin, { id: 3, rol: 'comun', cliente_id: 11 }), false);
+  assert.equal(puedeResetear(admin, { id: 4, rol: 'admin', cliente_id: 10 }), false);
+  assert.equal(puedeResetear(admin, { id: 1, rol: 'admin', cliente_id: 10 }), false);
+  assert.equal(puedeResetear(admin, { id: 5, rol: 'platform_admin', cliente_id: 10 }), false);
 });

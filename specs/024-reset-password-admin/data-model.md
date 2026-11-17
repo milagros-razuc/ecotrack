@@ -6,9 +6,10 @@ La migración `backend/migrations/021_password_reset.sql` agrega:
 
 | Campo | Tipo/estado | Reglas |
 |---|---|---|
-| `debe_cambiar_password` | `BOOLEAN NOT NULL DEFAULT false` | `true` mientras una contraseña temporal requiere cambio. |
 | `password_temporal_expira` | `TIMESTAMPTZ NULL` | `NULL` sin emisión pendiente; login temporal rechaza después de la fecha. |
 
+`must_change_password` ya existe en `usuarios` y es el único indicador de que la
+contraseña temporal requiere cambio; login, middleware y Socket.IO lo consumen.
 `token_version` ya existe en `usuarios` y se incrementa para invalidar JWT y
 sesiones previas; no se vuelve a crear ni migrar. `password_hash` contiene solo
 bcrypt. El rol real admite `comun`, `admin` y `platform_admin`, según la migración
@@ -47,7 +48,7 @@ sanitizada.
 
 ## Transiciones
 
-1. Emisión: bcrypt temporal + `debe_cambiar_password=true` +
+1. Emisión: bcrypt temporal + `must_change_password=true` +
    `password_temporal_expira=now()+24h` + `token_version+1` + auditoría.
 2. Reemisión: sustituye hash y expiración; la emisión anterior queda inválida.
 3. Cambio obligatorio: limpia marca/expiración y vuelve a incrementar `token_version`.

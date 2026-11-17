@@ -16,9 +16,9 @@
 ### Migración y runner
 
 - **Decision**: crear `backend/migrations/021_password_reset.sql` con `BEGIN;`,
-  `COMMIT;`, `ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS` para
-  `debe_cambiar_password BOOLEAN NOT NULL DEFAULT false` y
-  `password_temporal_expira TIMESTAMPTZ NULL`.
+  `COMMIT;`, `ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS` únicamente para
+  `password_temporal_expira TIMESTAMPTZ NULL`. `must_change_password` ya existe
+  y es la única marca de cambio obligatorio consumida por autenticación.
 - **Rationale**: `backend/scripts/run-migrations.js` descubre y aplica las
   migraciones numeradas desde 016, registra versiones en `schema_migrations` y las
   pruebas de `platform-panel-schema.test.js` verifican orden y repetibilidad.

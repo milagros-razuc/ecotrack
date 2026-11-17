@@ -96,8 +96,8 @@ test('las migraciones nuevas declaran operaciones repetibles', () => {
   assert.match(clientAdminMigration, /CREATE UNIQUE INDEX IF NOT EXISTS/i);
   assert.match(clientAdminMigration, /GROUP BY lower\s*\(/i);
   assert.match(passwordResetMigration, /ADD COLUMN IF NOT EXISTS/i);
-  assert.match(passwordResetMigration, /debe_cambiar_password\s+BOOLEAN\s+NOT NULL\s+DEFAULT\s+false/i);
   assert.match(passwordResetMigration, /password_temporal_expira\s+TIMESTAMPTZ\s+NULL/i);
+  assert.doesNotMatch(passwordResetMigration, /debe_cambiar_password/i);
   assert.doesNotMatch(passwordResetMigration, /token_version/i);
 });
 
@@ -194,12 +194,12 @@ test('el helper aplica 016 a 021 sobre una base nueva inicializada por migrate.j
         SELECT column_name, is_nullable, column_default
         FROM information_schema.columns
         WHERE table_name = 'usuarios'
-          AND column_name IN ('debe_cambiar_password', 'password_temporal_expira')
+          AND column_name IN ('must_change_password', 'password_temporal_expira')
         ORDER BY column_name
       `);
       assert.deepEqual(passwordColumns, [
         {
-          column_name: 'debe_cambiar_password',
+          column_name: 'must_change_password',
           is_nullable: 'NO',
           column_default: 'false',
         },

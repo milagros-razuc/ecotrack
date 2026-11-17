@@ -79,6 +79,39 @@
     </span>
   </div>
 
+  <div
+    id="modal-reset-password"
+    class="hidden fixed inset-0 z-40 bg-black/50 items-center justify-center p-4"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="modal-reset-title"
+  >
+    <div class="w-full max-w-md bg-surface rounded-xl p-6 shadow-2xl">
+      <div class="flex items-start justify-between gap-4">
+        <div>
+          <h2 id="modal-reset-title" class="text-headline-md font-bold text-on-surface">
+            Contraseña temporal
+          </h2>
+          <p class="mt-2 text-body-sm text-on-surface-variant">
+            Entregá esta contraseña al usuario. No volverá a mostrarse.
+          </p>
+        </div>
+        <button type="button" class="p-1 rounded-full hover:bg-surface-container-high" onclick="cerrarModalReset()" aria-label="Cerrar">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+      <div class="mt-5 flex items-center gap-2">
+        <code id="password-temporal" class="flex-1 rounded-lg bg-surface-container-high px-3 py-3 font-mono text-lg break-all"></code>
+        <button id="btn-copiar-password" type="button" class="px-3 py-2 rounded-lg bg-primary text-on-primary font-bold" onclick="copiarPasswordTemporal()">
+          Copiar
+        </button>
+      </div>
+      <button type="button" class="mt-6 w-full rounded-lg border border-outline-variant px-4 py-2.5 font-bold" onclick="cerrarModalReset()">
+        Listo
+      </button>
+    </div>
+  </div>
+
 
   <!-- =========================================================
        Sidebar
@@ -554,6 +587,7 @@
     let usuarios = [];
     let editandoId = null;
     let toastTimeout = null;
+    let passwordTemporalVisible = null;
 
 
     // ─────────────────────────────────────────────────────────
@@ -922,12 +956,73 @@
                 </span>
               </button>
 
+              ${usuario.rol === 'comun' && !esUsuarioActual ? `
+                <button
+                  onclick="resetearUsuario(${usuario.id}, '${escaparAtributo(usuario.username)}')"
+                  class="p-2 rounded-lg text-secondary hover:bg-secondary-container transition-colors"
+                  title="Resetear contraseña"
+                  aria-label="Resetear contraseña"
+                >
+                  <span class="material-symbols-outlined text-[19px]">key</span>
+                </button>
+              ` : ''}
+
             </div>
 
           </td>
 
         </tr>
       `;
+    }
+
+    async function resetearUsuario(id, usernameObjetivo) {
+      if (!confirm(`¿Resetear la contraseña de ${usernameObjetivo}?\n\nSe cerrarán sus sesiones activas.`)) {
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API}/api/usuarios/${id}/reset-password`, {
+          method: 'POST',
+          headers: { Authorization: token },
+        });
+        if (response.status === 401) return manejarNoAutorizado();
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          mostrarToast(data.error || 'No se pudo resetear la contraseña', true);
+          return;
+        }
+        mostrarModalReset(data.password_temporal);
+      } catch (error) {
+        console.error('Error reseteando contraseña:', error);
+        mostrarToast('No se pudo conectar con el servidor', true);
+      }
+    }
+
+    function mostrarModalReset(password) {
+      passwordTemporalVisible = password;
+      document.getElementById('password-temporal').textContent = password;
+      const modal = document.getElementById('modal-reset-password');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function cerrarModalReset() {
+      passwordTemporalVisible = null;
+      document.getElementById('password-temporal').textContent = '';
+      const modal = document.getElementById('modal-reset-password');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    async function copiarPasswordTemporal() {
+      if (!passwordTemporalVisible) return;
+      try {
+        await navigator.clipboard.writeText(passwordTemporalVisible);
+        mostrarToast('Contraseña copiada');
+      } catch (error) {
+        console.error('No se pudo copiar la contraseña temporal:', error);
+        mostrarToast('No se pudo copiar la contraseña', true);
+      }
     }
 
 

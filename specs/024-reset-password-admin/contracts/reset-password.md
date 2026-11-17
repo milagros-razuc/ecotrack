@@ -63,3 +63,6 @@ objetivo. El detalle JSON registra IP y resultado, nunca la contraseña.
 Una temporal válida devuelve `mustChangePassword: true`; una temporal vencida o
 invalidada devuelve el error genérico de credenciales. Mientras esté pendiente,
 solo `GET /api/auth/me` y `POST /api/auth/change-password` quedan permitidos.
+
+El estado pendiente reutiliza `usuarios.must_change_password`, que ya es la
+fuente consumida por login, middleware de autenticación y handshake de Socket.IO.
