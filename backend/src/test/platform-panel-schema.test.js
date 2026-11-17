@@ -81,6 +81,7 @@ test('las migraciones nuevas declaran operaciones repetibles', () => {
   const auditMigration = fs.readFileSync(path.join(migrationsDir, '018_audit_actor.sql'), 'utf8');
   const indexMigration = fs.readFileSync(path.join(migrationsDir, '019_platform_reading_index.sql'), 'utf8');
   const clientAdminMigration = fs.readFileSync(path.join(migrationsDir, '020_client_admin.sql'), 'utf8');
+  const passwordResetMigration = fs.readFileSync(path.join(migrationsDir, '021_password_reset.sql'), 'utf8');
   assert.match(roleMigration, /DROP CONSTRAINT IF EXISTS/i);
   assert.match(platformClientMigration, /ADD COLUMN IF NOT EXISTS/i);
   assert.match(platformClientMigration, /CREATE UNIQUE INDEX IF NOT EXISTS/i);
@@ -94,6 +95,10 @@ test('las migraciones nuevas declaran operaciones repetibles', () => {
   assert.match(clientAdminMigration, /ADD COLUMN IF NOT EXISTS/i);
   assert.match(clientAdminMigration, /CREATE UNIQUE INDEX IF NOT EXISTS/i);
   assert.match(clientAdminMigration, /GROUP BY lower\s*\(/i);
+  assert.match(passwordResetMigration, /ADD COLUMN IF NOT EXISTS/i);
+  assert.match(passwordResetMigration, /debe_cambiar_password\s+BOOLEAN\s+NOT NULL\s+DEFAULT\s+false/i);
+  assert.match(passwordResetMigration, /password_temporal_expira\s+TIMESTAMPTZ\s+NULL/i);
+  assert.doesNotMatch(passwordResetMigration, /token_version/i);
 });
 
 test('la migración 019 es idempotente y reutiliza el índice existente', async () => {
@@ -119,15 +124,16 @@ test('la migración 019 es idempotente y reutiliza el índice existente', async 
   }
 });
 
-test('las migraciones 016 a 020 siguen a la lista real y no editan 014 o 015', () => {
+test('las migraciones 016 a 021 siguen a la lista real y no editan 014 o 015', () => {
   const names = migrationNames();
   assert.equal(names.indexOf('016_platform_admin_role.sql'), names.indexOf('015_firmware_version.sql') + 1);
-  assert.deepEqual(names.slice(-5), [
+  assert.deepEqual(names.slice(-6), [
     '016_platform_admin_role.sql',
     '017_platform_client.sql',
     '018_audit_actor.sql',
     '019_platform_reading_index.sql',
     '020_client_admin.sql',
+    '021_password_reset.sql',
   ]);
   for (const migration of ['014_factory_devices.sql', '015_firmware_version.sql']) {
     const committed = execFileSync('git', ['show', `HEAD:backend/migrations/${migration}`], {
@@ -139,7 +145,7 @@ test('las migraciones 016 a 020 siguen a la lista real y no editan 014 o 015', (
   }
 });
 
-test('el helper aplica 016 a 020 sobre una base nueva inicializada por migrate.js y es repetible', async () => {
+test('el helper aplica 016 a 021 sobre una base nueva inicializada por migrate.js y es repetible', async () => {
   await withTemporaryMigrationDatabase(async ({ connectionString, runMigrations }) => {
     const pool = new Pool({ connectionString });
     try {
@@ -174,7 +180,7 @@ test('el helper aplica 016 a 020 sobre una base nueva inicializada por migrate.j
 
       const { rows: applied } = await migratedPool.query(
         'SELECT version FROM schema_migrations WHERE version = ANY($1::text[]) ORDER BY version',
-        [['016_platform_admin_role', '017_platform_client', '018_audit_actor', '019_platform_reading_index', '020_client_admin']],
+        [['016_platform_admin_role', '017_platform_client', '018_audit_actor', '019_platform_reading_index', '020_client_admin', '021_password_reset']],
       );
       assert.deepEqual(applied.map((row) => row.version), [
         '016_platform_admin_role',
@@ -182,6 +188,26 @@ test('el helper aplica 016 a 020 sobre una base nueva inicializada por migrate.j
         '018_audit_actor',
         '019_platform_reading_index',
         '020_client_admin',
+        '021_password_reset',
+      ]);
+      const { rows: passwordColumns } = await migratedPool.query(`
+        SELECT column_name, is_nullable, column_default
+        FROM information_schema.columns
+        WHERE table_name = 'usuarios'
+          AND column_name IN ('debe_cambiar_password', 'password_temporal_expira')
+        ORDER BY column_name
+      `);
+      assert.deepEqual(passwordColumns, [
+        {
+          column_name: 'debe_cambiar_password',
+          is_nullable: 'NO',
+          column_default: 'false',
+        },
+        {
+          column_name: 'password_temporal_expira',
+          is_nullable: 'YES',
+          column_default: null,
+        },
       ]);
     } finally {
       await migratedPool.end();
