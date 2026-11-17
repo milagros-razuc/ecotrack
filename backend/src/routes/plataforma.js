@@ -73,6 +73,8 @@ function handleErrors(handler) {
 
 router.get('/resumen', readLimiter, handleErrors(() => plataformaService.resumen()));
 router.get('/clientes', readLimiter, handleErrors(() => plataformaService.listarClientes()));
+router.get('/clientes/:id/usuarios', readLimiter, handleErrors((req) =>
+  plataformaService.listarUsuariosCliente(req.params.id)));
 router.get('/dispositivos', readLimiter, handleErrors((req) =>
   plataformaService.listarDispositivos(req.query, lastReadingWindowDays)));
 // Todos los intentos cuentan, incluidos 400 y 409, para frenar abuso y fuerza bruta de nombres.

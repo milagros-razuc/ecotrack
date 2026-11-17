@@ -329,6 +329,18 @@ async function listarClientes() {
   return rows;
 }
 
+async function listarUsuariosCliente(clienteId) {
+  const { rows } = await pool.query(
+    `SELECT u.id, u.username, u.nombre, u.rol, u.creado_en
+     FROM usuarios u
+     JOIN clientes c ON c.id = u.cliente_id
+     WHERE u.cliente_id = $1 AND c.es_plataforma = false
+     ORDER BY u.creado_en DESC, u.id DESC`,
+    [clienteId],
+  );
+  return rows;
+}
+
 async function resumen() {
   const [clientsResult, statesResult, firmwareResult] = await Promise.all([
     pool.query('SELECT COUNT(*)::int AS total FROM clientes WHERE es_plataforma = false'),
@@ -364,6 +376,7 @@ async function resumen() {
 module.exports = {
   listarDispositivos,
   listarClientes,
+  listarUsuariosCliente,
   resumen,
   parsePage,
   DEVICE_FIELDS,

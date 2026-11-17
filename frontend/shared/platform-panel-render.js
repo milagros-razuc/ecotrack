@@ -23,5 +23,16 @@
     return `<div class="bg-surface rounded-lg p-4"><div class="text-on-surface-variant">${escapeHtml(estado)}</div><strong class="text-headline-md">${escapeHtml(total)}</strong></div>`;
   }
 
-  return { renderDeviceRow, renderSummaryItem };
+  function puedeResetearUsuario(usuario, actorUsername) {
+    return usuario.username !== actorUsername && (usuario.rol === 'admin' || usuario.rol === 'comun');
+  }
+
+  function renderUserRow(usuario, actorUsername) {
+    const reset = puedeResetearUsuario(usuario, actorUsername)
+      ? `<button type="button" data-reset-user-id="${escapeHtml(usuario.id)}" class="reset-user border rounded px-3 py-1 text-primary">Resetear contraseña</button>`
+      : '';
+    return `<tr class="border-b"><td class="p-3">${escapeHtml(usuario.username)}</td><td class="p-3">${escapeHtml(usuario.nombre || '—')}</td><td class="p-3">${escapeHtml(usuario.rol)}</td><td class="p-3">${reset}</td></tr>`;
+  }
+
+  return { renderDeviceRow, renderSummaryItem, puedeResetearUsuario, renderUserRow };
 });

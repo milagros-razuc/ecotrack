@@ -66,3 +66,12 @@ test('puedeResetear permite a un admin resetear comun del mismo cliente', () => 
   assert.equal(puedeResetear(admin, { id: 1, rol: 'admin', cliente_id: 10 }), false);
   assert.equal(puedeResetear(admin, { id: 5, rol: 'platform_admin', cliente_id: 10 }), false);
 });
+
+test('puedeResetear permite a platform_admin resetear admin o comun de cualquier cliente', () => {
+  const platformAdmin = { id: 1, rol: 'platform_admin', cliente_id: 100 };
+  assert.equal(puedeResetear(platformAdmin, { id: 2, rol: 'admin', cliente_id: 10 }), true);
+  assert.equal(puedeResetear(platformAdmin, { id: 3, rol: 'comun', cliente_id: 11 }), true);
+  assert.equal(puedeResetear(platformAdmin, { id: 4, rol: 'platform_admin', cliente_id: 12 }), false);
+  assert.equal(puedeResetear(platformAdmin, { id: 1, rol: 'platform_admin', cliente_id: 100 }), false);
+  assert.equal(puedeResetear(platformAdmin, { id: 5, rol: 'platform_admin', cliente_id: 100 }), false);
+});

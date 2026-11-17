@@ -34,5 +34,14 @@ test('plataforma define los encabezados de las siete columnas', () => {
   for (const header of ['Código', 'Cliente', 'Estado', 'Firmware', 'Conexión', 'Última lectura', 'Última conexión']) {
     assert.match(page, new RegExp(`<th[^>]*>${header}</th>`));
   }
-  assert.doesNotMatch(page, />Acción</);
+});
+
+test('el panel muestra reset solo para admin y comun, nunca para platform_admin ni el actor', () => {
+  const { puedeResetearUsuario, renderUserRow } = require('./platform-panel-render');
+  assert.equal(puedeResetearUsuario({ id: 2, username: 'admin', rol: 'admin' }, 'platform'), true);
+  assert.equal(puedeResetearUsuario({ id: 3, username: 'comun', rol: 'comun' }, 'platform'), true);
+  assert.equal(puedeResetearUsuario({ id: 4, username: 'platform-target', rol: 'platform_admin' }, 'platform'), false);
+  assert.equal(puedeResetearUsuario({ id: 1, username: 'platform', rol: 'platform_admin' }, 'platform'), false);
+  assert.match(renderUserRow({ id: 2, username: 'admin', rol: 'admin' }, 'platform'), /Resetear contraseña/);
+  assert.doesNotMatch(renderUserRow({ id: 4, username: 'platform-target', rol: 'platform_admin' }, 'platform'), /Resetear contraseña/);
 });

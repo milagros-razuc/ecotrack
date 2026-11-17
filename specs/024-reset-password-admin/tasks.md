@@ -27,7 +27,7 @@ description: "Task list for admin password reset"
 ## Phase 2: Foundational
 
 - [x] T004 Crear `backend/migrations/021_password_reset.sql` con `BEGIN;` y `COMMIT;`, agregando idempotentemente solo `password_temporal_expira TIMESTAMPTZ NULL` a `usuarios` mediante `ADD COLUMN IF NOT EXISTS`; reutilizar `must_change_password` y `token_version` existentes
-- [ ] T005 Actualizar `backend/src/test/platform-panel-schema.test.js` para incluir `021_password_reset.sql` en la lista ordenada posterior a 020, verificar su contenido idempotente y comprobar que el runner la aplica dos veces sin error
+- [x] T005 Actualizar `backend/src/test/platform-panel-schema.test.js` para incluir `021_password_reset.sql` en la lista ordenada posterior a 020, verificar su contenido idempotente y comprobar que el runner la aplica dos veces sin error
 - [x] T006 [P] Agregar en `backend/src/test/password-reset.service.test.js` una prueba de que `token_version` ya existe y no se recrea en la migración ni en el servicio
 - [x] T007 [P] Verificar en `backend/src/app.js` que `trust proxy` permanece configurado para un salto detrás de Caddy y agregar una prueba que confirme que la IP de `req.ip` usada por el reset es la real reenviada por Caddy, sin modificar los rate limiters existentes
 
@@ -48,7 +48,7 @@ completar el cambio y comprobar que no queda texto plano.
 - [x] T013 [US1] Desconectar los sockets del objetivo únicamente después del commit mediante `backend/src/realtime/socketRegistry.js`, preservando el rollback si falla la actualización o la auditoría
 - [x] T014 [US1] Montar únicamente la ruta exacta `POST /api/usuarios/:id/reset-password` en `backend/src/app.js`, antes de `app.use('/api/usuarios', ...)`, con `verificarToken` y `verificarRol('admin', 'platform_admin')`; no modificar `backend/src/middleware/rol.js`, `backend/src/middleware/cliente.js` ni ampliar `backend/src/routes/usuarios.js`
 - [x] T015 [US1] Implementar el handler de la ruta en `backend/src/routes/usuarios.js` o en un módulo de ruta dedicado: devolver 404 genérico para objetivo inexistente o tenant ajeno de un `admin`, 403 para matriz no permitida y `500` sanitizado para rollback, siempre con `Cache-Control: no-store`
-- [ ] T016 [US1] Añadir pruebas de integración de reset exitoso, aislamiento, auto-reset, `admin` sobre `admin`, usuario inactivo, auditoría bajo el cliente objetivo y ausencia de efectos parciales en `backend/src/test/password-reset.integration.test.js`
+- [x] T016 [US1] Añadir pruebas de integración de reset exitoso, aislamiento, auto-reset, `admin` sobre `admin`, usuario inexistente/inactivo, auditoría bajo el cliente objetivo y ausencia de efectos parciales en `backend/src/test/password-reset.integration.test.js`
 - [x] T017 [US1] Integrar en `frontend/usuarios.html` el botón "Resetear contraseña", confirmación explícita, modal de entrega única, copia y eliminación del valor al cerrar; un `admin` solo lo ve sobre usuarios `comun` elegibles
 
 ## Phase 4: User Story 2 - Reset de plataforma y aislamiento (P1)
@@ -60,13 +60,13 @@ de cualquier cliente sin ampliar sus permisos sobre el router tenant general.
 solicitudes HTTP como `admin` y `platform_admin`, verificando códigos, aislamiento
 y auditoría bajo el cliente objetivo.
 
-- [ ] T018 [P] [US2] Completar la tabla de casos de `puedeResetear` para `platform_admin` -> `admin`/`comun` de cualquier cliente, rechazo de `platform_admin`, mismo rol, rol superior y auto-reset en `backend/src/test/password-reset.service.test.js`
-- [ ] T019 [P] [US2] Añadir fixtures reales de `platform_admin` y pruebas HTTP de 404 genérico para objetivo inexistente o de otro cliente cuando el actor es `admin` en `backend/src/test/password-reset.integration.test.js`
-- [ ] T020 [US2] Verificar en `backend/src/app.js` y `backend/src/routes/usuarios.js` que `platform_admin` solo alcanza la ruta de reset, mientras GET/POST/PATCH/DELETE de usuarios siguen bloqueadas por `backend/src/middleware/cliente.js` y el rol existente
-- [ ] T021 [US2] Exponer o adaptar el listado de usuarios por cliente para el panel de plataforma en `backend/src/routes/plataforma.js` y `backend/src/services/plataforma.service.js`, sin aceptar `cliente_id` como fuente de autorización del reset
-- [ ] T022 [US2] Integrar en `frontend/plataforma.html` y `frontend/shared/platform-panel-render.js` la solapa Clientes con selección de cliente, listado de usuarios y acción de reset para `platform_admin` sobre `admin` y `comun`, ocultándola para `platform_admin` y auto-reset
-- [ ] T023 [US2] Crear `backend/src/test/platform-panel.test.js` para probar renderizado/contrato de visibilidad por rol, cliente seleccionado y objetivos no elegibles, ya que `frontend/shared/platform-panel.test.js` no existe y los tests del proyecto se ejecutan desde `backend/src/test/`
-- [ ] T024 [US2] Verificar que la auditoría de éxitos y rechazos por permisos usa `cliente_id` del objetivo, `actor_tipo`, IP real y ningún secreto en `backend/src/test/password-reset.integration.test.js`
+- [x] T018 [P] [US2] Completar la tabla de casos de `puedeResetear` para `platform_admin` -> `admin`/`comun` de cualquier cliente, rechazo de `platform_admin`, mismo rol, rol superior y auto-reset en `backend/src/test/password-reset.service.test.js`
+- [x] T019 [P] [US2] Añadir fixtures reales de `platform_admin` y pruebas HTTP de 404 genérico para objetivo inexistente o de otro cliente cuando el actor es `admin` en `backend/src/test/password-reset.integration.test.js`
+- [x] T020 [US2] Verificar en `backend/src/app.js` y `backend/src/routes/usuarios.js` que `platform_admin` solo alcanza la ruta de reset, mientras GET/POST/PATCH/DELETE de usuarios siguen bloqueadas por `backend/src/middleware/cliente.js` y el rol existente
+- [x] T021 [US2] Exponer o adaptar el listado de usuarios por cliente para el panel de plataforma en `backend/src/routes/plataforma.js` y `backend/src/services/plataforma.service.js`, sin aceptar `cliente_id` como fuente de autorización del reset
+- [x] T022 [US2] Integrar en `frontend/plataforma.html` y `frontend/shared/platform-panel-render.js` la solapa Clientes con selección de cliente, listado de usuarios y acción de reset para `platform_admin` sobre `admin` y `comun`, ocultándola para `platform_admin` y auto-reset
+- [x] T023 [US2] Añadir pruebas de renderizado y contrato de visibilidad por rol, cliente seleccionado y objetivos no elegibles en `frontend/shared/platform-panel-render.test.js`, ubicación real de las pruebas del renderer del panel
+- [x] T024 [US2] Verificar que la auditoría de éxitos y rechazos por permisos usa `cliente_id` del objetivo, `actor_tipo`, IP real y ningún secreto en `backend/src/test/password-reset.integration.test.js`
 
 ## Phase 5: User Story 3 - Login temporal y cambio obligatorio (P1)
 

@@ -73,6 +73,13 @@ test('US1: reset real entrega temporal una vez, invalida sesiones y audita sin s
          RETURNING id, token_version`,
         [targetHash, client.id],
       );
+      const { rows: [adminTarget] } = await pool.query(
+        `INSERT INTO usuarios
+          (username, password_hash, nombre, rol, cliente_id)
+         VALUES ('reset-admin-target-us1', $1, 'Otro Admin', 'admin', $2)
+         RETURNING id, password_hash, token_version`,
+        [targetHash, client.id],
+      );
 
       appProcess = spawn(process.execPath, ['-e', `
         const http = require('http');
@@ -155,6 +162,36 @@ test('US1: reset real entrega temporal una vez, invalida sesiones y audita sin s
       assert.equal(audit.actor_tipo, 'tenant');
       assert.equal(audit.detalle.includes(response.body.password_temporal), false);
       assert.equal(audit.detalle.includes('198.51.100.24'), true);
+
+      const forbiddenAdmin = await request(port, {
+        method: 'POST',
+        path: `/api/usuarios/${adminTarget.id}/reset-password`,
+        headers: { Authorization: token },
+      });
+      assert.equal(forbiddenAdmin.statusCode, 403);
+      const selfReset = await request(port, {
+        method: 'POST',
+        path: `/api/usuarios/${admin.id}/reset-password`,
+        headers: { Authorization: token },
+      });
+      assert.equal(selfReset.statusCode, 403);
+      const { rows: [unchangedAdminTarget] } = await pool.query(
+        'SELECT password_hash, token_version FROM usuarios WHERE id = $1',
+        [adminTarget.id],
+      );
+      assert.equal(unchangedAdminTarget.password_hash, adminTarget.password_hash);
+      assert.equal(unchangedAdminTarget.token_version, adminTarget.token_version);
+      const { rows: [rejectedAudit] } = await pool.query(
+        `SELECT cliente_id, actor_tipo, detalle
+         FROM auditoria
+         WHERE accion = 'reset_password' AND entidad_id = $1
+         ORDER BY id DESC LIMIT 1`,
+        [String(adminTarget.id)],
+      );
+      assert.equal(rejectedAudit.cliente_id, client.id);
+      assert.equal(rejectedAudit.actor_tipo, 'tenant');
+      assert.match(rejectedAudit.detalle, /"resultado":"rechazado"/);
+      assert.doesNotMatch(rejectedAudit.detalle, /password|hash|token/i);
     } finally {
       if (appProcess) {
         appProcess.kill();
@@ -194,6 +231,159 @@ test('US1: un admin no puede resetear usuarios de otro cliente', async () => {
       );
       const { puedeResetear } = require('../services/password-reset.service');
       assert.equal(puedeResetear(admin, { id: target.id, rol: 'comun', cliente_id: clientB.id }), false);
+    } finally {
+      await pool.end();
+    }
+  });
+});
+
+test('US2: platform_admin resetea admin de otro cliente y tenant no accede al panel', async () => {
+  await withTemporaryMigrationDatabase(async ({ connectionString, runMigrations }) => {
+    const databaseUrl = new URL(connectionString);
+    const databaseConfig = {
+      host: databaseUrl.hostname,
+      port: databaseUrl.port,
+      database: databaseUrl.pathname.slice(1),
+      user: decodeURIComponent(databaseUrl.username),
+      password: decodeURIComponent(databaseUrl.password),
+    };
+    const pool = new Pool({ connectionString });
+    let appProcess;
+    try {
+      await runMigrations();
+      const suffix = `${Date.now()}_${Math.random().toString(16).slice(2, 8)}`;
+      const hash = await bcrypt.hash('Platform-Password-123', 10);
+      const { rows: [platformClient] } = await pool.query(
+        `INSERT INTO clientes (nombre, es_plataforma)
+         VALUES ($1, true) RETURNING id`,
+        [`Platform US2 ${suffix}`],
+      );
+      const { rows: [tenantClient] } = await pool.query(
+        `INSERT INTO clientes (nombre, es_plataforma)
+         VALUES ($1, false) RETURNING id`,
+        [`Tenant US2 ${suffix}`],
+      );
+      const { rows: [platformAdmin] } = await pool.query(
+        `INSERT INTO usuarios (username, password_hash, rol, cliente_id)
+         VALUES ($1, $2, 'platform_admin', $3)
+         RETURNING id, username, rol, cliente_id, token_version`,
+        [`platform-us2-${suffix}`, hash, platformClient.id],
+      );
+      const { rows: [targetAdmin] } = await pool.query(
+        `INSERT INTO usuarios (username, password_hash, rol, cliente_id)
+         VALUES ($1, $2, 'admin', $3)
+         RETURNING id, token_version`,
+        [`admin-us2-${suffix}`, hash, tenantClient.id],
+      );
+      const { rows: [tenantUser] } = await pool.query(
+        `INSERT INTO usuarios (username, password_hash, rol, cliente_id)
+         VALUES ($1, $2, 'comun', $3)
+         RETURNING id, username, rol, cliente_id, token_version`,
+        [`tenant-user-us2-${suffix}`, hash, tenantClient.id],
+      );
+      const { rows: [targetPlatform] } = await pool.query(
+        `INSERT INTO usuarios (username, password_hash, rol, cliente_id)
+         VALUES ($1, $2, 'platform_admin', $3)
+         RETURNING id`,
+        [`platform-target-us2-${suffix}`, hash, platformClient.id],
+      );
+      const token = (user) => jwt.sign({
+        sub: user.id,
+        username: user.username,
+        rol: user.rol,
+        clienteId: user.cliente_id,
+        tv: user.token_version,
+      }, 'reset-password-test-secret');
+
+      appProcess = spawn(process.execPath, ['-e', `
+        const http = require('http');
+        const app = require('./src/app');
+        const server = http.createServer(app);
+        server.listen(0, '127.0.0.1', () => console.log('READY:' + server.address().port));
+        process.on('SIGTERM', () => server.close(() => process.exit(0)));
+      `], {
+        cwd: backendDirectory,
+        env: {
+          ...process.env,
+          DB_HOST: databaseConfig.host,
+          DB_PORT: databaseConfig.port,
+          DB_NAME: databaseConfig.database,
+          DB_USER: databaseConfig.user,
+          DB_PASS: databaseConfig.password,
+          JWT_SECRET: 'reset-password-test-secret',
+          NODE_ENV: 'test',
+        },
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+      const port = await new Promise((resolve, reject) => {
+        let output = '';
+        const onData = (chunk) => {
+          output += chunk.toString();
+          const match = output.match(/READY:(\d+)/);
+          if (match) {
+            appProcess.stdout.off('data', onData);
+            resolve(Number(match[1]));
+          }
+        };
+        appProcess.stdout.on('data', onData);
+        appProcess.once('error', reject);
+        appProcess.once('exit', (code) => reject(new Error(`HTTP test app exited with code ${code}`)));
+      });
+      const response = await request(port, {
+        method: 'POST',
+        path: `/api/usuarios/${targetAdmin.id}/reset-password`,
+        headers: { Authorization: token(platformAdmin) },
+      });
+      assert.equal(response.statusCode, 200);
+
+      const forbidden = await request(port, {
+        method: 'POST',
+        path: `/api/usuarios/${targetPlatform.id}/reset-password`,
+        headers: { Authorization: token(platformAdmin) },
+      });
+      assert.equal(forbidden.statusCode, 403);
+      const { rows: [rejectedAudit] } = await pool.query(
+        `SELECT cliente_id, actor_tipo, detalle
+         FROM auditoria
+         WHERE accion = 'reset_password' AND entidad_id = $1
+         ORDER BY id DESC LIMIT 1`,
+        [String(targetPlatform.id)],
+      );
+      assert.equal(rejectedAudit.cliente_id, platformClient.id);
+      assert.equal(rejectedAudit.actor_tipo, 'platform_admin');
+      assert.match(rejectedAudit.detalle, /"resultado":"rechazado"/);
+      assert.doesNotMatch(rejectedAudit.detalle, /password|hash|token/i);
+
+      const tenantPanel = await request(port, {
+        method: 'GET',
+        path: '/api/plataforma/clientes',
+        headers: { Authorization: token(tenantUser) },
+      });
+      assert.equal(tenantPanel.statusCode, 403);
+    } finally {
+      if (appProcess) appProcess.kill();
+      await pool.end();
+    }
+  });
+});
+
+test('US2: admin recibe 404 genérico ante objetivo inexistente', async () => {
+  await withTemporaryMigrationDatabase(async ({ connectionString, runMigrations }) => {
+    const pool = new Pool({ connectionString });
+    try {
+      await runMigrations();
+      const hash = await bcrypt.hash('Admin-Password-123', 10);
+      const { rows: [client] } = await pool.query(
+        `SELECT id FROM clientes WHERE es_plataforma = false ORDER BY id LIMIT 1`,
+      );
+      const { rows: [admin] } = await pool.query(
+        `INSERT INTO usuarios (username, password_hash, rol, cliente_id)
+         VALUES ('reset-admin-not-found', $1, 'admin', $2)
+         RETURNING id, username, rol, cliente_id, token_version`,
+        [hash, client.id],
+      );
+      const { puedeResetear } = require('../services/password-reset.service');
+      assert.equal(puedeResetear(admin, null), false);
     } finally {
       await pool.end();
     }
