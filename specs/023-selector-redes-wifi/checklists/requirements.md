@@ -7,3 +7,4 @@
 - [x] Se trazan los requisitos RF15, RI13 y RD06.
 - [x] Se explicita la relación con las Features 010 y 019.
 - [ ] Usuario aprueba los estados y el contrato HTTP propuesto antes de implementación.
+

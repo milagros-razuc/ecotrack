@@ -22,14 +22,28 @@ if [[ "$branch" != main ]]; then
   exit 1
 fi
 sudo -H -u ecotrackadmin git -C "$repo" fetch origin main
-sudo -H -u ecotrackadmin git -C "$repo" merge-base --is-ancestor HEAD "$target_sha"
-sudo -H -u ecotrackadmin git -C "$repo" merge-base --is-ancestor "$target_sha" origin/main
+sudo -H -u ecotrackadmin git -C "$repo" merge-base --is-ancestor "$target_sha" origin/main || {
+  printf 'Target SHA %s is not present in origin/main\n' "$target_sha" >&2
+  exit 1
+}
+sudo -H -u ecotrackadmin git -C "$repo" diff --quiet || {
+  printf 'Production checkout has uncommitted tracked changes; stop and preserve work before deploying.\n' >&2
+  exit 1
+}
+sudo -H -u ecotrackadmin git -C "$repo" diff --cached --quiet || {
+  printf 'Production checkout has staged changes; stop and preserve work before deploying.\n' >&2
+  exit 1
+}
+if ! sudo -H -u ecotrackadmin git -C "$repo" merge-base --is-ancestor HEAD "$target_sha"; then
+  current_sha=$(sudo -H -u ecotrackadmin git -C "$repo" rev-parse --short HEAD)
+  printf 'Main branch diverged at %s; resetting checkout to tested SHA %s.\n' "$current_sha" "$target_sha" >&2
+fi
 
 # Back up the running release before updating its code or schema.
 ECOTRACK_BACKUP_STORAGE_ACCOUNT=stecotrackbackup1311 \
   /bin/bash "$repo/scripts/backup-production.sh"
 
-sudo -H -u ecotrackadmin git -C "$repo" merge --ff-only "$target_sha"
+sudo -H -u ecotrackadmin git -C "$repo" reset --hard "$target_sha"
 test "$(sudo -H -u ecotrackadmin git -C "$repo" rev-parse HEAD)" = "$target_sha"
 
 cd "$repo"
