@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html class="light" lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>EcoTrack - Clientes</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+  <script src="shared/tailwind-config.js"></script>
+  <link href="shared/common.css" rel="stylesheet"/>
+  <script src="shared/html-escape.js"></script>
+  <script src="shared/platform-panel-render.js"></script>
+  <script src="shared/platform-http.js"></script>
+  <script src="shared/role-routing.js"></script>
+  <script src="shared/sidebar-role.js"></script>
+</head>
+<body class="bg-background font-body-md text-on-background flex h-screen overflow-hidden" data-page="clientes">
+  <div id="sidebar-placeholder"></div>
+  <main class="flex-1 overflow-y-auto p-gutter lg:p-margin">
+    <div class="max-w-container-max mx-auto space-y-6">
+      <header class="flex justify-between items-center">
+        <h1 class="text-headline-md font-bold text-primary">Clientes</h1>
+        <button id="btn-dark" onclick="toggleDark()" class="p-2 text-on-surface-variant hover:bg-surface-container-high rounded-full transition-colors" title="Activar tema oscuro" aria-label="Activar tema oscuro" aria-pressed="false" type="button">
+          <span class="material-symbols-outlined">dark_mode</span>
+        </button>
+      </header>
+
+      <section class="bg-surface rounded-lg p-4">
+        <div class="mb-4">
+          <h2 class="text-headline-sm font-bold">Listado de clientes</h2>
+          <p class="text-on-surface-variant text-body-sm mt-1">Administradores y acceso de cada organización.</p>
+        </div>
+        <p id="clientes-error" class="text-error text-body-sm mb-2"></p>
+        <div class="overflow-x-auto">
+          <table class="w-full text-body-sm">
+            <thead><tr class="text-left border-b border-outline-variant">
+              <th class="px-5 py-3 text-on-surface-variant">Cliente</th>
+              <th class="px-5 py-3 text-on-surface-variant">Administrador</th>
+              <th class="px-5 py-3 text-on-surface-variant">Usuarios</th>
+              <th class="px-5 py-3 text-on-surface-variant">Acciones</th>
+            </tr></thead>
+            <tbody id="clientes-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="usuarios-panel" class="bg-surface rounded-lg p-4 scroll-mt-6">
+        <div class="flex flex-wrap items-end justify-between gap-3 mb-4">
+          <div>
+            <h2 class="text-headline-sm font-bold">Usuarios por cliente</h2>
+            <p id="usuarios-cliente-seleccionado" class="text-on-surface-variant text-body-sm mt-1">Seleccioná un cliente del listado.</p>
+          </div>
+        </div>
+        <p id="usuarios-panel-error" class="text-error text-body-sm"></p>
+        <div class="overflow-x-auto">
+          <table class="w-full text-body-sm">
+            <thead><tr class="text-left border-b border-outline-variant">
+              <th class="px-5 py-3 text-on-surface-variant">Usuario</th>
+              <th class="px-5 py-3 text-on-surface-variant">Nombre</th>
+              <th class="px-5 py-3 text-on-surface-variant">Rol</th>
+              <th class="px-5 py-3 text-on-surface-variant">Acciones</th>
+            </tr></thead>
+            <tbody id="client-users">
+              <tr><td colspan="4" class="px-5 py-10 text-center text-on-surface-variant">Seleccioná un cliente para ver sus usuarios.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <div id="reset-platform-modal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="reset-platform-title">
+    <div class="bg-surface rounded-lg p-6 max-w-md w-full">
+      <h2 id="reset-platform-title" class="text-headline-sm font-bold">Contraseña temporal</h2>
+      <p class="mt-2 text-body-sm">Entregá esta contraseña al usuario. No volverá a mostrarse.</p>
+      <code id="reset-platform-password" class="block mt-4 rounded bg-surface-container-high p-3 break-all"></code>
+      <div class="flex gap-2 mt-4">
+        <button id="reset-platform-copy" class="border border-outline-variant rounded-lg px-3 py-2 hover:bg-surface-container-high transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" type="button" aria-label="Copiar contraseña temporal">Copiar</button>
+        <button id="reset-platform-close" class="bg-primary text-on-primary rounded-lg px-3 py-2 hover:opacity-90 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" type="button" aria-label="Cerrar contraseña temporal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="shared/app.js"></script>
+  <script>
+    const clientesBody = document.getElementById('clientes-body');
+    const clientesError = document.getElementById('clientes-error');
+    const clientUsers = document.getElementById('client-users');
+    const usuariosPanelError = document.getElementById('usuarios-panel-error');
+    const resetPlatformModal = document.getElementById('reset-platform-modal');
+    const resetPlatformPassword = document.getElementById('reset-platform-password');
+    const usuariosSeleccionado = document.getElementById('usuarios-cliente-seleccionado');
+    const usuariosPanel = document.getElementById('usuarios-panel');
+    let resetPlatformValue = '';
+
+    function cerrarResetTemporal() {
+      resetPlatformValue = '';
+      resetPlatformPassword.textContent = '';
+      resetPlatformModal.classList.add('hidden');
+    }
+
+    async function resetPlatformUser(id, usernameObjetivo) {
+      if (!confirm(`¿Resetear la contraseña de ${usernameObjetivo}?`)) return;
+      const response = await fetch(`${API}/api/usuarios/${encodeURIComponent(id)}/reset-password`, {
+        method: 'POST',
+        headers: { Authorization: token },
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        clientesError.textContent = body.error || 'No se pudo resetear la contraseña';
+        return;
+      }
+      resetPlatformValue = body.password_temporal || '';
+      resetPlatformPassword.textContent = resetPlatformValue;
+      resetPlatformModal.classList.remove('hidden');
+    }
+
+    async function loadClientes() {
+      clientesError.textContent = '';
+      const response = await fetch(`${API}/api/plataforma/clientes`, { headers: { Authorization: token } });
+      const accion = ecotrackPlatformHttp.accionPorEstadoHttp(response);
+      if (accion.accion === 'cerrar-sesion') return manejarNoAutorizado();
+      if (!response.ok) {
+        clientesError.textContent = accion.mensaje || 'No se pudieron cargar los clientes';
+        return;
+      }
+      const clients = await response.json();
+      clientesBody.innerHTML = clients.map((client) =>
+        ecotrackPlatformPanelRender.renderClientRow(client)).join('');
+      clientesBody.querySelectorAll('[data-reset-user-id]').forEach((button) => {
+        const usernameObjetivo = button.dataset.resetUsername || 'usuario';
+        button.addEventListener('click', () => resetPlatformUser(button.dataset.resetUserId, usernameObjetivo));
+      });
+      clientesBody.querySelectorAll('[data-view-client-id]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const row = button.closest('tr');
+          const clienteId = button.dataset.viewClientId;
+          const clienteNombre = row.querySelector('td')?.textContent?.trim() || 'cliente';
+          clientesBody.querySelectorAll('tr').forEach((item) => item.classList.remove('selected-client-row'));
+          row.classList.add('selected-client-row');
+          usuariosSeleccionado.textContent = `Cliente seleccionado: ${clienteNombre}`;
+          loadClientUsers(clienteId);
+          usuariosPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+      });
+    }
+
+    async function loadClientUsers(clienteId) {
+      clientUsers.innerHTML = '';
+      usuariosPanelError.textContent = '';
+      if (!clienteId) return;
+      const response = await fetch(`${API}/api/plataforma/clientes/${encodeURIComponent(clienteId)}/usuarios`, {
+        headers: { Authorization: token },
+      });
+      if (!response.ok) {
+        usuariosPanelError.textContent = 'No se pudieron cargar los usuarios';
+        return;
+      }
+      const users = await response.json();
+      const countCell = document.getElementById(`usuarios-count-${clienteId}`);
+      if (countCell) countCell.innerHTML = `<strong class="text-on-surface">${users.length}</strong>`;
+      clientUsers.innerHTML = users.length
+        ? users.map((user) => ecotrackPlatformPanelRender.renderUserRow(user, username)).join('')
+        : '<tr><td colspan="4" class="px-5 py-10 text-center text-on-surface-variant">Este cliente no tiene usuarios registrados.</td></tr>';
+      clientUsers.querySelectorAll('[data-reset-user-id]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const usernameObjetivo = button.closest('tr').querySelector('td')?.textContent || '';
+          resetPlatformUser(button.dataset.resetUserId, usernameObjetivo);
+        });
+      });
+    }
+
+    document.getElementById('reset-platform-close').addEventListener('click', cerrarResetTemporal);
+    document.getElementById('reset-platform-copy').addEventListener('click', async () => {
+      if (!resetPlatformValue) return;
+      try {
+        await navigator.clipboard.writeText(resetPlatformValue);
+      } catch {
+        usuariosPanelError.textContent = 'No se pudo copiar la contraseña temporal';
+      }
+    });
+    window.addEventListener('beforeunload', cerrarResetTemporal);
+
+    initShell().then(() => {
+      const acceso = ecotrackRoleRouting.decidirAcceso({ rol, pagina: 'clientes', haySesion: Boolean(token) });
+      if (acceso.permitido) loadClientes();
+    });
+  </script>
+</body>
+</html>

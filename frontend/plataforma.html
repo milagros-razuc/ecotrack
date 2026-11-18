@@ -32,19 +32,6 @@
         </div>
       </header>
       <section id="summary" class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6"></section>
-      <section class="bg-surface rounded-lg p-4 mb-6">
-        <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
-          <h2 class="text-headline-sm font-bold">Usuarios por cliente</h2>
-          <select id="usuarios-cliente" class="border rounded px-3 py-2" aria-label="Seleccionar cliente">
-            <option value="">Seleccionar cliente</option>
-          </select>
-        </div>
-        <p id="usuarios-panel-error" class="text-error text-body-sm"></p>
-        <table class="w-full text-body-sm">
-          <thead><tr class="text-left border-b"><th class="p-3">Usuario</th><th class="p-3">Nombre</th><th class="p-3">Rol</th><th class="p-3">Acción</th></tr></thead>
-          <tbody id="client-users"></tbody>
-        </table>
-      </section>
       <div class="flex flex-wrap gap-3 mb-4">
         <select id="estado" class="border rounded px-3 py-2"><option value="">Todos los estados</option><option value="fabricado">Fabricado</option><option value="reclamado_sin_enrolar">Reclamado sin enrolar</option><option value="enrolado">Enrolado</option></select>
         <input id="firmware" class="border rounded px-3 py-2" placeholder="Firmware"/>
@@ -108,17 +95,6 @@
     </div>
   </div>
 
-  <div id="reset-platform-modal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="reset-platform-title">
-    <div class="bg-surface rounded-lg p-6 max-w-md w-full">
-      <h2 id="reset-platform-title" class="text-headline-sm font-bold">Contraseña temporal</h2>
-      <p class="mt-2 text-body-sm">Entregá esta contraseña al usuario. No volverá a mostrarse.</p>
-      <code id="reset-platform-password" class="block mt-4 rounded bg-surface-container-high p-3 break-all"></code>
-      <div class="flex gap-2 mt-4">
-        <button id="reset-platform-copy" class="border rounded px-3 py-1" type="button">Copiar</button>
-        <button id="reset-platform-close" class="bg-primary text-on-primary rounded px-3 py-1" type="button">Cerrar</button>
-      </div>
-    </div>
-  </div>
 
   <script src="shared/app.js"></script>
   <script>
@@ -168,12 +144,6 @@
     const clienteResultadoPassword = document.getElementById('cliente-resultado-password');
     const clienteCopiarEstado = document.getElementById('cliente-copiar-estado');
     const clienteCopiarPassword = document.getElementById('cliente-copiar-password');
-    const usuariosCliente = document.getElementById('usuarios-cliente');
-    const clientUsers = document.getElementById('client-users');
-    const usuariosPanelError = document.getElementById('usuarios-panel-error');
-    const resetPlatformModal = document.getElementById('reset-platform-modal');
-    const resetPlatformPassword = document.getElementById('reset-platform-password');
-    let resetPlatformValue = '';
     let provisionItems = null;
 
     function cerrarProvision() {
@@ -300,7 +270,7 @@
         clienteForm.classList.add('hidden');
         clienteResultado.classList.remove('hidden');
         try {
-          await Promise.all([loadSummary(), loadClients()]);
+          await loadSummary();
         } catch (error) {
           panelError.textContent = error.message;
         }
@@ -310,50 +280,6 @@
         clienteSubmit.disabled = false;
       }
     }
-
-    async function loadClients() {
-      const response = await fetch(`${API}/api/plataforma/clientes`, { headers: { Authorization: token } });
-      if (!response.ok) throw new Error('No se pudieron cargar los clientes');
-      const clients = await response.json();
-      usuariosCliente.innerHTML = '<option value="">Seleccionar cliente</option>'
-        + clients.map((client) => `<option value="${ecotrackHtmlEscape.escapeHtml(client.id)}">${ecotrackHtmlEscape.escapeHtml(client.nombre)}</option>`).join('');
-    }
-
-    async function loadClientUsers() {
-      clientUsers.innerHTML = '';
-      usuariosPanelError.textContent = '';
-      if (!usuariosCliente.value) return;
-      const response = await fetch(`${API}/api/plataforma/clientes/${encodeURIComponent(usuariosCliente.value)}/usuarios`, {
-        headers: { Authorization: token },
-      });
-      if (!response.ok) {
-        usuariosPanelError.textContent = 'No se pudieron cargar los usuarios';
-        return;
-      }
-      const users = await response.json();
-      clientUsers.innerHTML = users.map((user) =>
-        ecotrackPlatformPanelRender.renderUserRow(user, username)).join('');
-      clientUsers.querySelectorAll('[data-reset-user-id]').forEach((button) => {
-        button.addEventListener('click', () => resetPlatformUser(button.dataset.resetUserId, button.closest('tr').querySelector('td').textContent));
-      });
-    }
-
-    async function resetPlatformUser(id, usernameObjetivo) {
-      if (!confirm(`¿Resetear la contraseña de ${usernameObjetivo}?`)) return;
-      const response = await fetch(`${API}/api/usuarios/${id}/reset-password`, {
-        method: 'POST',
-        headers: { Authorization: token },
-      });
-      const body = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        usuariosPanelError.textContent = body.error || 'No se pudo resetear la contraseña';
-        return;
-      }
-      resetPlatformValue = body.password_temporal;
-      resetPlatformPassword.textContent = resetPlatformValue;
-      resetPlatformModal.classList.remove('hidden');
-    }
-
     document.getElementById('nuevo-dispositivo').addEventListener('click', () => {
       provisionModal.classList.remove('hidden');
       provisionMotivo.focus();
@@ -374,21 +300,12 @@
         clienteCopiarEstado.textContent = 'No se pudo copiar, seleccionala a mano';
       }
     });
-    usuariosCliente.addEventListener('change', loadClientUsers);
-    document.getElementById('reset-platform-close').addEventListener('click', () => {
-      resetPlatformValue = '';
-      resetPlatformPassword.textContent = '';
-      resetPlatformModal.classList.add('hidden');
-    });
-    document.getElementById('reset-platform-copy').addEventListener('click', async () => {
-      if (resetPlatformValue) await navigator.clipboard.writeText(resetPlatformValue);
-    });
     document.getElementById('filtrar').addEventListener('click', loadPanel);
     initShell().then(() => {
       // Este guard mejora la UX; la autorización real la aplica el backend.
       const acceso = ecotrackRoleRouting.decidirAcceso({ rol, pagina: 'plataforma', haySesion: Boolean(token) });
       if (acceso.permitido) {
-        Promise.all([loadPanel(), loadSummary(), loadClients()]).catch(error => { panelError.textContent = error.message; });
+        Promise.all([loadPanel(), loadSummary()]).catch(error => { panelError.textContent = error.message; });
       }
     });
   </script>

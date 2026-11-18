@@ -11,10 +11,10 @@ test('destinoPorRol resuelve el destino seguro según rol', () => {
 });
 
 for (const rol of ['platform_admin', 'admin', 'comun']) {
-  for (const pagina of ['plataforma', 'cliente']) {
+  for (const pagina of ['plataforma', 'clientes', 'cliente']) {
     test(`decidirAcceso ${rol} en ${pagina} con sesión`, () => {
       const resultado = decidirAcceso({ rol, pagina, haySesion: true });
-      const permitido = pagina === 'plataforma'
+      const permitido = ['plataforma', 'clientes'].includes(pagina)
         ? rol === 'platform_admin'
         : rol !== 'platform_admin';
 

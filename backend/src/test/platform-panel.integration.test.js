@@ -165,6 +165,43 @@ test('T1: platform_admin lista dispositivos globales y admin tenant recibe 403 e
   }
 });
 
+test('T1b: GET clientes elige por menor id al admin legado anterior a 020 y cuenta múltiples admins', async () => {
+  const suffix = `${Date.now()}_${Math.random().toString(16).slice(2, 8)}`;
+  const { rows } = await fixture.pool.query(
+    `INSERT INTO usuarios
+       (username, password_hash, nombre, rol, cliente_id, token_version, creado_en)
+     VALUES ($1, 'fixture-admin-hash', 'Admin Legado', 'admin', $2, 1, NOW() - INTERVAL '365 days'),
+            ($3, 'fixture-admin-hash', 'Admin Posterior', 'admin', $2, 1, NOW()),
+            ($4, 'fixture-common-hash', 'Operario Cliente', 'comun', $2, 1, NOW())
+     RETURNING id, username, nombre, rol, cliente_id, token_version`,
+    [
+      `admin_legado_${suffix}`,
+      platform.operationalClient.id,
+      `admin_posterior_${suffix}`,
+      `operario_${suffix}`,
+    ],
+  );
+  try {
+    const response = await request('/api/plataforma/clientes');
+    assert.equal(response.status, 200);
+    const clients = await json(response);
+    const target = clients.find((client) => client.id === platform.operationalClient.id);
+    assert.ok(target);
+    const admins = rows.filter((row) => row.rol === 'admin');
+    const oldest = admins.reduce((first, candidate) => candidate.id < first.id ? candidate : first);
+    assert.equal(target.cantidad_administradores >= 2, true);
+    assert.deepEqual(target.administrador_principal, {
+      id: oldest.id,
+      nombre: oldest.nombre,
+      username: oldest.username,
+      rol: 'admin',
+    });
+    assert.equal(target.administradores[0].id, oldest.id);
+  } finally {
+    await fixture.pool.query('DELETE FROM usuarios WHERE id = ANY($1::int[])', [rows.map((row) => row.id)]);
+  }
+});
+
 test('F020 app real: POST de dispositivos aplica 401, 403 y 400', async () => {
   const suffix = `${Date.now()}_${Math.random().toString(16).slice(2, 8)}`;
   const { rows } = await fixture.pool.query(

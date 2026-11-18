@@ -9,10 +9,10 @@
 
   function decidirAcceso({ rol, pagina, haySesion }) {
     if (!haySesion) return { permitido: false, destino: 'login.html' };
-    if (pagina === 'plataforma' && rol !== 'platform_admin') {
+    if (['plataforma', 'clientes'].includes(pagina) && rol !== 'platform_admin') {
       return { permitido: false, destino: 'index.html' };
     }
-    if (pagina !== 'plataforma' && rol === 'platform_admin') {
+    if (!['plataforma', 'clientes'].includes(pagina) && rol === 'platform_admin') {
       return { permitido: false, destino: 'plataforma.html' };
     }
     return { permitido: true };

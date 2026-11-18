@@ -319,12 +319,44 @@ async function listarClientes() {
     SELECT c.id, c.nombre,
       COUNT(d.codigo) FILTER (WHERE ${lifecycleExpression('d', 'df.enrolled_at')} = 'fabricado')::int AS fabricado,
       COUNT(d.codigo) FILTER (WHERE ${lifecycleExpression('d', 'df.enrolled_at')} = 'reclamado sin enrolar')::int AS reclamado_sin_enrolar,
-      COUNT(d.codigo) FILTER (WHERE ${lifecycleExpression('d', 'df.enrolled_at')} = 'enrolado')::int AS enrolado
+      COUNT(d.codigo) FILTER (WHERE ${lifecycleExpression('d', 'df.enrolled_at')} = 'enrolado')::int AS enrolado,
+      ua.administradores,
+      ua.administrador_principal,
+      ua.cantidad_administradores
     FROM clientes c
     LEFT JOIN dispositivos d ON d.cliente_id = c.id
     LEFT JOIN dispositivos_fabrica df ON df.device_id = d.codigo
+    LEFT JOIN LATERAL (
+      SELECT COALESCE(
+        jsonb_agg(
+          jsonb_build_object(
+            'id', u.id,
+            'nombre', u.nombre,
+            'username', u.username,
+            'rol', u.rol
+          ) ORDER BY u.id ASC
+        ),
+        '[]'::jsonb
+      ) AS administradores,
+      COUNT(u.id)::int AS cantidad_administradores,
+      (
+        SELECT jsonb_build_object(
+          'id', principal.id,
+          'nombre', principal.nombre,
+          'username', principal.username,
+          'rol', principal.rol
+        )
+        FROM usuarios principal
+        WHERE principal.cliente_id = c.id AND principal.rol = 'admin'
+        ORDER BY principal.id ASC
+        LIMIT 1
+      ) AS administrador_principal
+      FROM usuarios u
+      WHERE u.cliente_id = c.id AND u.rol = 'admin'
+    ) ua ON true
     WHERE c.es_plataforma = false
-    GROUP BY c.id, c.nombre
+    GROUP BY c.id, c.nombre, ua.administradores,
+      ua.administrador_principal, ua.cantidad_administradores
     ORDER BY c.nombre
   `);
   return rows;

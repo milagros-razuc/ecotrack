@@ -257,6 +257,9 @@ El login usa JWT (`jsonwebtoken`) con contraseñas hasheadas por `bcryptjs`. Cad
 | POST | `/api/dispositivos` | Reclama un dispositivo aprovisionado usando un token de un solo uso | Admin |
 | DELETE | `/api/dispositivos/:codigo` | Baja: libera el dispositivo (sin dueño, inactivo, token revocado) y responde 204 | Admin |
 | POST | `/api/dispositivos/:codigo/reset-credenciales` | Revoca las credenciales MQTT y solicita nuevas al próximo enrolamiento | Admin |
+| GET | `/api/plataforma/clientes` | Lista los clientes y sus administradores activos; incluye un arreglo vacío si no hay administrador | Plataforma |
+| GET | `/api/plataforma/clientes/:id/usuarios` | Lista los usuarios de un cliente seleccionado | Plataforma |
+| POST | `/api/usuarios/:id/reset-password` | Genera una contraseña temporal de entrega única para el objetivo elegible | Admin o Plataforma |
 | GET | `/api/lecturas` | Últimas lecturas (`dispositivo`, `limite`) | Autenticado |
 | GET | `/api/lecturas/ultima` | Última lectura por cada dispositivo | Autenticado |
 | GET | `/api/lecturas/agregado` | Series agregadas para el histórico (`dispositivo`, `periodo=dia\|semana\|mes`) | Autenticado |
