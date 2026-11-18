@@ -55,6 +55,7 @@
       </div>
     </div>
   </main>
+
   <div id="provision-modal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="provision-title">
     <div class="bg-surface rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
       <div class="flex justify-between items-center mb-4">
@@ -74,22 +75,12 @@
       <div id="provision-results" class="mt-4 space-y-4"></div>
     </div>
   </div>
+
   <div id="cliente-modal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="cliente-title">
     <div class="bg-surface rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
       <div class="flex justify-between items-center mb-4">
         <h2 id="cliente-title" class="text-headline-sm font-bold">Nuevo cliente</h2>
         <button id="cerrar-cliente" class="text-on-surface-variant" type="button" aria-label="Cerrar">Cerrar</button>
-      </div>
-      <div id="reset-platform-modal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="reset-platform-title">
-        <div class="bg-surface rounded-lg p-6 max-w-md w-full">
-          <h2 id="reset-platform-title" class="text-headline-sm font-bold">Contraseña temporal</h2>
-          <p class="mt-2 text-body-sm">Entregá esta contraseña al usuario. No volverá a mostrarse.</p>
-          <code id="reset-platform-password" class="block mt-4 rounded bg-surface-container-high p-3 break-all"></code>
-          <div class="flex gap-2 mt-4">
-            <button id="reset-platform-copy" class="border rounded px-3 py-1" type="button">Copiar</button>
-            <button id="reset-platform-close" class="bg-primary text-on-primary rounded px-3 py-1" type="button">Cerrar</button>
-          </div>
-        </div>
       </div>
       <form id="cliente-form" class="space-y-4">
         <label class="block">Nombre del cliente
@@ -116,6 +107,19 @@
       </div>
     </div>
   </div>
+
+  <div id="reset-platform-modal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="reset-platform-title">
+    <div class="bg-surface rounded-lg p-6 max-w-md w-full">
+      <h2 id="reset-platform-title" class="text-headline-sm font-bold">Contraseña temporal</h2>
+      <p class="mt-2 text-body-sm">Entregá esta contraseña al usuario. No volverá a mostrarse.</p>
+      <code id="reset-platform-password" class="block mt-4 rounded bg-surface-container-high p-3 break-all"></code>
+      <div class="flex gap-2 mt-4">
+        <button id="reset-platform-copy" class="border rounded px-3 py-1" type="button">Copiar</button>
+        <button id="reset-platform-close" class="bg-primary text-on-primary rounded px-3 py-1" type="button">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
   <script src="shared/app.js"></script>
   <script>
     async function loadPanel() {
@@ -130,6 +134,7 @@
       const body = await response.json();
       devices.innerHTML = body.items.map(ecotrackPlatformPanelRender.renderDeviceRow).join('');
     }
+
     async function loadSummary() {
       const response = await fetch(`${API}/api/plataforma/resumen`, { headers: { Authorization: token } });
       const accion = ecotrackPlatformHttp.accionPorEstadoHttp(response);
@@ -139,6 +144,7 @@
       const data = await response.json();
       summary.innerHTML = Object.entries(data.dispositivos_por_estado).map(([state, total]) => ecotrackPlatformPanelRender.renderSummaryItem(state, total)).join('');
     }
+
     const estado = document.getElementById('estado');
     const firmware = document.getElementById('firmware');
     const devices = document.getElementById('devices');
@@ -274,48 +280,6 @@
         return;
       }
 
-      async function loadClients() {
-        const response = await fetch(`${API}/api/plataforma/clientes`, { headers: { Authorization: token } });
-        if (!response.ok) throw new Error('No se pudieron cargar los clientes');
-        const clients = await response.json();
-        usuariosCliente.innerHTML = '<option value="">Seleccionar cliente</option>'
-          + clients.map((client) => `<option value="${ecotrackHtmlEscape.escapeHtml(client.id)}">${ecotrackHtmlEscape.escapeHtml(client.nombre)}</option>`).join('');
-      }
-
-      async function loadClientUsers() {
-        clientUsers.innerHTML = '';
-        if (!usuariosCliente.value) return;
-        const response = await fetch(`${API}/api/plataforma/clientes/${encodeURIComponent(usuariosCliente.value)}/usuarios`, {
-          headers: { Authorization: token },
-        });
-        if (!response.ok) {
-          usuariosPanelError.textContent = 'No se pudieron cargar los usuarios';
-          return;
-        }
-        const users = await response.json();
-        clientUsers.innerHTML = users.map((user) =>
-          ecotrackPlatformPanelRender.renderUserRow(user, username)).join('');
-        clientUsers.querySelectorAll('[data-reset-user-id]').forEach((button) => {
-          button.addEventListener('click', () => resetPlatformUser(button.dataset.resetUserId, button.closest('tr').querySelector('td').textContent));
-        });
-      }
-
-      async function resetPlatformUser(id, usernameObjetivo) {
-        if (!confirm(`¿Resetear la contraseña de ${usernameObjetivo}?`)) return;
-        const response = await fetch(`${API}/api/usuarios/${id}/reset-password`, {
-          method: 'POST',
-          headers: { Authorization: token },
-        });
-        const body = await response.json().catch(() => ({}));
-        if (!response.ok) {
-          usuariosPanelError.textContent = body.error || 'No se pudo resetear la contraseña';
-          return;
-        }
-        resetPlatformValue = body.password_temporal;
-        resetPlatformPassword.textContent = resetPlatformValue;
-        resetPlatformModal.classList.remove('hidden');
-      }
-
       clienteSubmit.disabled = true;
       try {
         const response = await fetch(`${API}/api/plataforma/clientes`, {
@@ -336,7 +300,7 @@
         clienteForm.classList.add('hidden');
         clienteResultado.classList.remove('hidden');
         try {
-          await loadSummary();
+          await Promise.all([loadSummary(), loadClients()]);
         } catch (error) {
           panelError.textContent = error.message;
         }
@@ -345,6 +309,49 @@
       } finally {
         clienteSubmit.disabled = false;
       }
+    }
+
+    async function loadClients() {
+      const response = await fetch(`${API}/api/plataforma/clientes`, { headers: { Authorization: token } });
+      if (!response.ok) throw new Error('No se pudieron cargar los clientes');
+      const clients = await response.json();
+      usuariosCliente.innerHTML = '<option value="">Seleccionar cliente</option>'
+        + clients.map((client) => `<option value="${ecotrackHtmlEscape.escapeHtml(client.id)}">${ecotrackHtmlEscape.escapeHtml(client.nombre)}</option>`).join('');
+    }
+
+    async function loadClientUsers() {
+      clientUsers.innerHTML = '';
+      usuariosPanelError.textContent = '';
+      if (!usuariosCliente.value) return;
+      const response = await fetch(`${API}/api/plataforma/clientes/${encodeURIComponent(usuariosCliente.value)}/usuarios`, {
+        headers: { Authorization: token },
+      });
+      if (!response.ok) {
+        usuariosPanelError.textContent = 'No se pudieron cargar los usuarios';
+        return;
+      }
+      const users = await response.json();
+      clientUsers.innerHTML = users.map((user) =>
+        ecotrackPlatformPanelRender.renderUserRow(user, username)).join('');
+      clientUsers.querySelectorAll('[data-reset-user-id]').forEach((button) => {
+        button.addEventListener('click', () => resetPlatformUser(button.dataset.resetUserId, button.closest('tr').querySelector('td').textContent));
+      });
+    }
+
+    async function resetPlatformUser(id, usernameObjetivo) {
+      if (!confirm(`¿Resetear la contraseña de ${usernameObjetivo}?`)) return;
+      const response = await fetch(`${API}/api/usuarios/${id}/reset-password`, {
+        method: 'POST',
+        headers: { Authorization: token },
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        usuariosPanelError.textContent = body.error || 'No se pudo resetear la contraseña';
+        return;
+      }
+      resetPlatformValue = body.password_temporal;
+      resetPlatformPassword.textContent = resetPlatformValue;
+      resetPlatformModal.classList.remove('hidden');
     }
 
     document.getElementById('nuevo-dispositivo').addEventListener('click', () => {
