@@ -29,6 +29,7 @@ let updateMissingColumnError = false;
 const fakePool = {
   async query(sql, params = []) {
     queries.push({ sql, params });
+    if (/^(BEGIN|COMMIT|ROLLBACK)/.test(sql)) return { rows: [] };
     if (missingColumnError && sql.includes('must_change_password')) {
       const error = new Error('column must_change_password does not exist');
       error.code = '42703';
@@ -44,6 +45,7 @@ const fakePool = {
       return { rows: params[0] === user.username ? [user] : [] };
     }
     if (sql.includes('FROM usuarios WHERE id')) return { rows: [user] };
+    if (sql.startsWith('INSERT INTO auditoria')) return { rows: [] };
     if (sql.includes('SELECT id, username, nombre, rol, creado_en')) {
       return { rows: [{ id: user.id, username: user.username, nombre: user.nombre, rol: user.rol }] };
     }
@@ -65,6 +67,10 @@ const fakePool = {
     throw new Error(`Query no mockeada: ${sql}`);
   },
 };
+fakePool.connect = async () => ({
+  query: fakePool.query.bind(fakePool),
+  release() {},
+});
 
 require.cache[dbPath] = { id: dbPath, filename: dbPath, loaded: true, exports: fakePool };
 delete require.cache[authServicePath];
@@ -102,13 +108,13 @@ test('CP-RF20 PATCH me actualiza perfil sin devolver contraseña ni permitir cam
 
 test('CP-RF20 cambio de contraseña exige la actual y devuelve hash nuevo solo indirectamente mediante token', async () => {
   const beforeVersion = user.token_version;
-  const result = await authService.cambiarPassword(7, 'correcta-123', 'nueva-123');
+  const result = await authService.cambiarPassword(7, 'correcta-123', 'Nueva-Segura-123');
   const payload = jwt.verify(result.token, process.env.JWT_SECRET);
 
   assert.equal(result.ok, true);
   assert.equal(payload.tv, beforeVersion + 1);
-  assert.equal(await bcrypt.compare('nueva-123', user.password_hash), true);
-  assert.equal(user.password_hash.includes('nueva-123'), false);
+  assert.equal(await bcrypt.compare('Nueva-Segura-123', user.password_hash), true);
+  assert.equal(user.password_hash.includes('Nueva-Segura-123'), false);
 });
 
 test('CP-RF20 cambio de contraseña rechaza contraseña actual incorrecta', async () => {
@@ -119,7 +125,7 @@ test('CP-RF20 cambio de contraseña rechaza contraseña actual incorrecta', asyn
 test('Feature 021 cambiarPassword propaga un 42703 del UPDATE', async () => {
   updateMissingColumnError = true;
   await assert.rejects(
-    () => authService.cambiarPassword(7, 'nueva-123', 'otra-123'),
+    () => authService.cambiarPassword(7, 'Nueva-Segura-123', 'Otra-Segura-123'),
     { code: '42703' },
   );
   updateMissingColumnError = false;
@@ -205,7 +211,15 @@ test('Feature 021 auth usa PostgreSQL real para restringir el primer login y com
     const username = 'pending-feature-021';
     try {
       await realPool.query(fs.readFileSync(
+        path.resolve(__dirname, '../../migrations/018_audit_actor.sql'),
+        'utf8',
+      ));
+      await realPool.query(fs.readFileSync(
         path.resolve(__dirname, '../../migrations/020_client_admin.sql'),
+        'utf8',
+      ));
+      await realPool.query(fs.readFileSync(
+        path.resolve(__dirname, '../../migrations/021_password_reset.sql'),
         'utf8',
       ));
       const hash = await bcrypt.hash(temporaryPassword, 10);

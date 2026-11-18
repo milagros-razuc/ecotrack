@@ -368,7 +368,7 @@ test('US2: cambio de contraseña desconecta los sockets del usuario', async () =
     const passwordHash = await bcrypt.hash('password-anterior', 10);
     await fixture.pool.query('UPDATE usuarios SET password_hash = $1 WHERE id = $2', [passwordHash, sameClientUser.id]);
     const authService = require('../services/auth.service');
-    await authService.cambiarPassword(sameClientUser.id, 'password-anterior', 'password-nueva');
+    await authService.cambiarPassword(sameClientUser.id, 'password-anterior', 'Nueva-Segura-123');
     await passwordDisconnected;
 
     assert.strictEqual(fixture.socketRegistry.socketsForUser(sameClientUser.id).size, 0);
@@ -396,10 +396,10 @@ test('US2: eliminar usuario desconecta sus sockets', async () => {
 });
 
 
-async function expectRejected(socket) {
+async function expectRejected(socket, expectedCode = 'AUTHENTICATION_ERROR') {
   try {
     const [err] = await once(socket, 'connect_error');
-    assert.strictEqual(err.data?.code, 'AUTHENTICATION_ERROR');
+    assert.strictEqual(err.data?.code, expectedCode);
     assert.strictEqual(socket.connected, false);
   } finally {
     closeAll(socket);
@@ -447,6 +447,35 @@ test('US2: token vigente con cambio de contraseña pendiente es rechazado en el 
   } finally {
     clearTimeout(timeoutId);
     closeAll(socket);
+    await fixture.pool.query('DELETE FROM usuarios WHERE id = $1', [target.id]);
+  }
+});
+
+test('US3: handshake rechaza scope change-password aunque la base cambie el estado', async () => {
+  const target = await createTempUser('comun');
+  try {
+    const restrictedClaims = {
+      sub: target.id,
+      username: target.username,
+      rol: 'admin',
+      clienteId: target.cliente_id,
+      tv: target.token_version,
+      scope: 'change-password',
+    };
+    const tokenWithPendingState = jwt.sign(restrictedClaims, TEST_JWT_SECRET);
+    const tokenWithoutPendingState = jwt.sign(restrictedClaims, TEST_JWT_SECRET);
+    await fixture.pool.query(
+      'UPDATE usuarios SET must_change_password = true WHERE id = $1',
+      [target.id],
+    );
+    await expectRejected(connectWithToken(tokenWithPendingState), 'PASSWORD_CHANGE_REQUIRED');
+
+    await fixture.pool.query(
+      'UPDATE usuarios SET must_change_password = false WHERE id = $1',
+      [target.id],
+    );
+    await expectRejected(connectWithToken(tokenWithoutPendingState), 'PASSWORD_CHANGE_REQUIRED');
+  } finally {
     await fixture.pool.query('DELETE FROM usuarios WHERE id = $1', [target.id]);
   }
 });

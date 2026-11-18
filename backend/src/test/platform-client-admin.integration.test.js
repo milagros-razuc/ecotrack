@@ -182,7 +182,7 @@ test('US1: el alta exige sesión y rol platform_admin', async () => {
   const unauthenticated = await postClient(body, null);
   assert.equal(unauthenticated.status, 401);
 
-  const forbidden = await postClient(body, fixture.signToken(fixture.seed.users.a));
+  const forbidden = await postClient(body, fixture.signToken(fixture.seed.users.b));
   assert.equal(forbidden.status, 403);
 });
 

@@ -3,7 +3,7 @@ const bcrypt = require('bcryptjs');
 const { Pool } = require('pg');
 const { z } = require('zod');
 
-const BCRYPT_COST = 10;
+const { BCRYPT_COST } = require('../src/config/security');
 const RESERVED_USERNAMES = new Set(['platform_admin', 'plataforma', 'root']);
 
 const inputSchema = z.object({

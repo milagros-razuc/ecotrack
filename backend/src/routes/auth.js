@@ -17,7 +17,7 @@ router.post('/login', loginLimiter, validar(loginSchema), async (req, res, next)
       return res.status(401).json({ error: resultado.error });
     }
 
-    res.json(resultado);
+    res.set('Cache-Control', 'no-store').json(resultado);
   } catch (err) {
     next(err);
   }
@@ -54,13 +54,18 @@ router.post('/change-password', verificarToken, validar(changePasswordSchema), a
   try {
     const { passwordActual, passwordNueva } = req.body;
 
-    const resultado = await authService.cambiarPassword(req.usuario.sub, passwordActual, passwordNueva);
+    const resultado = await authService.cambiarPassword(
+      req.usuario.sub,
+      passwordActual,
+      passwordNueva,
+      { ip: req.ip },
+    );
 
     if (resultado.error) {
       return res.status(400).json({ error: resultado.error });
     }
 
-    res.json(resultado);
+    res.set('Cache-Control', 'no-store').json(resultado);
   } catch (err) {
     next(err);
   }

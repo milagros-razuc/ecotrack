@@ -67,6 +67,10 @@ function waitForEvent(socket, eventName, timeout = 2500) {
 
 test.before(async () => {
   fixture = await createRealtimeFixture();
+  await fixture.pool.query(
+    'UPDATE usuarios SET rol = $1 WHERE id = $2',
+    ['platform_admin', fixture.seed.users.a.id],
+  );
   ({ resetClientAdminRateLimit } = require('../routes/plataforma'));
   const { getActiveRegistry } = require('../realtime/socketRegistry');
   assert.ok(getActiveRegistry());

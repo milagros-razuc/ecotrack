@@ -1,5 +1,6 @@
 require('dotenv').config();
 const bcrypt = require('bcryptjs');
+const { BCRYPT_COST } = require('../src/config/security');
 const { Pool } = require('pg');
 const { validateDatabaseConfig } = require('./run-migrations');
 
@@ -47,7 +48,7 @@ async function seedPlatformAdmin({
         throw new Error('El username ya existe con una identidad incompatible');
       }
     } else {
-      const hash = await bcrypt.hash(password, 10);
+      const hash = await bcrypt.hash(password, BCRYPT_COST);
       await pool.query(
         `INSERT INTO usuarios (username, password_hash, nombre, rol, cliente_id, must_change_password)
          VALUES ($1, $2, 'Administración de la plataforma', 'platform_admin', $3, true)`,

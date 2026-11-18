@@ -1,4 +1,5 @@
 const bcrypt = require('bcryptjs');
+const { BCRYPT_COST } = require('../config/security');
 const pool = require('../config/db');
 const { getActiveRegistry } = require('../realtime/socketRegistry');
 
@@ -21,7 +22,7 @@ async function crear({ username, password, nombre, rol, clienteId }) {
     return { error: 'El nombre de usuario ya existe' };
   }
 
-  const hash = await bcrypt.hash(password, 10);
+  const hash = await bcrypt.hash(password, BCRYPT_COST);
   const result = await pool.query(
     `INSERT INTO usuarios (username, password_hash, nombre, rol, cliente_id)
      VALUES ($1, $2, $3, $4, $5)

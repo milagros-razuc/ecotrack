@@ -29,7 +29,7 @@ function crearServidor({ iniciarMqtt = true } = {}) {
       authError.data = { code: 'AUTHENTICATION_ERROR' };
       return next(authError);
     }
-    if (payload.mustChangePassword === true) {
+    if (payload.scope === 'change-password' || payload.mustChangePassword === true) {
       const pendingError = new Error('Error de autenticación');
       pendingError.data = { code: 'PASSWORD_CHANGE_REQUIRED' };
       return next(pendingError);

@@ -4,6 +4,7 @@ const net = require('net');
 const pool = require('../config/db');
 const dispositivosService = require('./dispositivos.service');
 const auditoriaService = require('./auditoria.service');
+const { BCRYPT_COST } = require('../config/security');
 const { hashFactorySecret } = require('./enrolamiento.service');
 
 const TEMPORARY_PASSWORD_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
@@ -107,7 +108,7 @@ async function crearClienteAdmin({ nombreCliente, username, nombreAdmin, motivo,
       throw error;
     }
 
-    const passwordHash = await bcrypt.hash(passwordTemporal, 10);
+    const passwordHash = await bcrypt.hash(passwordTemporal, BCRYPT_COST);
     let createdUser;
     try {
       ({ rows: [createdUser] } = await client.query(

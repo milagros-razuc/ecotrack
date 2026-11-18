@@ -20,12 +20,13 @@ test('los roles de plataforma usan platform_admin en los artefactos existentes',
   const roleMigration = fs.readFileSync(path.join(root, 'backend/migrations/016_platform_admin_role.sql'), 'utf8');
   const seed = fs.readFileSync(path.join(root, 'backend/scripts/seed-platform-admin.js'), 'utf8');
   const middleware = fs.readFileSync(path.join(root, 'backend/src/middleware/platformAdmin.js'), 'utf8');
+  const legacyPlatformRole = ['admin', 'plataforma'].join('_');
   assert.match(roleMigration, /platform_admin/);
   assert.match(seed, /platform_admin/);
   assert.match(middleware, /platform_admin/);
-  assert.doesNotMatch(roleMigration, /admin_plataforma/);
-  assert.doesNotMatch(seed, /admin_plataforma/);
-  assert.doesNotMatch(middleware, /admin_plataforma/);
+  assert.doesNotMatch(roleMigration, new RegExp(legacyPlatformRole));
+  assert.doesNotMatch(seed, new RegExp(legacyPlatformRole));
+  assert.doesNotMatch(middleware, new RegExp(legacyPlatformRole));
 });
 
 test('la política exige 12 caracteres, rechaza comunes y no permite reutilizar la temporal', () => {

@@ -76,18 +76,18 @@ comportamiento faltante de expiración, login temporal, límite de intentos y ca
 **Independent Test**: Probar login vigente, vencido, intentos limitados, segundo
 reset, JWT restringido, cambio válido/inválido e invalidación de sockets.
 
-- [ ] T025 [P] [US3] Añadir pruebas de login con temporal vigente y vencida a las 24 horas, reemplazo por segundo reset y mensajes genéricos en `backend/src/test/password-reset.integration.test.js`
-- [ ] T026 [P] [US3] Añadir pruebas de política de contraseña mínima, comunes e igualdad con la temporal en `backend/src/test/auth.test.js`
-- [ ] T027 [US3] Revisar `backend/src/services/auth.service.js`, `backend/src/middleware/auth.js` y `backend/index.js` para conservar `tv`, la comparación de `token_version`, el bloqueo `mustChangePassword` y el rechazo del handshake Socket.IO; implementar solo la validación de expiración temporal y el límite de intentos faltantes, sin recrear JWT/session invalidation
-- [ ] T028 [US3] Extender `backend/src/services/auth.service.js` para limpiar `password_temporal_expira`, poner `must_change_password=false`, incrementar el `token_version` ya existente, desconectar sockets y emitir el token nuevo tras `change-password`
-- [ ] T029 [US3] Mantener los rate limiters de login existentes y agregar pruebas de que los intentos fallidos temporales quedan limitados sin alterar sus claves, ventanas ni respuestas genéricas en `backend/src/test/rate-limiter.test.js` y `backend/src/test/password-reset.integration.test.js`
-- [ ] T030 [US3] Integrar en `frontend/login.html` el cambio obligatorio, mensajes sanitizados y redirección al dashboard solo después del éxito; no permitir acceso operativo mientras `mustChangePassword` esté activo
-- [ ] T031 [US3] Añadir pruebas de rutas HTTP bloqueadas y handshake Socket.IO rechazado durante cambio obligatorio, reutilizando la cobertura existente en `backend/src/test/auth.test.js` y `backend/src/test/realtime.integration.test.js`
+- [x] T025 [P] [US3] Añadir pruebas separadas de login con temporal vigente y vencida a las 24 horas, `Cache-Control: no-store`, respuesta restringida sin campos extra, reemplazo por segundo reset y mensajes genéricos en `backend/src/test/password-reset.integration.test.js`
+- [x] T026 [P] [US3] Añadir pruebas de política de contraseña mínima, comunes e igualdad con la temporal en `backend/src/test/auth.test.js`
+- [x] T027 [US3] Revisar `backend/src/services/auth.service.js`, `backend/src/middleware/auth.js` y `backend/index.js` para conservar `tv`, la comparación de `token_version`, el bloqueo `mustChangePassword` y el rechazo del handshake Socket.IO; implementar solo la validación de expiración temporal y el límite de intentos faltantes, sin recrear JWT/session invalidation
+- [x] T028 [US3] Extender `backend/src/services/auth.service.js` para limpiar `password_temporal_expira`, poner `must_change_password=false`, incrementar el `token_version` ya existente, desconectar sockets y emitir el token nuevo tras `change-password`
+- [x] T029 [US3] Mantener los rate limiters de login existentes y probar con un usuario real que una temporal vencida y su contraseña correcta consumen el límite por IP-usuario, IP y usuario, aislando el contador por proceso de prueba, sin alterar claves, ventanas ni respuestas genéricas en `backend/src/test/rate-limiter.test.js` y `backend/src/test/password-reset.integration.test.js`
+- [x] T030 [US3] Integrar en `frontend/login.html` el cambio obligatorio, mensajes sanitizados y redirección al dashboard solo después del éxito; no permitir acceso operativo mientras `mustChangePassword` esté activo
+- [x] T031 [US3] Añadir pruebas de rutas HTTP bloqueadas, claims de rol desactualizados y handshake Socket.IO rechazado tanto con `scope=change-password` y `must_change_password` verdadero como con el estado de base falso, reutilizando `backend/src/test/auth.test.js` y `backend/src/test/realtime.integration.test.js`
 
 ## Phase 6: Documentation and cross-cutting validation
 
 - [ ] T032 [P] Actualizar `README.MD` y documentación de gestión de usuarios con el endpoint, roles `admin`/`platform_admin`, auditoría, entrega única, expiración y ausencia de email
-- [ ] T033 [P] Revisar `backend/src/test/` y fixtures para asegurar que ninguna prueba, log o auditoría contiene contraseñas temporales en texto plano
+- [x] T033 [P] Revisar `backend/src/test/` y fixtures para asegurar que ninguna prueba, log o auditoría contiene contraseñas temporales en texto plano
 - [ ] T034 Ejecutar `backend/npm test` y los escenarios de `specs/024-reset-password-admin/quickstart.md`; corregir solo regresiones relacionadas con esta feature
 
 ## Dependencies & Execution Order

@@ -17,7 +17,7 @@ async function validarToken(token) {
   try {
     const payload = jwt.verify(token, JWT_SECRET);
     const { rows } = await pool.query(
-      'SELECT token_version, must_change_password FROM usuarios WHERE id = $1',
+      'SELECT token_version, must_change_password, rol, cliente_id FROM usuarios WHERE id = $1',
       [payload.sub]
     );
 
@@ -25,7 +25,12 @@ async function validarToken(token) {
       throw crearErrorAuth('SESSION_INVALIDATED', 'Sesión invalidada');
     }
 
-    return { ...payload, mustChangePassword: rows[0].must_change_password === true };
+    return {
+      ...payload,
+      rol: rows[0].rol,
+      clienteId: payload.clienteId,
+      mustChangePassword: rows[0].must_change_password === true,
+    };
   } catch (err) {
     if (err.code === 'SESSION_INVALIDATED') throw err;
     throw crearErrorAuth('INVALID_TOKEN', 'Token inválido o expirado');
@@ -38,7 +43,14 @@ async function verificarToken(req, res, next) {
   try {
     req.usuario = await validarToken(token);
     const isPasswordChangeRoute = req.baseUrl === '/api/auth'
-      && (req.path === '/me' || req.path === '/change-password');
+      && ((req.method === 'GET' && req.path === '/me')
+        || (req.method === 'POST' && req.path === '/change-password'));
+    if (req.usuario.scope === 'change-password' && !isPasswordChangeRoute) {
+      return res.status(403).json({
+        error: 'Debe cambiar la contraseña antes de continuar',
+        code: 'PASSWORD_CHANGE_REQUIRED',
+      });
+    }
     if (req.usuario.mustChangePassword && !isPasswordChangeRoute) {
       return res.status(403).json({
         error: 'Debe cambiar la contraseña antes de continuar',

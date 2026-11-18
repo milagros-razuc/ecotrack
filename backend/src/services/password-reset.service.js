@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const pool = require('../config/db');
 const auditoriaService = require('./auditoria.service');
 const { getActiveRegistry } = require('../realtime/socketRegistry');
+const { BCRYPT_COST } = require('../config/security');
 
 const TEMPORARY_PASSWORD_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%^&*+-_=';
 const TEMPORARY_PASSWORD_LENGTH = 16;
@@ -96,7 +97,7 @@ async function resetearPassword({ solicitanteId, objetivoId, ip }) {
     }
 
     const passwordTemporal = generarPasswordTemporal();
-    const passwordHash = await bcrypt.hash(passwordTemporal, 10);
+    const passwordHash = await bcrypt.hash(passwordTemporal, BCRYPT_COST);
     const { rows: actualizados } = await client.query(
       `UPDATE usuarios
        SET password_hash = $1,

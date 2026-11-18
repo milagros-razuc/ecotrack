@@ -60,9 +60,19 @@ objetivo. El detalle JSON registra IP y resultado, nunca la contraseña.
 
 ## Login and mandatory change
 
-Una temporal válida devuelve `mustChangePassword: true`; una temporal vencida o
-invalidada devuelve el error genérico de credenciales. Mientras esté pendiente,
-solo `GET /api/auth/me` y `POST /api/auth/change-password` quedan permitidos.
-
+Una temporal válida devuelve `mustChangePassword: true` y un JWT restringido con
+`scope: "change-password"` y expiración máxima de 10 minutos. La respuesta
+exitosa del login restringido lleva `Cache-Control: no-store`, no incluye campos
+extra ni un JWT completo. Una temporal vencida o invalidada devuelve el mismo
+status y cuerpo que cualquier credencial inválida y consume los rate limiters
+existentes. Mientras esté pendiente, solo `GET /api/auth/me` y
+`POST /api/auth/change-password` quedan permitidos por una allowlist central.
 El estado pendiente reutiliza `usuarios.must_change_password`, que ya es la
-fuente consumida por login, middleware de autenticación y handshake de Socket.IO.
+fuente consumida por login, middleware de autenticación y handshake de Socket.IO;
+la restricción se aplica si `scope` o el estado de base indican cambio pendiente.
+
+`POST /api/auth/change-password` exige un body estricto con `passwordActual` y
+`passwordNueva`, aplica la política común de mínimo 12 caracteres, registra
+éxitos y rechazos sin secretos en auditoría, limpia
+`password_temporal_expira`, incrementa `token_version` en una única transacción
+y devuelve un JWT completo nuevo con `Cache-Control: no-store`.

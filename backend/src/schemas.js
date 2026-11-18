@@ -42,8 +42,8 @@ const loginSchema = z.object({
 
 const changePasswordSchema = z.object({
   passwordActual: z.string().min(1),
-  passwordNueva: z.string().min(6),
-});
+  passwordNueva: z.string().min(1),
+}).strict();
 
 const dispositivoSchema = z.object({
   codigo: z.string().min(1),

@@ -479,25 +479,29 @@ test('US3: Registro de actividad combina auditoría y acciones con filtros y ais
 });
 
 test('US3: Registro de actividad mantiene autorización admin', async () => {
-  const commonUser = {
-    id: fixture.seed.users.a.id,
-    username: fixture.seed.users.a.username,
-    cliente_id: fixture.seed.users.a.cliente_id,
-    token_version: fixture.seed.users.a.token_version,
-  };
-  const response = await fetch(`${baseUrl}/api/auditoria`, {
-    headers: {
-      Authorization: require('jsonwebtoken').sign(
-        {
-          sub: commonUser.id,
-          username: commonUser.username,
-          rol: 'comun',
-          clienteId: commonUser.cliente_id,
-          tv: commonUser.token_version,
-        },
-        process.env.JWT_SECRET
-      ),
-    },
-  });
-  assert.strictEqual(response.status, 403);
+  const { rows: [commonUser] } = await fixture.pool.query(
+    `INSERT INTO usuarios (username, password_hash, nombre, rol, cliente_id, token_version)
+     VALUES ($1, 'fixture-password-hash', 'Common User', 'comun', $2, 1)
+     RETURNING id, username, cliente_id, token_version`,
+    [`audit-common-${Date.now()}`, fixture.seed.users.a.cliente_id],
+  );
+  try {
+    const response = await fetch(`${baseUrl}/api/auditoria`, {
+      headers: {
+        Authorization: require('jsonwebtoken').sign(
+          {
+            sub: commonUser.id,
+            username: commonUser.username,
+            rol: 'comun',
+            clienteId: commonUser.cliente_id,
+            tv: commonUser.token_version,
+          },
+          process.env.JWT_SECRET
+        ),
+      },
+    });
+    assert.strictEqual(response.status, 403);
+  } finally {
+    await fixture.pool.query('DELETE FROM usuarios WHERE id = $1', [commonUser.id]);
+  }
 });

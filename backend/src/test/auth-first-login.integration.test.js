@@ -50,7 +50,15 @@ test('Feature 021 HTTP real permite me y change-password pero bloquea rutas oper
     let port;
     try {
       await pool.query(fs.readFileSync(
+        path.resolve(__dirname, '../../migrations/018_audit_actor.sql'),
+        'utf8',
+      ));
+      await pool.query(fs.readFileSync(
         path.resolve(__dirname, '../../migrations/020_client_admin.sql'),
+        'utf8',
+      ));
+      await pool.query(fs.readFileSync(
+        path.resolve(__dirname, '../../migrations/021_password_reset.sql'),
         'utf8',
       ));
       const password = 'Temporal-Password-123';
