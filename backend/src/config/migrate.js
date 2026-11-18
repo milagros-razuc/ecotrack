@@ -378,7 +378,7 @@ async function inicializarDB() {
     if (process.env.NODE_ENV === 'production' && !configuredPassword) {
       throw new Error('ADMIN_PASS es obligatorio en producción al crear el administrador inicial');
     }
-    const password = configuredPassword || 'admin123';
+    const password = configuredPassword || 'admin-inicial-123';
     if (!configuredPassword && process.env.NODE_ENV !== 'production') {
       console.warn('ADMIN_PASS no está configurado: se usará la contraseña predeterminada solo en desarrollo.');
     }

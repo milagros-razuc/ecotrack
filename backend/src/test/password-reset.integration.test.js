@@ -554,6 +554,66 @@ test('US3: token restringido permite me y bloquea rutas por defecto', async () =
   });
 });
 
+test('US3: token restringido con flag falso o temporal vencida usa el mismo error generico', async () => {
+  await withUs3App(async ({ pool, user, temporaryPassword, login, port }) => {
+    const pending = await login(temporaryPassword);
+    await pool.query(
+      'UPDATE usuarios SET must_change_password = false WHERE id = $1',
+      [user.id],
+    );
+    const flagFalse = await request(port, {
+      method: 'POST',
+      path: '/api/auth/change-password',
+      headers: { Authorization: pending.body.token },
+      body: { passwordNueva: 'Nueva-Segura-789' },
+    });
+    await pool.query(
+      'UPDATE usuarios SET must_change_password = true, password_temporal_expira = NOW() - INTERVAL \'1 second\' WHERE id = $1',
+      [user.id],
+    );
+    const expired = await request(port, {
+      method: 'POST',
+      path: '/api/auth/change-password',
+      headers: { Authorization: pending.body.token },
+      body: { passwordNueva: 'Nueva-Segura-789' },
+    });
+    assert.equal(flagFalse.statusCode, 400);
+    assert.equal(expired.statusCode, 400);
+    assert.deepEqual(flagFalse.body, expired.body);
+    assert.deepEqual(flagFalse.body, { error: 'La contraseña actual es incorrecta' });
+  });
+});
+
+test('US3: token completo sin contraseña actual rechaza y conserva la base', async () => {
+  await withUs3App(async ({ pool, user, login, port }) => {
+    const currentPassword = 'Current-Full-123';
+    const currentHash = await bcrypt.hash(currentPassword, 10);
+    await pool.query(
+      `UPDATE usuarios
+       SET password_hash = $1, must_change_password = false, password_temporal_expira = NULL
+       WHERE id = $2`,
+      [currentHash, user.id],
+    );
+    const fullLogin = await login(currentPassword);
+    const before = (await pool.query(
+      'SELECT password_hash, token_version, must_change_password, password_temporal_expira FROM usuarios WHERE id = $1',
+      [user.id],
+    )).rows[0];
+    const response = await request(port, {
+      method: 'POST',
+      path: '/api/auth/change-password',
+      headers: { Authorization: fullLogin.body.token },
+      body: { passwordNueva: 'Nueva-Segura-789' },
+    });
+    assert.equal(response.statusCode, 400);
+    const after = (await pool.query(
+      'SELECT password_hash, token_version, must_change_password, password_temporal_expira FROM usuarios WHERE id = $1',
+      [user.id],
+    )).rows[0];
+    assert.deepEqual(after, before);
+  });
+});
+
 test('US3: rechazos de cambio conservan estado y no exponen secretos', async () => {
   await withUs3App(async ({ pool, user, temporaryPassword, login, port }) => {
     const pending = await login(temporaryPassword);
@@ -570,12 +630,12 @@ test('US3: rechazos de cambio conservan estado y no exponen secretos', async () 
       body: { passwordActual: temporaryPassword, passwordNueva: 'Nueva-Segura-789', token: 'no-debe-aceptarse' },
     });
     errors.push(extraField);
-    for (const passwordNueva of ['corta', '123456789012', temporaryPassword]) {
+    for (const passwordNueva of ['1234567', 'password', '12345678', temporaryPassword]) {
       errors.push(await request(port, {
         method: 'POST',
         path: '/api/auth/change-password',
         headers: { Authorization: pending.body.token },
-        body: { passwordActual: temporaryPassword, passwordNueva },
+        body: { passwordNueva },
       }));
     }
     errors.push(await request(port, {
@@ -597,6 +657,23 @@ test('US3: rechazos de cambio conservan estado y no exponen secretos', async () 
   });
 });
 
+test('US3: el rate limit de cambio cuenta rechazos de politica por usuario e IP', async () => {
+  await withUs3App(async ({ temporaryPassword, login, port }) => {
+    const pending = await login(temporaryPassword);
+    const responses = [];
+    for (let attempt = 0; attempt < 11; attempt += 1) {
+      responses.push(await request(port, {
+        method: 'POST',
+        path: '/api/auth/change-password',
+        headers: { Authorization: pending.body.token },
+        body: { passwordNueva: 'corta' },
+      }));
+    }
+    assert.equal(responses.slice(0, 10).every((response) => response.statusCode === 400), true);
+    assert.equal(responses[10].statusCode, 429);
+  });
+});
+
 test('US3: cambio exitoso limpia la temporal, audita e invalida sesiones', async () => {
   await withUs3App(async ({ pool, user, temporaryPassword, login, port }) => {
     const pending = await login(temporaryPassword);
@@ -604,7 +681,7 @@ test('US3: cambio exitoso limpia la temporal, audita e invalida sesiones', async
       method: 'POST',
       path: '/api/auth/change-password',
       headers: { Authorization: pending.body.token },
-      body: { passwordActual: temporaryPassword, passwordNueva: 'Nueva-Segura-789' },
+      body: { passwordNueva: 'Clave8!x' },
     });
     assert.equal(changed.statusCode, 200);
     assert.equal(changed.headers['cache-control'], 'no-store');
@@ -618,7 +695,7 @@ test('US3: cambio exitoso limpia la temporal, audita e invalida sesiones', async
     assert.equal(after.must_change_password, false);
     assert.equal(after.password_temporal_expira, null);
     assert.equal(after.token_version, user.token_version + 1);
-    assert.equal(await bcrypt.compare('Nueva-Segura-789', after.password_hash), true);
+    assert.equal(await bcrypt.compare('Clave8!x', after.password_hash), true);
     const oldToken = await request(port, {
       method: 'GET',
       path: '/api/auth/me',
@@ -627,7 +704,7 @@ test('US3: cambio exitoso limpia la temporal, audita e invalida sesiones', async
     assert.equal(oldToken.statusCode, 401);
     assertNoSecrets(oldToken, [pending.body.token, temporaryPassword, after.password_hash]);
     assert.equal((await login(temporaryPassword)).statusCode, 401);
-    assert.equal((await login('Nueva-Segura-789')).statusCode, 200);
+    assert.equal((await login('Clave8!x')).statusCode, 200);
     const audit = (await pool.query(
       `SELECT detalle FROM auditoria
        WHERE accion = 'change_password' AND entidad_id = $1
@@ -658,7 +735,7 @@ test('US3: la temporal que vence entre login y cambio usa error generico', async
       method: 'POST',
       path: '/api/auth/change-password',
       headers: { Authorization: expiringLogin.body.token },
-      body: { passwordActual: temporaryPassword, passwordNueva: 'Nueva-Segura-999' },
+      body: { passwordNueva: 'Nueva-Segura-999' },
     });
     assert.equal(response.statusCode, 400);
     assert.deepEqual(response.body, { error: 'La contraseña actual es incorrecta' });

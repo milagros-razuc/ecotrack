@@ -177,7 +177,7 @@ fecha, resultado e IP, sin secretos.
 - **FR-013**: El primer login con una contraseña temporal válida MUST crear una sesión
   restringida al cambio de contraseña y MUST bloquear el acceso al dashboard hasta
   completarlo.
-- **FR-014**: La contraseña nueva MUST tener al menos 12 caracteres, no ser igual a
+- **FR-014**: La contraseña nueva MUST tener al menos 8 caracteres, no ser igual a
   la temporal y ser rechazada si pertenece a la lista vigente de contraseñas comunes.
 - **FR-015**: Un reset o cambio de contraseña temporal MUST invalidar todas las
   sesiones activas del usuario, incluidas las emitidas antes del reset.
@@ -254,8 +254,10 @@ fecha, resultado e IP, sin secretos.
   cambio de contraseña ya establecidos por la Feature 021.
 - La política vigente de contraseñas comunes se mantiene como una lista versionada
   por el backend; no se exige una fuente externa para esta feature.
-- El límite de 5 intentos fallidos y el mínimo de 12 caracteres son los valores
-  iniciales de esta feature y pueden endurecerse sin cambiar el flujo.
+- El límite de 5 intentos fallidos y el mínimo general de 8 caracteres son los
+  valores iniciales de esta feature. Las cuentas privilegiadas (`admin` y
+  `platform_admin`) mantienen un mínimo de 12 caracteres y las temporales se
+  generan con un mínimo independiente de 12 caracteres.
 - La IP se obtiene de la solicitud autenticada y se registra conforme al mecanismo
   de auditoría existente.
 - El envío de la contraseña al usuario queda a cargo del administrador por un canal

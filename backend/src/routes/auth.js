@@ -2,8 +2,13 @@ const express = require('express');
 const authService = require('../services/auth.service');
 const verificarToken = require('../middleware/auth');
 const validar = require('../middleware/validar');
-const { loginLimiter } = require('../middleware/rateLimiter');
-const { loginSchema, changePasswordSchema, actualizarPerfilSchema } = require('../schemas');
+const { loginLimiter, passwordChangeLimiter } = require('../middleware/rateLimiter');
+const {
+  loginSchema,
+  changePasswordSchema,
+  restrictedChangePasswordSchema,
+  actualizarPerfilSchema,
+} = require('../schemas');
 
 const router = express.Router();
 
@@ -50,7 +55,20 @@ router.patch('/me', verificarToken, validar(actualizarPerfilSchema), async (req,
   }
 });
 
-router.post('/change-password', verificarToken, validar(changePasswordSchema), async (req, res, next) => {
+function validarCambioSegunScope(req, res, next) {
+  const schema = req.usuario.scope === 'change-password'
+    ? restrictedChangePasswordSchema
+    : changePasswordSchema;
+  const resultado = schema.safeParse(req.body);
+  if (!resultado.success) {
+    const primerError = resultado.error.issues[0];
+    return res.status(400).json({ error: `${primerError.path.join('.')}: ${primerError.message}` });
+  }
+  req.body = resultado.data;
+  next();
+}
+
+router.post('/change-password', verificarToken, passwordChangeLimiter, validarCambioSegunScope, async (req, res, next) => {
   try {
     const { passwordActual, passwordNueva } = req.body;
 
@@ -58,7 +76,7 @@ router.post('/change-password', verificarToken, validar(changePasswordSchema), a
       req.usuario.sub,
       passwordActual,
       passwordNueva,
-      { ip: req.ip },
+      { ip: req.ip, tokenRestringido: req.usuario.scope === 'change-password' },
     );
 
     if (resultado.error) {

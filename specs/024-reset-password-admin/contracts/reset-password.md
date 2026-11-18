@@ -71,8 +71,26 @@ El estado pendiente reutiliza `usuarios.must_change_password`, que ya es la
 fuente consumida por login, middleware de autenticación y handshake de Socket.IO;
 la restricción se aplica si `scope` o el estado de base indican cambio pendiente.
 
-`POST /api/auth/change-password` exige un body estricto con `passwordActual` y
-`passwordNueva`, aplica la política común de mínimo 12 caracteres, registra
-éxitos y rechazos sin secretos en auditoría, limpia
+`POST /api/auth/change-password` selecciona el schema exclusivamente desde el
+scope del JWT ya verificado:
+
+- token restringido (`scope = "change-password"`): body estricto con solo
+  `passwordNueva`; si incluye `passwordActual`, se rechaza;
+- token completo: body estricto con `passwordActual` y `passwordNueva`
+  obligatorias.
+
+Con token restringido, dentro de la transacción se bloquea el usuario con
+`SELECT ... FOR UPDATE` y se exige que `must_change_password = true` y que la
+temporal no esté vencida, consultando ambos valores desde la base. Si alguna
+condición falla, se devuelve el mismo status y cuerpo genérico que una
+credencial inválida. Luego se rechazan contraseñas de menos de 8 caracteres,
+comunes o iguales a la temporal. Con token completo se verifica la contraseña
+actual y se aplica la misma política. Las cuentas privilegiadas mantienen un
+mínimo de 12 caracteres y las contraseñas temporales se generan con un mínimo
+independiente de 12 caracteres.
+
+El endpoint aplica rate limiting independiente por usuario y por IP, y los
+rechazos de validación o política consumen el límite. Registra éxitos y
+rechazos sin secretos en auditoría, limpia
 `password_temporal_expira`, incrementa `token_version` en una única transacción
 y devuelve un JWT completo nuevo con `Cache-Control: no-store`.

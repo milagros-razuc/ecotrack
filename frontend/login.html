@@ -244,17 +244,19 @@
           <p class="text-body-sm text-on-surface-variant">Por seguridad, reemplazá tu contraseña temporal.</p>
         </div>
 
-        <label class="font-label-bold text-label-bold text-on-surface-variant uppercase" for="current-password">
-          Contraseña actual
-        </label>
-        <input
-          id="current-password"
-          name="passwordActual"
-          class="login-input w-full px-4 py-3 rounded-lg bg-surface border border-outline-variant text-on-surface outline-none"
-          type="password"
-          autocomplete="current-password"
-          required
-        />
+        <div id="current-password-group">
+          <label class="font-label-bold text-label-bold text-on-surface-variant uppercase" for="current-password">
+            Contraseña actual
+          </label>
+          <input
+            id="current-password"
+            name="passwordActual"
+            class="login-input w-full px-4 py-3 rounded-lg bg-surface border border-outline-variant text-on-surface outline-none"
+            type="password"
+            autocomplete="current-password"
+            required
+          />
+        </div>
 
         <label class="font-label-bold text-label-bold text-on-surface-variant uppercase" for="new-password">
           Nueva contraseña
@@ -333,6 +335,7 @@
     const usernameInput = document.getElementById('username');
     const passwordInput = document.getElementById('password');
     const passwordChangeForm = document.getElementById('password-change-form');
+    const currentPasswordGroup = document.getElementById('current-password-group');
     const currentPasswordInput = document.getElementById('current-password');
     const newPasswordInput = document.getElementById('new-password');
     const confirmPasswordInput = document.getElementById('confirm-password');
@@ -411,10 +414,12 @@
 
     function mostrarFormularioCambioPassword(tokenTemporal) {
       tokenCambioPassword = tokenTemporal;
+      currentPasswordGroup.classList.add('hidden');
+      currentPasswordInput.required = false;
       loginForm.classList.add('hidden');
       passwordChangeForm.classList.remove('hidden');
       passwordChangeForm.classList.add('flex');
-      currentPasswordInput.focus();
+      newPasswordInput.focus();
     }
 
     function limpiarCambioPassword() {
@@ -616,7 +621,7 @@
       const passwordNueva = newPasswordInput.value;
       const passwordConfirmacion = confirmPasswordInput.value;
 
-      if (!passwordActual || !passwordNueva || !passwordConfirmacion) {
+      if (!passwordNueva || !passwordConfirmacion) {
         mostrarError('Completá todos los campos');
         return;
       }
@@ -638,7 +643,10 @@
               'Content-Type': 'application/json',
               Authorization: tokenCambioPassword,
             },
-            body: JSON.stringify({ passwordActual, passwordNueva }),
+            body: JSON.stringify({
+              ...(tokenCambioPassword ? {} : { passwordActual }),
+              passwordNueva,
+            }),
           }
         );
         const data = await response.json();

@@ -21,7 +21,7 @@ description: "Task list for admin password reset"
 ## Phase 1: Setup
 
 - [x] T001 Confirmar en `backend/migrations/016_platform_admin_role.sql`, `backend/scripts/seed-platform-admin.js` y `backend/src/middleware/platformAdmin.js` que el único rol de plataforma usado por la aplicación es `platform_admin`, y actualizar fixtures nuevas en `backend/src/test/password-reset.service.test.js`
-- [x] T002 [P] Implementar la política reutilizable de contraseñas nuevas, con mínimo 12 caracteres, rechazo de contraseñas comunes y rechazo de igualdad con la temporal, en `backend/src/services/password-policy.service.js`
+- [x] T002 [P] Implementar la política reutilizable de contraseñas nuevas, con mínimo general de 8 caracteres, rechazo de contraseñas comunes y rechazo de igualdad con la temporal, en `backend/src/services/password-policy.service.js`; mantener mínimos independientes de 12 para cuentas privilegiadas y temporales
 - [x] T003 [P] Implementar el generador CSPRNG de contraseña temporal sin caracteres ambiguos en `backend/src/services/password-reset.service.js`, sin escribir el valor en logs
 
 ## Phase 2: Foundational
@@ -79,10 +79,11 @@ reset, JWT restringido, cambio válido/inválido e invalidación de sockets.
 - [x] T025 [P] [US3] Añadir pruebas separadas de login con temporal vigente y vencida a las 24 horas, `Cache-Control: no-store`, respuesta restringida sin campos extra, reemplazo por segundo reset y mensajes genéricos en `backend/src/test/password-reset.integration.test.js`
 - [x] T026 [P] [US3] Añadir pruebas de política de contraseña mínima, comunes e igualdad con la temporal en `backend/src/test/auth.test.js`
 - [x] T027 [US3] Revisar `backend/src/services/auth.service.js`, `backend/src/middleware/auth.js` y `backend/index.js` para conservar `tv`, la comparación de `token_version`, el bloqueo `mustChangePassword` y el rechazo del handshake Socket.IO; implementar solo la validación de expiración temporal y el límite de intentos faltantes, sin recrear JWT/session invalidation
-- [x] T028 [US3] Extender `backend/src/services/auth.service.js` para limpiar `password_temporal_expira`, poner `must_change_password=false`, incrementar el `token_version` ya existente, desconectar sockets y emitir el token nuevo tras `change-password`
-- [x] T029 [US3] Mantener los rate limiters de login existentes y probar con un usuario real que una temporal vencida y su contraseña correcta consumen el límite por IP-usuario, IP y usuario, aislando el contador por proceso de prueba, sin alterar claves, ventanas ni respuestas genéricas en `backend/src/test/rate-limiter.test.js` y `backend/src/test/password-reset.integration.test.js`
-- [x] T030 [US3] Integrar en `frontend/login.html` el cambio obligatorio, mensajes sanitizados y redirección al dashboard solo después del éxito; no permitir acceso operativo mientras `mustChangePassword` esté activo
+- [x] T028 [US3] Extender `backend/src/services/auth.service.js` para seleccionar la variante por scope verificado, exigir el estado persistido del token restringido dentro de `SELECT ... FOR UPDATE`, aplicar la política, limpiar `password_temporal_expira`, poner `must_change_password=false`, incrementar `token_version`, desconectar sockets y emitir el token nuevo tras `change-password`
+- [x] T029 [US3] Mantener los rate limiters de login existentes y agregar en `backend/src/middleware/rateLimiter.js` límites independientes por usuario e IP para `change-password`, contando rechazos de validación/política; probar temporales vencidas y rechazos de política en `backend/src/test/password-reset.integration.test.js`
+- [x] T030 [US3] Integrar en `frontend/login.html` el cambio obligatorio con solo `passwordNueva` para tokens restringidos, ocultar la contraseña actual, mostrar mensajes sanitizados y redirigir al dashboard solo después del éxito
 - [x] T031 [US3] Añadir pruebas de rutas HTTP bloqueadas, claims de rol desactualizados y handshake Socket.IO rechazado tanto con `scope=change-password` y `must_change_password` verdadero como con el estado de base falso, reutilizando `backend/src/test/auth.test.js` y `backend/src/test/realtime.integration.test.js`
+- [x] T035 [US3] Actualizar `backend/src/schemas.js`, `backend/src/routes/auth.js`, `backend/src/services/password-policy.service.js`, `backend/scripts/crear-admin-cliente.js`, `backend/scripts/seed-platform-admin.js` y la documentación de `specs/024-reset-password-admin/` para centralizar mínimos general (8), privilegiado (12) y temporal (12)
 
 ## Phase 6: Documentation and cross-cutting validation
 

@@ -32,4 +32,6 @@
 ## Notes
 
 La especificación está lista para `/speckit-plan`. Los valores iniciales de 5 intentos
-fallidos y 12 caracteres están explicitados como requisitos y supuestos verificables.
+fallidos y 8 caracteres para la política general están explicitados como requisitos
+y supuestos verificables; las cuentas privilegiadas y temporales mantienen mínimos
+independientes de 12 caracteres.

@@ -1,6 +1,7 @@
 require('dotenv').config();
 const bcrypt = require('bcryptjs');
 const { BCRYPT_COST } = require('../src/config/security');
+const { MIN_PRIVILEGED_PASSWORD_LENGTH } = require('../src/services/password-policy.service');
 const { Pool } = require('pg');
 const { validateDatabaseConfig } = require('./run-migrations');
 
@@ -13,8 +14,8 @@ async function seedPlatformAdmin({
   const databaseConfig = validateDatabaseConfig(environment, { allowNonTestDatabase });
   const username = environment.PLATFORM_ADMIN_USER || 'platform_admin';
   const password = environment.PLATFORM_ADMIN_PASS;
-  if (!password || password.trim().length < 12) {
-    throw new Error('PLATFORM_ADMIN_PASS es obligatorio y debe tener al menos 12 caracteres');
+  if (!password || password.trim().length < MIN_PRIVILEGED_PASSWORD_LENGTH) {
+    throw new Error(`PLATFORM_ADMIN_PASS es obligatorio y debe tener al menos ${MIN_PRIVILEGED_PASSWORD_LENGTH} caracteres`);
   }
   const pool = providedPool || poolFactory(databaseConfig);
 

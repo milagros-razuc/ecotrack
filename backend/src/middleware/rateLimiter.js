@@ -59,6 +59,50 @@ function createLoginLimiter() {
 
 const loginLimiter = createLoginLimiter();
 
+function createPasswordChangeLimiter() {
+  const porIpYUsuario = rateLimit({
+    windowMs: LOGIN_WINDOW_MS,
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) => JSON.stringify([
+      ipKeyGenerator(req.ip),
+      String(req.usuario.sub),
+    ]),
+    message: LOGIN_LIMIT_MESSAGE,
+  });
+  const porIp = rateLimit({
+    windowMs: LOGIN_WINDOW_MS,
+    max: 30,
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) => ipKeyGenerator(req.ip),
+    message: LOGIN_LIMIT_MESSAGE,
+  });
+  const porUsuario = rateLimit({
+    windowMs: LOGIN_WINDOW_MS,
+    max: 20,
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) => String(req.usuario.sub),
+    message: LOGIN_LIMIT_MESSAGE,
+  });
+
+  return (req, res, next) => {
+    const limiters = [porIpYUsuario, porIp, porUsuario];
+    let indice = 0;
+    const ejecutarSiguiente = (error) => {
+      if (error) return next(error);
+      const limiter = limiters[indice++];
+      if (!limiter) return next();
+      limiter(req, res, ejecutarSiguiente);
+    };
+    ejecutarSiguiente();
+  };
+}
+
+const passwordChangeLimiter = createPasswordChangeLimiter();
+
 // API pública — primera capa: límite duro por IP, corre ANTES de resolver
 // la clave. Cuenta todo el tráfico entrante sin importar si la clave es
 // real o inventada, así una API key falsa rotada en cada request no sirve
@@ -97,6 +141,7 @@ const enrollmentLimiter = rateLimit({
 module.exports = {
   loginLimiter,
   createLoginLimiter,
+  passwordChangeLimiter,
   apiPublicaPorIp,
   apiPublicaPorClave,
   enrollmentLimiter,

@@ -1,4 +1,8 @@
 const { z } = require('zod');
+const {
+  MIN_PASSWORD_LENGTH,
+  MIN_PRIVILEGED_PASSWORD_LENGTH,
+} = require('./services/password-policy.service');
 
 const fechaLecturaSchema = z.string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, 'debe tener formato YYYY-MM-DD')
@@ -42,6 +46,10 @@ const loginSchema = z.object({
 
 const changePasswordSchema = z.object({
   passwordActual: z.string().min(1),
+  passwordNueva: z.string().min(1),
+}).strict();
+
+const restrictedChangePasswordSchema = z.object({
   passwordNueva: z.string().min(1),
 }).strict();
 
@@ -98,9 +106,23 @@ const firmwareVersionMqttSchema = z.object({
 // Para POST /api/usuarios (alta de usuario, CU09 — RF16)
 const crearUsuarioSchema = z.object({
   username: z.string().min(3, 'El username debe tener al menos 3 caracteres'),
-  password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres'),
+  password: z.string().min(
+    MIN_PASSWORD_LENGTH,
+    `La contraseña debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres`,
+  ),
   nombre: z.string().optional(),
   rol: z.enum(['admin', 'comun']).default('comun'),
+}).superRefine((data, context) => {
+  if (data.rol === 'admin' && data.password.length < MIN_PRIVILEGED_PASSWORD_LENGTH) {
+    context.addIssue({
+      code: z.ZodIssueCode.too_small,
+      minimum: MIN_PRIVILEGED_PASSWORD_LENGTH,
+      inclusive: true,
+      type: 'string',
+      path: ['password'],
+      message: `La contraseña de un administrador debe tener al menos ${MIN_PRIVILEGED_PASSWORD_LENGTH} caracteres`,
+    });
+  }
 });
 
 // Para PATCH /api/usuarios/:id (modificación, CU09 — RF16)
@@ -137,6 +159,7 @@ const crearClienteAdminSchema = z.object({
 module.exports = {
   loginSchema,
   changePasswordSchema,
+  restrictedChangePasswordSchema,
   dispositivoSchema,
   enrolamientoSchema,
   umbralSchema,

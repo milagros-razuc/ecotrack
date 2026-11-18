@@ -62,7 +62,12 @@ async function obtenerPorId(id) {
   return rows[0] || null;
 }
 
-async function cambiarPassword(id, passwordActual, passwordNueva, { ip = null } = {}) {
+async function cambiarPassword(
+  id,
+  passwordActual,
+  passwordNueva,
+  { ip = null, tokenRestringido = false } = {},
+) {
   const client = await pool.connect();
   let committed = false;
   let usuario;
@@ -76,12 +81,25 @@ async function cambiarPassword(id, passwordActual, passwordNueva, { ip = null } 
       [id],
     );
     usuario = rows[0];
-    if (!usuario) {
+    const temporalVencida = usuario?.password_temporal_expira
+      && new Date(usuario.password_temporal_expira).getTime() <= Date.now();
+    const estadoRestringidoInvalido = tokenRestringido
+      && (!usuario || usuario.must_change_password !== true || temporalVencida);
+
+    if (estadoRestringidoInvalido) {
       resultado = { error: 'La contraseña actual es incorrecta' };
+    } else if (!usuario) {
+      resultado = { error: 'La contraseña actual es incorrecta' };
+    } else if (tokenRestringido) {
+      const nuevaEsTemporal = await bcrypt.compare(passwordNueva, usuario.password_hash);
+      const politica = validarPasswordNueva(passwordNueva, null);
+      if (nuevaEsTemporal) {
+        resultado = { error: 'La nueva contraseña no puede ser igual a la temporal' };
+      } else if (!politica.valida) {
+        resultado = { error: politica.error };
+      }
     } else {
       const passwordValida = await bcrypt.compare(passwordActual, usuario.password_hash);
-      const temporalVencida = usuario.password_temporal_expira
-        && new Date(usuario.password_temporal_expira).getTime() <= Date.now();
       const politica = validarPasswordNueva(
         passwordNueva,
         usuario.must_change_password ? passwordActual : null,

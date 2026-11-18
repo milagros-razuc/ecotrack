@@ -38,6 +38,13 @@ una única transacción de actualización/auditoría por solicitud exitosa
 **Constraints**: Sin contraseña temporal en texto plano persistido, logs o
 auditoría; respuesta `Cache-Control: no-store`; aislamiento por JWT; no email;
 `platform_admin` no puede usar las rutas tenant generales; migraciones repetibles.
+El cambio de contraseña selecciona un schema Zod estricto según el scope
+verificado: el token restringido solo acepta `passwordNueva`, mientras que el
+token completo exige también `passwordActual`. El endpoint tiene límites
+independientes por usuario e IP y cuenta rechazos de validación y política.
+La política general usa mínimo 8 caracteres; la creación de cuentas privilegiadas
+(`admin` y `platform_admin`) conserva un mínimo de 12, y la contraseña temporal
+tiene un mínimo independiente de 12 con longitud por defecto 16.
 
 ## Constitution Check
 
@@ -100,6 +107,8 @@ backend/
 └── src/test/
     ├── password-reset.service.test.js
     ├── password-reset.integration.test.js
+    ├── auth-first-login.integration.test.js
+    ├── auth.test.js
     └── platform-panel-schema.test.js
 frontend/
 ├── usuarios.html

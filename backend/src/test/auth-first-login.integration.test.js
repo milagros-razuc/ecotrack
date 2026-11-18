@@ -136,7 +136,7 @@ test('Feature 021 HTTP real permite me y change-password pero bloquea rutas oper
         method: 'POST',
         path: '/api/auth/change-password',
         headers: authorization,
-        body: { passwordActual: password, passwordNueva: 'Nueva-Segura-456' },
+        body: { passwordNueva: 'Nueva-Segura-456' },
       });
       assert.equal(changed.statusCode, 200);
       assert.equal(changed.body.ok, true);

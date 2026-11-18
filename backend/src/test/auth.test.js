@@ -248,8 +248,9 @@ test('Feature 021 auth usa PostgreSQL real para restringir el primer login y com
 
       const samePassword = await realAuthService.cambiarPassword(
         userId,
+        undefined,
         temporaryPassword,
-        temporaryPassword,
+        { tokenRestringido: true },
       );
       assert.deepEqual(samePassword, { error: 'La nueva contraseña no puede ser igual a la temporal' });
       const { rows: pendingState } = await realPool.query(
@@ -258,7 +259,12 @@ test('Feature 021 auth usa PostgreSQL real para restringir el primer login y com
       );
       assert.equal(pendingState[0].must_change_password, true);
 
-      const changed = await realAuthService.cambiarPassword(userId, temporaryPassword, 'Nueva-Segura-456');
+      const changed = await realAuthService.cambiarPassword(
+        userId,
+        undefined,
+        'Nueva-Segura-456',
+        { tokenRestringido: true },
+      );
       assert.equal(changed.ok, true);
       const { rows: state } = await realPool.query(
         'SELECT must_change_password, token_version FROM usuarios WHERE id = $1',

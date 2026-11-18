@@ -1,6 +1,10 @@
-const MIN_PASSWORD_LENGTH = 12;
+const MIN_PASSWORD_LENGTH = 8;
+const MIN_PRIVILEGED_PASSWORD_LENGTH = 12;
+const MIN_TEMP_PASSWORD_LENGTH = 12;
 
 const COMMON_PASSWORDS = new Set([
+  'password',
+  '12345678',
   '123456789012',
   'password1234',
   'contraseña123',
@@ -25,5 +29,7 @@ function validarPasswordNueva(password, passwordTemporal = null) {
 module.exports = {
   COMMON_PASSWORDS,
   MIN_PASSWORD_LENGTH,
+  MIN_PRIVILEGED_PASSWORD_LENGTH,
+  MIN_TEMP_PASSWORD_LENGTH,
   validarPasswordNueva,
 };

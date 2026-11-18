@@ -4,6 +4,7 @@ const pool = require('../config/db');
 const auditoriaService = require('./auditoria.service');
 const { getActiveRegistry } = require('../realtime/socketRegistry');
 const { BCRYPT_COST } = require('../config/security');
+const { MIN_TEMP_PASSWORD_LENGTH } = require('./password-policy.service');
 
 const TEMPORARY_PASSWORD_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%^&*+-_=';
 const TEMPORARY_PASSWORD_LENGTH = 16;
@@ -30,8 +31,8 @@ function puedeResetear(solicitante, objetivo) {
 }
 
 function generarPasswordTemporal(length = TEMPORARY_PASSWORD_LENGTH) {
-  if (!Number.isInteger(length) || length < 12) {
-    throw new RangeError('La contraseña temporal debe tener al menos 12 caracteres');
+  if (!Number.isInteger(length) || length < MIN_TEMP_PASSWORD_LENGTH) {
+    throw new RangeError(`La contraseña temporal debe tener al menos ${MIN_TEMP_PASSWORD_LENGTH} caracteres`);
   }
 
   const result = [];

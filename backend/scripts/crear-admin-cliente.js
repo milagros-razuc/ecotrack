@@ -4,6 +4,7 @@ const { Pool } = require('pg');
 const { z } = require('zod');
 
 const { BCRYPT_COST } = require('../src/config/security');
+const { MIN_PRIVILEGED_PASSWORD_LENGTH } = require('../src/services/password-policy.service');
 const RESERVED_USERNAMES = new Set(['platform_admin', 'plataforma', 'root']);
 
 const inputSchema = z.object({
@@ -13,7 +14,7 @@ const inputSchema = z.object({
   nombreAdmin: z.string().trim().min(1),
   motivo: z.string().trim().min(3).max(200),
   password: z.string({ required_error: 'La contraseña es obligatoria (variable ECOTRACK_ADMIN_PASSWORD)' })
-  .min(12, 'La contraseña debe tener al menos 12 caracteres'),
+  .min(MIN_PRIVILEGED_PASSWORD_LENGTH, `La contraseña debe tener al menos ${MIN_PRIVILEGED_PASSWORD_LENGTH} caracteres`),
   pool: z.any().optional(),
   auditWriter: z.any().optional(),
 }).strict().superRefine((input, context) => {

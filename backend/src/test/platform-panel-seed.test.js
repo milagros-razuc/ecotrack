@@ -50,7 +50,7 @@ function fakePool({ client = null, user = null } = {}) {
   };
 }
 
-test('el seed valida la base y exige una clave mínima de 12 caracteres', async () => {
+test('el seed valida la base y exige una clave mínima privilegiada de 12 caracteres', async () => {
   let poolCreated = false;
   await assert.rejects(
     seedPlatformAdmin({
